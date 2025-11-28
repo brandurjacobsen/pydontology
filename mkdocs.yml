@@ -1,0 +1,14 @@
+site_name: Pydontology
+plugins:
+  - mkdocstrings:
+      handlers:
+        python:
+          docstring_style: google
+
+nav:
+  - Home: index.md
+  - Reference: reference.md
+
+markdown_extensions:
+  - toc:
+      permalink: "#"

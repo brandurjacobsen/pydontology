@@ -1,0 +1,32 @@
+
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pydontology"
+version = "0.1.4"
+dependencies = ["pydantic>=2.12"]
+requires-python = ">=3.8"
+authors = [
+  {name = "Brandur K. Jacobse", email = "brandurjacobsen@gmail.com"}
+]
+maintainers = [
+  {name = "Brandur K. Jacobsen", email = "brandurjacobsen@gmail.com"}
+]
+description = "A package for constructing ontologies and JSON-LD schemas using Pydantic model classes"
+readme = "README.md"
+license = "MIT"
+
+keywords = ["Pydontology", "Ontology", "RDF", "JSON Schema", "Pydantic"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python"
+]
+
+[project.optional-dependencies]
+examples = ["marimo", "rdflib"]
+
+[tool.setuptools]
+packages = ["pydontology"]
+py-modules = ["__init__"]

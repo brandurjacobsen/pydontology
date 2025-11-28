@@ -1,0 +1,11 @@
+.aider*
+.pytest_cache
+.ropeproject
+**__marimo__/
+**__pycache__/
+venv*
+**pydontology.egg-info
+**build
+*-venv
+site
+dist

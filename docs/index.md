@@ -39,10 +39,7 @@ pip install pydantic  # Required
 pip install -i https://test.pypi.org/simple/ pydontology
 ~~~
 
-## Examples
-Here are some simple examples of Pydontology in action.
-
-### Example 1
+## Example 1
 
 ~~~
 from pydontology import Entity, Relation, RDFSAnnotation

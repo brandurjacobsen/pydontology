@@ -3,21 +3,37 @@
 
 This package enables you to:
 
-  * Build an RDF ontology using the well-known paradigms of Pydantic model classes.
-  * Generate a JSON-LD (JSON for Linked Data) ontology graph from your ontology.
-  * Generate a JSON-LD SHACL (Shapes Constraint Language) graph from your ontology.
-  * Generate a JSON schema, which for example can be passed to LLMs to produce structured output.
-  * Parse data adhering to the JSON schema directly, using e.g. *rdflib*.
+  * Build an RDF ontology using the well-known Pydantic model classes
+  * Use typing.Annotated to add RDFS/OWL and SHACL metadata to your ontology class attributes
+  * Generate a JSON-LD (JSON for Linked Data) ontology graph from your ontology and metadata
+  * Generate a JSON-LD SHACL (Shapes Constraint Language) graph from your ontology and metadata
+  * Generate a JSON schema, which for example can be passed to LLMs to produce structured output
+  * Parse data adhering to the JSON schema directly, using e.g. rdflib
 
-When defining the classes in an ontology you can use typing.Annotated to provide RDFS/OWL and SHACL metadata to the attributes of the class.
-Pydontology provides the functions: *ontology_graph* and *shacl_graph* to generate the ontology graph and shacl graph respectively as JSON-LD graphs.
-This enables you to conceivably use SHACL constraints when validating LLM structured output, using e.g. pySHACL.
+The package exposes, amongst others, the classes *Entity* and *Relation*, which inherit Pydantic's BaseModel.
+Entity serves as the base class for ontology classes.
+An attribute of an Entity class is considered to be an RDF literal, unless the attribute is of type Relation.
+
+Once the ontology classes are defined, a call to *make_model* will return a *JSONLDGraph* class
+that, once instantiated and populated with ontology 'individuals', will serialize as a valid JSON-LD document, ready for parsing by e.g. rdflib.
+
+JSONLDGraph provides the class methods: *ontology_graph* and *shacl_graph* to generate the ontology graph and shacl graph respectively, as a (populated) JSONLDGraph instance.
+
+## Installation
+This package is currently distributed via TestPyPi. 
+
+To install in a Python virtual environment, run the following commands in a terminal, in a directory of your chosing: 
+~~~
+# Replace <venv_name> with a sensible name for the virtual environment
+python3 -m venv <venv_name>  
+source <venv_name>/bin/activate
+pip install --upgrade pip  # Optional
+pip install pydantic  # Required
+pip install -i https://test.pypi.org/simple/ pydontology
+~~~
 
 
 ## Example 1
-The package exposes, amongst others, the classes *Entity* and *Relation*, which inherit Pydantic's *BaseModel*.
-Entity serves as the base class for ontology classes.
-An attribute of an Entity class is considered to be an RDF literal, unless the attribute is of type *Relation*.
 
 ~~~
 from pydontology import Entity, Relation, RDFSAnnotation
@@ -40,8 +56,8 @@ class Manager(Employee):
 ~~~
 
 Note the use of typing.Annotated above to have the ontology graph include the triple: `ex:has_manager rdfs:range ex:Manager`,
-by using the *RDFSAnnotation.range* method.\
-The [RDFS](https://www.w3.org/TR/rdf-schema/) domain is per default assumed to be the class wherein the attribute is defined.
+by using the *RDFSAnnotation.range* method.
+The RDFS domain is per default assumed to be the class wherein the attribute is defined.
 
 The model can then be created using the *make_model* function:
 ~~~

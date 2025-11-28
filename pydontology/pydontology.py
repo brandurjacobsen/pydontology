@@ -9,13 +9,10 @@ from .shacl import SHACLAnnotation
 
 
 class Relation(BaseModel):
-    """Indicates that the attribute is to be considered an IRI.
-
-    With respect to serialization, this means that a Relation figures as a JSON-LD sub-object of Entity,
-    with '@id' set to the IRI of linked node.
-    """
+    """This class should be the type of Entity attributes to be considered as IRIs."""
 
     id: str = Field(alias="@id", title="@id", description="IRI (possibly relative)")
+    # Override description for json schema
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
 

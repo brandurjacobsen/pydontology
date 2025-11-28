@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pydontology"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = ["pydantic>=2.12"]
 requires-python = ">=3.8"
 authors = [
@@ -18,7 +18,7 @@ description = "A package for constructing ontologies and JSON-LD schemas using P
 readme = "README.md"
 license = "MIT"
 
-keywords = ["Pydontology", "Ontology", "RDF", "JSON Schema", "Pydantic"]
+keywords = ["Pydantic", "Ontology", "RDF", "RDFS", "SHACL", "JSON-LD", ]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python"

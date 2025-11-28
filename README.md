@@ -36,6 +36,8 @@ pip install -i https://test.pypi.org/simple/ pydontology
 ## Example 1
 
 ~~~
+from pydantic import Field
+from typing import Optional, Annotated
 from pydontology import Entity, Relation, RDFSAnnotation
 
 class Person(Entity):
@@ -70,6 +72,6 @@ Model = make_model(ontology)
 View the JSON schema, and the ontology in JSON-LD format:
 ~~~
 import json
-print(json.dumps(Model.model_json_schema(), indent=2)
-print(Model.ontology_graph().dump_model_json(indent=2))
+print(json.dumps(Model.model_json_schema(), indent=2))
+print(Model.ontology_graph().model_dump_json(indent=2))
 ~~~

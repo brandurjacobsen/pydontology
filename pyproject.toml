@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pydontology"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = ["pydantic>=2.12"]
 requires-python = ">=3.8"
 authors = [

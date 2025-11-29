@@ -37,7 +37,15 @@ class Entity(BaseModel):
 
 
 class OntologyClass(BaseModel):
-    """Represents an RDFS/OWL class in an ontology."""
+    """Represents an RDFS/OWL class in an ontology.
+    
+    Args:
+        id (str): The IRI identifier for the class (mapped to @id in JSON-LD)
+        type (Literal["rdfs:Class"]): The RDF type, always "rdfs:Class" (mapped to @type)
+        label (str): Human-readable label for the class (mapped to rdfs:label)
+        comment (Optional[str]): Optional description/comment for the class (mapped to rdfs:comment)
+        subClassOf (Optional[Relation]): Optional parent class relationship (mapped to rdfs:subClassOf)
+    """
 
     id: str = Field(alias="@id", description="Class IRI")
     type: Literal["rdfs:Class"] = Field(default="rdfs:Class", alias="@type")
@@ -53,7 +61,16 @@ class OntologyClass(BaseModel):
 
 
 class OntologyProperty(BaseModel):
-    """Represents an OWL property in an ontology."""
+    """Represents an OWL property in an ontology.
+    
+    Args:
+        id (str): The IRI identifier for the property (mapped to @id in JSON-LD)
+        type (Literal["owl:ObjectProperty", "owl:DatatypeProperty"]): The property type (mapped to @type)
+        label (str): Human-readable label for the property (mapped to rdfs:label)
+        domain (Relation): Domain class IRI (mapped to rdfs:domain)
+        range (Optional[Relation]): Optional range class or datatype IRI (mapped to rdfs:range)
+        comment (Optional[str]): Optional property description (mapped to rdfs:comment)
+    """
 
     id: str = Field(alias="@id", description="Property IRI")
     type: Literal["owl:ObjectProperty", "owl:DatatypeProperty"] = Field(alias="@type")
@@ -70,7 +87,27 @@ class OntologyProperty(BaseModel):
 
 
 class PropertyShape(BaseModel):
-    """Represents a SHACL property shape."""
+    """Represents a SHACL property shape.
+    
+    Args:
+        id (str): The IRI identifier for the property shape (mapped to @id in JSON-LD)
+        type (Literal["sh:PropertyShape"]): The shape type, always "sh:PropertyShape" (mapped to @type)
+        path (Relation): Property path (mapped to sh:path)
+        datatype (Optional[Relation]): Expected datatype (mapped to sh:datatype)
+        shclass (Optional[Relation]): Expected class (mapped to sh:class)
+        nodeKind (Optional[Relation]): Node kind constraint (mapped to sh:nodeKind)
+        minCount (Optional[int]): Minimum cardinality (mapped to sh:minCount)
+        maxCount (Optional[int]): Maximum cardinality (mapped to sh:maxCount)
+        pattern (Optional[str]): Pattern constraint (mapped to sh:pattern)
+        minLength (Optional[int]): Minimum length (mapped to sh:minLength)
+        maxLength (Optional[int]): Maximum length (mapped to sh:maxLength)
+        minInclusive (Optional[float]): Minimum inclusive value (mapped to sh:minInclusive)
+        maxInclusive (Optional[float]): Maximum inclusive value (mapped to sh:maxInclusive)
+        minExclusive (Optional[float]): Minimum exclusive value (mapped to sh:minExclusive)
+        maxExclusive (Optional[float]): Maximum exclusive value (mapped to sh:maxExclusive)
+        name (Optional[str]): Human-readable name (mapped to sh:name)
+        description (Optional[str]): Property description (mapped to sh:description)
+    """
 
     id: str = Field(alias="@id", description="Property shape IRI")
     type: Literal["sh:PropertyShape"] = Field(default="sh:PropertyShape", alias="@type")
@@ -122,7 +159,16 @@ class PropertyShape(BaseModel):
 
 
 class NodeShape(BaseModel):
-    """Represents a SHACL node shape."""
+    """Represents a SHACL node shape.
+    
+    Args:
+        id (str): The IRI identifier for the node shape (mapped to @id in JSON-LD)
+        type (Literal["sh:NodeShape"]): The shape type, always "sh:NodeShape" (mapped to @type)
+        targetClass (Relation): Target class (mapped to sh:targetClass)
+        property (List[PropertyShape]): List of property shapes (mapped to sh:property)
+        closed (Optional[bool]): Whether shape is closed (mapped to sh:closed)
+        ignoredProperties (Optional[List[Relation]]): Properties to ignore when closed (mapped to sh:ignoredProperties)
+    """
 
     id: str = Field(alias="@id", description="Node shape IRI")
     type: Literal["sh:NodeShape"] = Field(default="sh:NodeShape", alias="@type")
@@ -147,6 +193,10 @@ class JSONLDGraph(BaseModel):
 
     This is the return type of the make_model() function, and
     ontology_graph(), shacl_graph() class methods.
+    
+    Args:
+        context (dict): JSON-LD context (mapped to @context)
+        graph (List): Default graph containing entities (mapped to @graph)
     """
 
     context: SkipJsonSchema[dict] = Field(

@@ -9,20 +9,21 @@ from .shacl import SHACLAnnotation
 
 
 class Relation(BaseModel):
-    """This class should be the type of Entity attributes to be considered as IRIs."""
+    """This class should be the type of Entity attributes to be considered as IRIs.
+
+    Args:
+        id (str): IRI of relation
+    """
 
     id: str = Field(alias="@id", title="@id", description="IRI (possibly relative)")
-    # Override description for json schema
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
 
 class Entity(BaseModel):
     """The base class of all ontology classes.
 
-    This model serializes as a JSON-LD object, i.e. with '@id' and '@type',
-    with required field '@id' (IRI) populated by name 'id'.
-    '@type' (populated as 'type') is a computed field that is set to the class name.
-    Fields that are not of type Relation are considered to be RDF literals.
+    Args:
+        id (str): IRI
     """
 
     id: str = Field(alias="@id", description="IRI (possibly relative)", title="@id")
@@ -151,7 +152,7 @@ class JSONLDGraph(BaseModel):
     context: SkipJsonSchema[dict] = Field(
         default={
             "@vocab": "http://example.com/vocab/",
-            "@base": "http://example.com/vocab/",
+            "@base": "http://example.com/",
         },
         alias="@context",
         title="@context",

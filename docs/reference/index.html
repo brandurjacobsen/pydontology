@@ -77,11 +77,11 @@
             
             <li class="nav-item" data-bs-level="1"><a href="#core-classes-and-methods" class="nav-link">Core classes and methods</a>
               <ul class="nav flex-column">
-            <li class="nav-item" data-bs-level="2"><a href="#pydontology.pydontology.Entity" class="nav-link">Entity</a>
+            <li class="nav-item" data-bs-level="2"><a href="#pydontology.pydontology" class="nav-link">pydontology</a>
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#pydontology.pydontology.Relation" class="nav-link">Relation</a>
+            <li class="nav-item" data-bs-level="2"><a href="#pydontology.pydontology.Entity" class="nav-link">Entity</a>
               <ul class="nav flex-column">
               </ul>
             </li>
@@ -89,11 +89,7 @@
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#pydontology.pydontology.JSONLDGraph.ontology_graph" class="nav-link">ontology_graph</a>
-              <ul class="nav flex-column">
-              </ul>
-            </li>
-            <li class="nav-item" data-bs-level="2"><a href="#pydontology.pydontology.JSONLDGraph.shacl_graph" class="nav-link">shacl_graph</a>
+            <li class="nav-item" data-bs-level="2"><a href="#pydontology.pydontology.Relation" class="nav-link">Relation</a>
               <ul class="nav flex-column">
               </ul>
             </li>
@@ -132,12 +128,44 @@
 <h1 id="core-classes-and-methods">Core classes and methods<a class="headerlink" href="#core-classes-and-methods" title="Permanent link">#</a></h1>
 
 
+<div class="doc doc-object doc-module">
+
+
+
+<a id="pydontology.pydontology"></a>
+    <div class="doc doc-contents first">
+
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
 <div class="doc doc-object doc-class">
 
 
 
-<a id="pydontology.pydontology.Entity"></a>
-    <div class="doc doc-contents first">
+<h2 id="pydontology.pydontology.Entity" class="doc doc-heading">
+            <code>Entity</code>
+
+
+<a href="#pydontology.pydontology.Entity" class="headerlink" title="Permanent link">#</a></h2>
+
+
+    <div class="doc doc-contents ">
             <p class="doc doc-class-bases">
               Bases: <code><span title="pydantic.BaseModel">BaseModel</span></code></p>
 
@@ -242,102 +270,14 @@
 
 
 
-<a id="pydontology.pydontology.Relation"></a>
-    <div class="doc doc-contents first">
-            <p class="doc doc-class-bases">
-              Bases: <code><span title="pydantic.BaseModel">BaseModel</span></code></p>
+<h2 id="pydontology.pydontology.JSONLDGraph" class="doc doc-heading">
+            <code>JSONLDGraph</code>
 
 
-
-        <p>This class should be the type of Entity attributes to be considered as IRIs.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Type</th>
-          <th>Description</th>
-          <th>Default</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                <code>id</code>
-            </td>
-            <td>
-                  <code><span title="str">str</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>IRI of relation</p>
-              </div>
-            </td>
-            <td>
-                <em>required</em>
-            </td>
-          </tr>
-      </tbody>
-    </table>
+<a href="#pydontology.pydontology.JSONLDGraph" class="headerlink" title="Permanent link">#</a></h2>
 
 
-
-
-
-
-
-
-              <details class="mkdocstrings-source">
-                <summary>Source code in <code>pydontology/pydontology.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">11</span>
-<span class="normal">12</span>
-<span class="normal">13</span>
-<span class="normal">14</span>
-<span class="normal">15</span>
-<span class="normal">16</span>
-<span class="normal">17</span>
-<span class="normal">18</span>
-<span class="normal">19</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Relation</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;This class should be the type of Entity attributes to be considered as IRIs.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        id (str): IRI of relation</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="nb">id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;@id&quot;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;@id&quot;</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;IRI (possibly relative)&quot;</span><span class="p">)</span>
-    <span class="n">model_config</span> <span class="o">=</span> <span class="n">ConfigDict</span><span class="p">(</span><span class="n">populate_by_name</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">serialize_by_alias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</code></pre></div></td></tr></table></div>
-              </details>
-
-
-
-  <div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-
-
-
-  </div>
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-class">
-
-
-
-<a id="pydontology.pydontology.JSONLDGraph"></a>
-    <div class="doc doc-contents first">
+    <div class="doc doc-contents ">
             <p class="doc doc-class-bases">
               Bases: <code><span title="pydantic.BaseModel">BaseModel</span></code></p>
 
@@ -403,9 +343,7 @@ ontology_graph(), shacl_graph() class methods.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>pydontology/pydontology.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">191</span>
-<span class="normal">192</span>
-<span class="normal">193</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">193</span>
 <span class="normal">194</span>
 <span class="normal">195</span>
 <span class="normal">196</span>
@@ -855,7 +793,9 @@ ontology_graph(), shacl_graph() class methods.</p>
 <span class="normal">640</span>
 <span class="normal">641</span>
 <span class="normal">642</span>
-<span class="normal">643</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">JSONLDGraph</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="normal">643</span>
+<span class="normal">644</span>
+<span class="normal">645</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">JSONLDGraph</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Encapsulates a JSON-LD document/graph.</span>
 
 <span class="sd">    This is the return type of the make_model() function, and</span>
@@ -887,14 +827,14 @@ ontology_graph(), shacl_graph() class methods.</p>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate an ontology graph from the classes in the ontology.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            JSONLDGraph: With OntologyClass and OntologyProperty (internal classes) instances.</span>
+<span class="sd">            JSONLDGraph: With _OntologyClass and _OntologyProperty (internal classes) instances.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="c1"># Collect unique entity types from the model</span>
         <span class="n">entity_classes</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_collect_entity_classes_from_model</span><span class="p">()</span>
 
         <span class="c1"># Generate class and property definitions</span>
-        <span class="n">ontology_entities</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">OntologyClass</span> <span class="o">|</span> <span class="n">OntologyProperty</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">ontology_entities</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">_OntologyClass</span> <span class="o">|</span> <span class="n">_OntologyProperty</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">properties_seen</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
 
         <span class="k">for</span> <span class="n">entity_class</span> <span class="ow">in</span> <span class="n">entity_classes</span><span class="p">:</span>
@@ -929,14 +869,14 @@ ontology_graph(), shacl_graph() class methods.</p>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate SHACL shapes graph from the classes in the ontology.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            JSONLDGraph: With NodeShape and PropertyShape (internal classes) instances.</span>
+<span class="sd">            JSONLDGraph: With _NodeShape and _PropertyShape (internal classes) instances.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="c1"># Collect unique entity types from the model</span>
         <span class="n">entity_classes</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_collect_entity_classes_from_model</span><span class="p">()</span>
 
         <span class="c1"># Generate node shapes</span>
-        <span class="n">shacl_shapes</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">NodeShape</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">shacl_shapes</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">_NodeShape</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
 
         <span class="k">for</span> <span class="n">entity_class</span> <span class="ow">in</span> <span class="n">entity_classes</span><span class="p">:</span>
             <span class="c1"># Create node shape for this class</span>
@@ -1023,7 +963,7 @@ ontology_graph(), shacl_graph() class methods.</p>
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_create_class_definition</span><span class="p">(</span>
         <span class="bp">cls</span><span class="p">,</span> <span class="n">entity_class</span><span class="p">,</span> <span class="n">entity_classes</span><span class="p">:</span> <span class="nb">set</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">OntologyClass</span><span class="p">:</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_OntologyClass</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Create an RDFS class definition for an Entity class.</span>
 
 <span class="sd">        Args:</span>
@@ -1031,9 +971,9 @@ ontology_graph(), shacl_graph() class methods.</p>
 <span class="sd">            entity_classes: Set of all entity classes in the model.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            OntologyClass: RDFS class definition.</span>
+<span class="sd">            _OntologyClass: RDFS class definition.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">class_def</span> <span class="o">=</span> <span class="n">OntologyClass</span><span class="p">(</span>
+        <span class="n">class_def</span> <span class="o">=</span> <span class="n">_OntologyClass</span><span class="p">(</span>
             <span class="nb">id</span><span class="o">=</span><span class="n">entity_class</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
             <span class="n">label</span><span class="o">=</span><span class="n">entity_class</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
             <span class="n">comment</span><span class="o">=</span><span class="n">entity_class</span><span class="o">.</span><span class="vm">__doc__</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">if</span> <span class="n">entity_class</span><span class="o">.</span><span class="vm">__doc__</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
@@ -1050,7 +990,7 @@ ontology_graph(), shacl_graph() class methods.</p>
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_create_property_definitions</span><span class="p">(</span>
         <span class="bp">cls</span><span class="p">,</span> <span class="n">entity_class</span><span class="p">,</span> <span class="n">properties_seen</span><span class="p">:</span> <span class="nb">set</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">OntologyProperty</span><span class="p">]:</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">_OntologyProperty</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Create property definitions for fields defined on a class.</span>
 
 <span class="sd">        Args:</span>
@@ -1058,7 +998,7 @@ ontology_graph(), shacl_graph() class methods.</p>
 <span class="sd">            properties_seen: Set of property names already processed.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            List[OntologyProperty]: Property definitions for the class fields.</span>
+<span class="sd">            List[_OntologyProperty]: Property definitions for the class fields.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">property_defs</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">parent_fields</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_parent_fields</span><span class="p">(</span><span class="n">entity_class</span><span class="p">)</span>
@@ -1100,7 +1040,7 @@ ontology_graph(), shacl_graph() class methods.</p>
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_create_single_property_definition</span><span class="p">(</span>
         <span class="bp">cls</span><span class="p">,</span> <span class="n">entity_class</span><span class="p">,</span> <span class="n">field_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">field_info</span><span class="p">,</span> <span class="n">prop_name</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">OntologyProperty</span><span class="p">:</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_OntologyProperty</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a single property definition.</span>
 
 <span class="sd">        Args:</span>
@@ -1110,7 +1050,7 @@ ontology_graph(), shacl_graph() class methods.</p>
 <span class="sd">            prop_name: Name for the property.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            OntologyProperty: Property definition for the field.</span>
+<span class="sd">            _OntologyProperty: Property definition for the field.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Extract type and metadata</span>
         <span class="n">field_type</span><span class="p">,</span> <span class="n">metadata</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_extract_field_type_and_metadata</span><span class="p">(</span>
@@ -1120,7 +1060,7 @@ ontology_graph(), shacl_graph() class methods.</p>
         <span class="c1"># Determine if ObjectProperty or DatatypeProperty</span>
         <span class="n">is_relation</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_is_relation_type</span><span class="p">(</span><span class="n">field_type</span><span class="p">)</span>
 
-        <span class="n">prop_def</span> <span class="o">=</span> <span class="n">OntologyProperty</span><span class="p">(</span>
+        <span class="n">prop_def</span> <span class="o">=</span> <span class="n">_OntologyProperty</span><span class="p">(</span>
             <span class="nb">id</span><span class="o">=</span><span class="n">prop_name</span><span class="p">,</span>
             <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;owl:ObjectProperty&quot;</span> <span class="k">if</span> <span class="n">is_relation</span> <span class="k">else</span> <span class="s2">&quot;owl:DatatypeProperty&quot;</span><span class="p">,</span>
             <span class="n">label</span><span class="o">=</span><span class="n">prop_name</span><span class="p">,</span>
@@ -1128,7 +1068,7 @@ ontology_graph(), shacl_graph() class methods.</p>
             <span class="n">comment</span><span class="o">=</span><span class="n">field_info</span><span class="o">.</span><span class="n">description</span><span class="p">,</span>
         <span class="p">)</span>
 
-        <span class="c1"># Add properties to OntologyProperty according to annotation</span>
+        <span class="c1"># Add properties to _OntologyProperty according to annotation</span>
         <span class="k">for</span> <span class="n">meta</span> <span class="ow">in</span> <span class="n">metadata</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="n">RDFSAnnotation</span><span class="o">.</span><span class="n">DOMAIN</span><span class="p">):</span>
                 <span class="n">prop_def</span><span class="o">.</span><span class="n">domain</span> <span class="o">=</span> <span class="n">Relation</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
@@ -1138,14 +1078,14 @@ ontology_graph(), shacl_graph() class methods.</p>
         <span class="k">return</span> <span class="n">prop_def</span>
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">_create_node_shape</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">entity_class</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NodeShape</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_create_node_shape</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">entity_class</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_NodeShape</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a SHACL node shape for an Entity class.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            entity_class: The Entity class to create a node shape for.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            NodeShape: SHACL node shape for the entity class.</span>
+<span class="sd">            _NodeShape: SHACL node shape for the entity class.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Create property shapes for all fields</span>
         <span class="n">property_shapes</span> <span class="o">=</span> <span class="p">[]</span>
@@ -1162,7 +1102,7 @@ ontology_graph(), shacl_graph() class methods.</p>
             <span class="n">property_shapes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prop_shape</span><span class="p">)</span>
 
         <span class="c1"># Create node shape</span>
-        <span class="n">node_shape</span> <span class="o">=</span> <span class="n">NodeShape</span><span class="p">(</span>
+        <span class="n">node_shape</span> <span class="o">=</span> <span class="n">_NodeShape</span><span class="p">(</span>
             <span class="nb">id</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">entity_class</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">Shape&quot;</span><span class="p">,</span>
             <span class="n">targetClass</span><span class="o">=</span><span class="n">Relation</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="n">entity_class</span><span class="o">.</span><span class="vm">__name__</span><span class="p">),</span>
             <span class="nb">property</span><span class="o">=</span><span class="n">property_shapes</span><span class="p">,</span>
@@ -1173,7 +1113,7 @@ ontology_graph(), shacl_graph() class methods.</p>
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_create_property_shape</span><span class="p">(</span>
         <span class="bp">cls</span><span class="p">,</span> <span class="n">entity_class</span><span class="p">,</span> <span class="n">field_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">field_info</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PropertyShape</span><span class="p">:</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_PropertyShape</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a SHACL property shape for a field.</span>
 
 <span class="sd">        Args:</span>
@@ -1182,7 +1122,7 @@ ontology_graph(), shacl_graph() class methods.</p>
 <span class="sd">            field_info: Pydantic field information.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            PropertyShape: SHACL property shape for the field.</span>
+<span class="sd">            _PropertyShape: SHACL property shape for the field.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Extract type and metadata</span>
         <span class="n">field_type</span><span class="p">,</span> <span class="n">metadata</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_extract_field_type_and_metadata</span><span class="p">(</span>
@@ -1193,7 +1133,7 @@ ontology_graph(), shacl_graph() class methods.</p>
         <span class="n">is_relation</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_is_relation_type</span><span class="p">(</span><span class="n">field_type</span><span class="p">)</span>
 
         <span class="c1"># Create base property shape</span>
-        <span class="n">prop_shape</span> <span class="o">=</span> <span class="n">PropertyShape</span><span class="p">(</span>
+        <span class="n">prop_shape</span> <span class="o">=</span> <span class="n">_PropertyShape</span><span class="p">(</span>
             <span class="nb">id</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">entity_class</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">Shape_</span><span class="si">{</span><span class="n">field_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
             <span class="n">path</span><span class="o">=</span><span class="n">Relation</span><span class="p">(</span><span class="nb">id</span><span class="o">=</span><span class="n">field_name</span><span class="p">),</span>
             <span class="n">name</span><span class="o">=</span><span class="n">field_name</span><span class="p">,</span>
@@ -1327,14 +1267,14 @@ ontology_graph(), shacl_graph() class methods.</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="pydontology.pydontology.JSONLDGraph.ontology_graph" class="doc doc-heading">
+<h3 id="pydontology.pydontology.JSONLDGraph.ontology_graph" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">ontology_graph</span><span class="p">()</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
   </span>
 
-<a href="#pydontology.pydontology.JSONLDGraph.ontology_graph" class="headerlink" title="Permanent link">#</a></h2>
+<a href="#pydontology.pydontology.JSONLDGraph.ontology_graph" class="headerlink" title="Permanent link">#</a></h3>
 
 
     <div class="doc doc-contents ">
@@ -1353,11 +1293,11 @@ ontology_graph(), shacl_graph() class methods.</p>
       <tbody>
           <tr class="doc-section-item">
 <td><code>JSONLDGraph</code></td>            <td>
-                  <code><a class="autorefs autorefs-internal" title="pydontology.pydontology.JSONLDGraph" href="#pydontology.pydontology.JSONLDGraph">JSONLDGraph</a></code>
+                  <code><a class="autorefs autorefs-internal" title="JSONLDGraph (pydontology.pydontology.JSONLDGraph)" href="#pydontology.pydontology.JSONLDGraph">JSONLDGraph</a></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>With OntologyClass and OntologyProperty (internal classes) instances.</p>
+                <p>With _OntologyClass and _OntologyProperty (internal classes) instances.</p>
               </div>
             </td>
           </tr>
@@ -1367,9 +1307,7 @@ ontology_graph(), shacl_graph() class methods.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pydontology/pydontology.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">218</span>
-<span class="normal">219</span>
-<span class="normal">220</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">220</span>
 <span class="normal">221</span>
 <span class="normal">222</span>
 <span class="normal">223</span>
@@ -1407,19 +1345,21 @@ ontology_graph(), shacl_graph() class methods.</p>
 <span class="normal">255</span>
 <span class="normal">256</span>
 <span class="normal">257</span>
-<span class="normal">258</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">ontology_graph</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;JSONLDGraph&quot;</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate an ontology graph from the classes in the ontology.</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        JSONLDGraph: With OntologyClass and OntologyProperty (internal classes) instances.</span>
+<span class="sd">        JSONLDGraph: With _OntologyClass and _OntologyProperty (internal classes) instances.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="c1"># Collect unique entity types from the model</span>
     <span class="n">entity_classes</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_collect_entity_classes_from_model</span><span class="p">()</span>
 
     <span class="c1"># Generate class and property definitions</span>
-    <span class="n">ontology_entities</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">OntologyClass</span> <span class="o">|</span> <span class="n">OntologyProperty</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">ontology_entities</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">_OntologyClass</span> <span class="o">|</span> <span class="n">_OntologyProperty</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">properties_seen</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
 
     <span class="k">for</span> <span class="n">entity_class</span> <span class="ow">in</span> <span class="n">entity_classes</span><span class="p">:</span>
@@ -1457,14 +1397,14 @@ ontology_graph(), shacl_graph() class methods.</p>
 <div class="doc doc-object doc-function">
 
 
-<h2 id="pydontology.pydontology.JSONLDGraph.shacl_graph" class="doc doc-heading">
+<h3 id="pydontology.pydontology.JSONLDGraph.shacl_graph" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">shacl_graph</span><span class="p">()</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
   </span>
 
-<a href="#pydontology.pydontology.JSONLDGraph.shacl_graph" class="headerlink" title="Permanent link">#</a></h2>
+<a href="#pydontology.pydontology.JSONLDGraph.shacl_graph" class="headerlink" title="Permanent link">#</a></h3>
 
 
     <div class="doc doc-contents ">
@@ -1483,11 +1423,11 @@ ontology_graph(), shacl_graph() class methods.</p>
       <tbody>
           <tr class="doc-section-item">
 <td><code>JSONLDGraph</code></td>            <td>
-                  <code><a class="autorefs autorefs-internal" title="pydontology.pydontology.JSONLDGraph" href="#pydontology.pydontology.JSONLDGraph">JSONLDGraph</a></code>
+                  <code><a class="autorefs autorefs-internal" title="JSONLDGraph (pydontology.pydontology.JSONLDGraph)" href="#pydontology.pydontology.JSONLDGraph">JSONLDGraph</a></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>With NodeShape and PropertyShape (internal classes) instances.</p>
+                <p>With _NodeShape and _PropertyShape (internal classes) instances.</p>
               </div>
             </td>
           </tr>
@@ -1497,9 +1437,7 @@ ontology_graph(), shacl_graph() class methods.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pydontology/pydontology.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">260</span>
-<span class="normal">261</span>
-<span class="normal">262</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">262</span>
 <span class="normal">263</span>
 <span class="normal">264</span>
 <span class="normal">265</span>
@@ -1530,19 +1468,21 @@ ontology_graph(), shacl_graph() class methods.</p>
 <span class="normal">290</span>
 <span class="normal">291</span>
 <span class="normal">292</span>
-<span class="normal">293</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">shacl_graph</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;JSONLDGraph&quot;</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate SHACL shapes graph from the classes in the ontology.</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        JSONLDGraph: With NodeShape and PropertyShape (internal classes) instances.</span>
+<span class="sd">        JSONLDGraph: With _NodeShape and _PropertyShape (internal classes) instances.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="c1"># Collect unique entity types from the model</span>
     <span class="n">entity_classes</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_collect_entity_classes_from_model</span><span class="p">()</span>
 
     <span class="c1"># Generate node shapes</span>
-    <span class="n">shacl_shapes</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">NodeShape</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">shacl_shapes</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">_NodeShape</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
 
     <span class="k">for</span> <span class="n">entity_class</span> <span class="ow">in</span> <span class="n">entity_classes</span><span class="p">:</span>
         <span class="c1"># Create node shape for this class</span>
@@ -1578,12 +1518,117 @@ ontology_graph(), shacl_graph() class methods.</p>
 
 </div>
 
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="pydontology.pydontology.Relation" class="doc doc-heading">
+            <code>Relation</code>
+
+
+<a href="#pydontology.pydontology.Relation" class="headerlink" title="Permanent link">#</a></h2>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="pydantic.BaseModel">BaseModel</span></code></p>
+
+
+
+        <p>This class should be the type of Entity attributes to be considered as IRIs.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>id</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>IRI of relation</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+              <details class="mkdocstrings-source">
+                <summary>Source code in <code>pydontology/pydontology.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">11</span>
+<span class="normal">12</span>
+<span class="normal">13</span>
+<span class="normal">14</span>
+<span class="normal">15</span>
+<span class="normal">16</span>
+<span class="normal">17</span>
+<span class="normal">18</span>
+<span class="normal">19</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Relation</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;This class should be the type of Entity attributes to be considered as IRIs.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        id (str): IRI of relation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nb">id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;@id&quot;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;@id&quot;</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;IRI (possibly relative)&quot;</span><span class="p">)</span>
+    <span class="n">model_config</span> <span class="o">=</span> <span class="n">ConfigDict</span><span class="p">(</span><span class="n">populate_by_name</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">serialize_by_alias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+              </details>
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
 <div class="doc doc-object doc-function">
 
 
+<h2 id="pydontology.pydontology.make_model" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">make_model</span><span class="p">(</span><span class="n">ontology</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;Pydontology&#39;</span><span class="p">)</span></code>
 
-<a id="pydontology.pydontology.make_model"></a>
-    <div class="doc doc-contents first">
+<a href="#pydontology.pydontology.make_model" class="headerlink" title="Permanent link">#</a></h2>
+
+
+    <div class="doc doc-contents ">
 
         <p>Create a JSONLDGraph Pydantic model class</p>
 
@@ -1646,7 +1691,7 @@ ontology_graph(), shacl_graph() class methods.</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><span title="type">type</span>[<a class="autorefs autorefs-internal" title="pydontology.pydontology.JSONLDGraph" href="#pydontology.pydontology.JSONLDGraph">JSONLDGraph</a>]</code>
+                  <code><span title="type">type</span>[<a class="autorefs autorefs-internal" title="JSONLDGraph (pydontology.pydontology.JSONLDGraph)" href="#pydontology.pydontology.JSONLDGraph">JSONLDGraph</a>]</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1672,9 +1717,7 @@ Model = make_model(ontology)
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pydontology/pydontology.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">646</span>
-<span class="normal">647</span>
-<span class="normal">648</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">648</span>
 <span class="normal">649</span>
 <span class="normal">650</span>
 <span class="normal">651</span>
@@ -1706,7 +1749,9 @@ Model = make_model(ontology)
 <span class="normal">677</span>
 <span class="normal">678</span>
 <span class="normal">679</span>
-<span class="normal">680</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">make_model</span><span class="p">(</span><span class="n">ontology</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Entity</span><span class="p">],</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Pydontology&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">type</span><span class="p">[</span><span class="n">JSONLDGraph</span><span class="p">]:</span>
+<span class="normal">680</span>
+<span class="normal">681</span>
+<span class="normal">682</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">make_model</span><span class="p">(</span><span class="n">ontology</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Entity</span><span class="p">],</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Pydontology&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">type</span><span class="p">[</span><span class="n">JSONLDGraph</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a JSONLDGraph Pydantic model class</span>
 
 <span class="sd">    Args:</span>
@@ -1743,6 +1788,14 @@ Model = make_model(ontology)
     <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
     </div>
 
 </div><h1 id="annotation-classes">Annotation classes<a class="headerlink" href="#annotation-classes" title="Permanent link">#</a></h1>

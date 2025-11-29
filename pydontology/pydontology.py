@@ -36,7 +36,7 @@ class Entity(BaseModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
 
-class OntologyClass(BaseModel):
+class _OntologyClass(BaseModel):
     """Represents an RDFS/OWL class in an ontology.
 
     Args:
@@ -60,7 +60,7 @@ class OntologyClass(BaseModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
 
-class OntologyProperty(BaseModel):
+class _OntologyProperty(BaseModel):
     """Represents an OWL property in an ontology.
 
     Args:
@@ -86,12 +86,12 @@ class OntologyProperty(BaseModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
 
-class PropertyShape(BaseModel):
+class _PropertyShape(BaseModel):
     """Represents a SHACL property shape.
 
     Args:
         id (str): The IRI identifier for the property shape (mapped to @id in JSON-LD)
-        type (Literal["sh:PropertyShape"]): The shape type, always "sh:PropertyShape" (mapped to @type)
+        type (Literal["sh:_PropertyShape"]): The shape type, always "sh:_PropertyShape" (mapped to @type)
         path (Relation): Property path (mapped to sh:path)
         datatype (Optional[Relation]): Expected datatype (mapped to sh:datatype)
         shclass (Optional[Relation]): Expected class (mapped to sh:class)
@@ -110,7 +110,9 @@ class PropertyShape(BaseModel):
     """
 
     id: str = Field(alias="@id", description="Property shape IRI")
-    type: Literal["sh:PropertyShape"] = Field(default="sh:PropertyShape", alias="@type")
+    type: Literal["sh:_PropertyShape"] = Field(
+        default="sh:_PropertyShape", alias="@type"
+    )
     path: Relation = Field(alias="sh:path", description="Property path")
     datatype: Optional[Relation] = Field(
         default=None, alias="sh:datatype", description="Expected datatype"
@@ -158,22 +160,22 @@ class PropertyShape(BaseModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
 
-class NodeShape(BaseModel):
+class _NodeShape(BaseModel):
     """Represents a SHACL node shape.
 
     Args:
         id (str): The IRI identifier for the node shape (mapped to @id in JSON-LD)
-        type (Literal["sh:NodeShape"]): The shape type, always "sh:NodeShape" (mapped to @type)
+        type (Literal["sh:_NodeShape"]): The shape type, always "sh:_NodeShape" (mapped to @type)
         targetClass (Relation): Target class (mapped to sh:targetClass)
-        property (List[PropertyShape]): List of property shapes (mapped to sh:property)
+        property (List[_PropertyShape]): List of property shapes (mapped to sh:property)
         closed (Optional[bool]): Whether shape is closed (mapped to sh:closed)
         ignoredProperties (Optional[List[Relation]]): Properties to ignore when closed (mapped to sh:ignoredProperties)
     """
 
     id: str = Field(alias="@id", description="Node shape IRI")
-    type: Literal["sh:NodeShape"] = Field(default="sh:NodeShape", alias="@type")
+    type: Literal["sh:_NodeShape"] = Field(default="sh:_NodeShape", alias="@type")
     targetClass: Relation = Field(alias="sh:targetClass", description="Target class")
-    property: List[PropertyShape] = Field(
+    property: List[_PropertyShape] = Field(
         default_factory=list, alias="sh:property", description="Property shapes"
     )
     closed: Optional[bool] = Field(
@@ -220,14 +222,14 @@ class JSONLDGraph(BaseModel):
         """Generate an ontology graph from the classes in the ontology.
 
         Returns:
-            JSONLDGraph: With OntologyClass and OntologyProperty (internal classes) instances.
+            JSONLDGraph: With _OntologyClass and _OntologyProperty (internal classes) instances.
         """
 
         # Collect unique entity types from the model
         entity_classes = cls._collect_entity_classes_from_model()
 
         # Generate class and property definitions
-        ontology_entities: List[OntologyClass | OntologyProperty] = []
+        ontology_entities: List[_OntologyClass | _OntologyProperty] = []
         properties_seen = set()
 
         for entity_class in entity_classes:
@@ -262,14 +264,14 @@ class JSONLDGraph(BaseModel):
         """Generate SHACL shapes graph from the classes in the ontology.
 
         Returns:
-            JSONLDGraph: With NodeShape and PropertyShape (internal classes) instances.
+            JSONLDGraph: With _NodeShape and _PropertyShape (internal classes) instances.
         """
 
         # Collect unique entity types from the model
         entity_classes = cls._collect_entity_classes_from_model()
 
         # Generate node shapes
-        shacl_shapes: List[NodeShape] = []
+        shacl_shapes: List[_NodeShape] = []
 
         for entity_class in entity_classes:
             # Create node shape for this class
@@ -356,7 +358,7 @@ class JSONLDGraph(BaseModel):
     @classmethod
     def _create_class_definition(
         cls, entity_class, entity_classes: set
-    ) -> OntologyClass:
+    ) -> _OntologyClass:
         """Create an RDFS class definition for an Entity class.
 
         Args:
@@ -364,9 +366,9 @@ class JSONLDGraph(BaseModel):
             entity_classes: Set of all entity classes in the model.
 
         Returns:
-            OntologyClass: RDFS class definition.
+            _OntologyClass: RDFS class definition.
         """
-        class_def = OntologyClass(
+        class_def = _OntologyClass(
             id=entity_class.__name__,
             label=entity_class.__name__,
             comment=entity_class.__doc__.strip() if entity_class.__doc__ else None,
@@ -383,7 +385,7 @@ class JSONLDGraph(BaseModel):
     @classmethod
     def _create_property_definitions(
         cls, entity_class, properties_seen: set
-    ) -> List[OntologyProperty]:
+    ) -> List[_OntologyProperty]:
         """Create property definitions for fields defined on a class.
 
         Args:
@@ -391,7 +393,7 @@ class JSONLDGraph(BaseModel):
             properties_seen: Set of property names already processed.
 
         Returns:
-            List[OntologyProperty]: Property definitions for the class fields.
+            List[_OntologyProperty]: Property definitions for the class fields.
         """
         property_defs = []
         parent_fields = cls._get_parent_fields(entity_class)
@@ -433,7 +435,7 @@ class JSONLDGraph(BaseModel):
     @classmethod
     def _create_single_property_definition(
         cls, entity_class, field_name: str, field_info, prop_name: str
-    ) -> OntologyProperty:
+    ) -> _OntologyProperty:
         """Create a single property definition.
 
         Args:
@@ -443,7 +445,7 @@ class JSONLDGraph(BaseModel):
             prop_name: Name for the property.
 
         Returns:
-            OntologyProperty: Property definition for the field.
+            _OntologyProperty: Property definition for the field.
         """
         # Extract type and metadata
         field_type, metadata = cls._extract_field_type_and_metadata(
@@ -453,7 +455,7 @@ class JSONLDGraph(BaseModel):
         # Determine if ObjectProperty or DatatypeProperty
         is_relation = cls._is_relation_type(field_type)
 
-        prop_def = OntologyProperty(
+        prop_def = _OntologyProperty(
             id=prop_name,
             type="owl:ObjectProperty" if is_relation else "owl:DatatypeProperty",
             label=prop_name,
@@ -461,7 +463,7 @@ class JSONLDGraph(BaseModel):
             comment=field_info.description,
         )
 
-        # Add properties to OntologyProperty according to annotation
+        # Add properties to _OntologyProperty according to annotation
         for meta in metadata:
             if isinstance(meta, RDFSAnnotation.DOMAIN):
                 prop_def.domain = Relation(id=meta.value)
@@ -471,14 +473,14 @@ class JSONLDGraph(BaseModel):
         return prop_def
 
     @classmethod
-    def _create_node_shape(cls, entity_class) -> NodeShape:
+    def _create_node_shape(cls, entity_class) -> _NodeShape:
         """Create a SHACL node shape for an Entity class.
 
         Args:
             entity_class: The Entity class to create a node shape for.
 
         Returns:
-            NodeShape: SHACL node shape for the entity class.
+            _NodeShape: SHACL node shape for the entity class.
         """
         # Create property shapes for all fields
         property_shapes = []
@@ -495,7 +497,7 @@ class JSONLDGraph(BaseModel):
             property_shapes.append(prop_shape)
 
         # Create node shape
-        node_shape = NodeShape(
+        node_shape = _NodeShape(
             id=f"{entity_class.__name__}Shape",
             targetClass=Relation(id=entity_class.__name__),
             property=property_shapes,
@@ -506,7 +508,7 @@ class JSONLDGraph(BaseModel):
     @classmethod
     def _create_property_shape(
         cls, entity_class, field_name: str, field_info
-    ) -> PropertyShape:
+    ) -> _PropertyShape:
         """Create a SHACL property shape for a field.
 
         Args:
@@ -515,7 +517,7 @@ class JSONLDGraph(BaseModel):
             field_info: Pydantic field information.
 
         Returns:
-            PropertyShape: SHACL property shape for the field.
+            _PropertyShape: SHACL property shape for the field.
         """
         # Extract type and metadata
         field_type, metadata = cls._extract_field_type_and_metadata(
@@ -526,7 +528,7 @@ class JSONLDGraph(BaseModel):
         is_relation = cls._is_relation_type(field_type)
 
         # Create base property shape
-        prop_shape = PropertyShape(
+        prop_shape = _PropertyShape(
             id=f"{entity_class.__name__}Shape_{field_name}",
             path=Relation(id=field_name),
             name=field_name,

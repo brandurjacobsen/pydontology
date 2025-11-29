@@ -58,7 +58,7 @@ def val_datatype(input: str):
     """
     allowed = ["xsd:integer", "xsd:deciaml", "xsd:string", "xsd:boolean"]
 
-    if not input in allowed:
+    if input not in allowed:
         raise ValueError(f"String must be one of {allowed}")
     return input
 

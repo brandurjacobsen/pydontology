@@ -20,7 +20,7 @@ that, once instantiated and populated with ontology 'individuals', will serializ
 JSONLDGraph provides the class methods: *ontology_graph* and *shacl_graph* to generate the ontology graph and shacl graph respectively, as a (populated) JSONLDGraph instance.
 
 ## Installation
-This package is currently distributed via TestPyPi. 
+This package is currently distributed via [TestPyPi](https://test.pypi.org/project/pydontology/). 
 
 To install in a Python virtual environment, run the following commands in a terminal, in a directory of your chosing: 
 ~~~
@@ -29,8 +29,11 @@ python3 -m venv <venv_name>
 source <venv_name>/bin/activate
 pip install --upgrade pip  # Optional
 pip install pydantic  # Required
-pip install -i https://test.pypi.org/simple/ pydontology
+pip install -i https://test.pypi.org/simple/ pydontology  # Installs latest version
 ~~~
+
+## Documentation
+Documentation is built using mkdocs and hosted using Github Pages here: [https://brandurjacobsen.github.io/pydontology/](https://brandurjacobsen.github.io/pydontology/)
 
 
 ## Example 1

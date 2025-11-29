@@ -13,121 +13,173 @@ from .validators import (
 
 
 class SHACLAnnotation:
-    """Helper class for SHACL annotations."""
+    """Provides methods for setting SHACL annotations.
+
+    Encapsulates dataclasses that validate and provide type information for SHACL annotations.
+    These annotations are used in the construction of the SHACL graph.
+    """
 
     @dataclass
     class DATATYPE:
-        """Metadata to specify sh:datatype for a property.
+        """Dataclass that holds sh:datatype annotation for a property.
 
         The values of sh:datatype in a shape are IRIs (e.g. xsd:integer).
         A shape has at most one value for sh:datatype.
+
+        Args:
+            value (str): IRI of datatype
         """
 
         value: Annotated[str, AfterValidator(val_datatype)]
 
     @dataclass
     class MAX_COUNT:
-        """Metadata to specify sh:maxCount for a property.
+        """Dataclass that holds sh:maxCount annotation for a property.
 
         The maximum cardinality.
         The values of sh:maxCount in a property shape are literals with datatype xsd:integer.
+
+        Args:
+            value (int): Max cardinality of property
         """
 
         value: Annotated[int, AfterValidator(val_non_negative_int)]
 
     @dataclass
     class MIN_COUNT:
-        """Metadata to specify sh:minCount for a property.
+        """Dataclass that holds sh:minCount annotation for a property.
 
         The minimum cardinality.
         The values of sh:minCount in a property shape are literals with datatype xsd:integer.
+
+        Args:
+            value (int): Min cardinality of property
         """
 
         value: Annotated[int, AfterValidator(val_non_negative_int)]
 
     @dataclass
     class PATTERN:
-        """Metadata to specify sh:pattern for a property.
+        """Dataclass that holds sh:pattern annotation for a property.
 
+        String-based constraint.
         A regular expression that all value nodes need to match.
-        The values of sh:pattern in a shape are valid pattern arguments for the SPARQL REGEX function."""
+        The values of sh:pattern in a shape are valid pattern arguments for the SPARQL REGEX function.
+
+        Args:
+            value (str): SPARQL regex (validation not implemented!)
+        """
 
         value: Annotated[str, AfterValidator(val_regex_pattern)]
 
     @dataclass
     class MIN_LENGTH:
-        """Metadata to specify sh:minLength for a property.
+        """Dataclass that holds sh:minLength annotation for a property.
 
+        String-based constraint.
         The minimum length. The values of sh:minLength in a shape are literals with datatype xsd:integer.
         A shape has at most one value for sh:minLength.
+
+        Args:
+            value (int): Min length of RDF literal
         """
 
         value: Annotated[int, AfterValidator(val_non_negative_int)]
 
     @dataclass
     class MAX_LENGTH:
-        """Metadata to specify sh:maxLength for a property.
+        """Dataclass that holds sh:maxLength annotation for a property.
 
+        String-based constraint.
         The maximum length. The values of sh:maxLength in a shape are literals with datatype xsd:integer.
         A shape has at most one value for sh:maxLength.
+
+        Args:
+            value (int): Max length of RDF literal
         """
 
         value: Annotated[int, AfterValidator(val_non_negative_int)]
 
     @dataclass
     class MIN_INCLUSIVE:
-        """Metadata to specify sh:minInclusive for a property.
+        """Dataclass that holds sh:minInclusive annotation for a property.
 
+        Value range constraint.
         The minimum inclusive value. The values of sh:minInclusive in a shape are literals.
-        A shape has at most one value for sh:minInclusive."""
+        A shape has at most one value for sh:minInclusive.
+
+        Args:
+            value (int | float): Min inclusive value of RDF literal
+        """
 
         value: int | float
 
     @dataclass
     class MAX_INCLUSIVE:
-        """Metadata to specify sh:maxInclusive for a property.
+        """Dataclass that holds sh:maxInclusive annotation for a property.
 
+        Value range constraint.
         The maximum inclusive value. The values of sh:maxInclusive in a shape are literals.
         A shape has at most one value for sh:maxInclusive.
+
+        Args:
+            value (int | float): Max inclusive value of RDF literal
         """
 
         value: int | float
 
     @dataclass
     class MIN_EXCLUSIVE:
-        """Metadata to specify sh:minExclusive for a property.
+        """Dataclass that holds sh:minExclusive annotation for a property.
 
+        Value range constraint.
         The minimum exclusive value. The values of sh:minExclusive in a shape are literals.
-        A shape has at most one value for sh:minExclusive."""
+        A shape has at most one value for sh:minExclusive.
+
+        Args:
+            value (int | float): Min exclusive value of RDF literal
+        """
 
         value: int | float
 
     @dataclass
     class MAX_EXCLUSIVE:
-        """Metadata to specify sh:maxExclusive for a property.
+        """Dataclass that holds sh:maxExclusive annotation for a property.
 
+        Value range constraint.
         The maximum exclusive value. The values of sh:maxExclusive in a shape are literals.
         A shape has at most one value for sh:maxExclusive.
+
+        Args:
+            value (int | float): Max exclusive value of RDF literal
         """
 
         value: int | float
 
     @dataclass
     class NODE_KIND:
-        """Metadata to specify sh:nodeKind for a property.
+        """Dataclass that holds sh:nodeKind annotation for a property.
 
+        Value type constraint.
         The values of sh:nodeKind in a shape are one of the following six instances of the class sh:NodeKind:
         sh:BlankNode, sh:IRI, sh:Literal sh:BlankNodeOrIRI, sh:BlankNodeOrLiteral and sh:IRIOrLiteral.
         A shape has at most one value for sh:nodeKind.
+
+        Args:
+            value (str): Instance of node kind
         """
 
         value: Annotated[str, AfterValidator(val_node_kind)]
 
     @dataclass
     class CLASS:
-        """Metadata to specify sh:class for a property.
+        """Dataclass that holds sh:class annotation for a property.
 
+        Value type constraint.
         The type of all value nodes. The values of sh:class in a shape are IRIs.
+
+        Args:
+            value (str): IRI of class
         """
 
         value: Annotated[str, AfterValidator(val_no_whitespace)]

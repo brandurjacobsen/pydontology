@@ -12,3 +12,6 @@ nav:
 markdown_extensions:
   - toc:
       permalink: "#"
+
+docs_dir: mkdocs
+site_dir: docs

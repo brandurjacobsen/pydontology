@@ -1,8 +1,5 @@
 # Core classes and methods
-::: pydontology.pydontology.Entity
-::: pydontology.pydontology.Relation
-::: pydontology.pydontology.JSONLDGraph
-::: pydontology.pydontology.make_model
+::: pydontology.pydontology
 
 # Annotation classes
 These classes enable use of typing.Annotated to provide RDFS and SHACL metadata

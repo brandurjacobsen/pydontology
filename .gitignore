@@ -7,5 +7,4 @@ venv*
 **pydontology.egg-info
 **build
 *-venv
-site
 dist

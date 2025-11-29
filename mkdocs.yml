@@ -1,9 +1,16 @@
 site_name: Pydontology
+site_url: https://brandurjacobsen.github.io/pydontology
+repo_url: https://github.com/brandurjacobsen/pydontology
+edit_uri: edit/main/mkdocs/
+
 plugins:
   - mkdocstrings:
       handlers:
         python:
           docstring_style: google
+          selection:
+            filters:
+              - "not docstring.startswith('INTERNAL')"
 
 nav:
   - Home: index.md
@@ -14,4 +21,4 @@ markdown_extensions:
       permalink: "#"
 
 docs_dir: mkdocs
-site_dir: docs
+site_dir: docs # Github pages wants '/' or '/docs' to serve content

@@ -1,5 +1,5 @@
 # Pydontology
-## Ontologies the Pydantic way
+## *Ontologies the Pydantic way*
 
 This package enables you to:
 
@@ -27,7 +27,7 @@ JSONLDGraph provides the class methods: [ontology_graph] and [shacl_graph] to ge
 [JSONLDGraph]: reference.md#pydontology.pydontology.JSONLDGraph
 
 ## Installation
-This package is currently distributed via TestPyPi. 
+This package is currently distributed via [TestPyPi](https://test.pypi.org/project/pydontology/). 
 
 To install in a Python virtual environment, run the following commands in a terminal, in a directory of your chosing: 
 ~~~

@@ -1,11 +1,15 @@
-# Reference
-
 # Core classes and methods
-::: pydontology.pydontology
+::: pydontology.pydontology.Entity
+::: pydontology.pydontology.Relation
+::: pydontology.pydontology.JSONLDGraph
+::: pydontology.pydontology.make_model
 
 # Annotation classes
-## RDFS/OWL
-::: pydontology.rdfs
+These classes enable use of typing.Annotated to provide RDFS and SHACL metadata
+to attributes of the ontology classes, which is then used in the construction
+of the ontology graph and SHACL graph.
 
-## SHACL
+Not all RDFS or SHACL directives are supported currently. Contributions are welcome!
+
+::: pydontology.rdfs
 ::: pydontology.shacl

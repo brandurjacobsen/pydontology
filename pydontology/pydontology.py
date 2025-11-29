@@ -38,7 +38,7 @@ class Entity(BaseModel):
 
 class OntologyClass(BaseModel):
     """Represents an RDFS/OWL class in an ontology.
-    
+
     Args:
         id (str): The IRI identifier for the class (mapped to @id in JSON-LD)
         type (Literal["rdfs:Class"]): The RDF type, always "rdfs:Class" (mapped to @type)
@@ -62,7 +62,7 @@ class OntologyClass(BaseModel):
 
 class OntologyProperty(BaseModel):
     """Represents an OWL property in an ontology.
-    
+
     Args:
         id (str): The IRI identifier for the property (mapped to @id in JSON-LD)
         type (Literal["owl:ObjectProperty", "owl:DatatypeProperty"]): The property type (mapped to @type)
@@ -88,7 +88,7 @@ class OntologyProperty(BaseModel):
 
 class PropertyShape(BaseModel):
     """Represents a SHACL property shape.
-    
+
     Args:
         id (str): The IRI identifier for the property shape (mapped to @id in JSON-LD)
         type (Literal["sh:PropertyShape"]): The shape type, always "sh:PropertyShape" (mapped to @type)
@@ -160,7 +160,7 @@ class PropertyShape(BaseModel):
 
 class NodeShape(BaseModel):
     """Represents a SHACL node shape.
-    
+
     Args:
         id (str): The IRI identifier for the node shape (mapped to @id in JSON-LD)
         type (Literal["sh:NodeShape"]): The shape type, always "sh:NodeShape" (mapped to @type)
@@ -193,7 +193,7 @@ class JSONLDGraph(BaseModel):
 
     This is the return type of the make_model() function, and
     ontology_graph(), shacl_graph() class methods.
-    
+
     Args:
         context (dict): JSON-LD context (mapped to @context)
         graph (List): Default graph containing entities (mapped to @graph)
@@ -220,7 +220,7 @@ class JSONLDGraph(BaseModel):
         """Generate an ontology graph from the classes in the ontology.
 
         Returns:
-            JSONLDGraph: With RDFS/OWL class and property definitions.
+            JSONLDGraph: With OntologyClass and OntologyProperty (internal classes) instances.
         """
 
         # Collect unique entity types from the model
@@ -262,7 +262,7 @@ class JSONLDGraph(BaseModel):
         """Generate SHACL shapes graph from the classes in the ontology.
 
         Returns:
-            JSONLDGraph: With SHACL NodeShape and PropertyShape definitions.
+            JSONLDGraph: With NodeShape and PropertyShape (internal classes) instances.
         """
 
         # Collect unique entity types from the model

@@ -261,7 +261,7 @@ class SHACLAnnotation:
         """SHACLAnnotation.MIN_INCLUSIVE factory
 
         Args:
-            value (float): Min inclusive value of RDF literal
+            value (int | float): Min inclusive value of RDF literal
 
         Returns:
             SHACLAnnotation.MIN_INCLUSIVE
@@ -273,7 +273,7 @@ class SHACLAnnotation:
         """SHACLAnnotation.MAX_INCLUSIVE factory
 
         Args:
-            value (float): Max inclusive value of RDF literal
+            value (int | float): Max inclusive value of RDF literal
 
         Returns:
             SHACLAnnotation.MAX_INCLUSIVE
@@ -285,7 +285,7 @@ class SHACLAnnotation:
         """SHACLAnnotation.MIN_EXCLUSIVE factory
 
         Args:
-            value (float): Min exclusive value of RDF literal
+            value (int | float): Min exclusive value of RDF literal
 
         Returns:
             SHACLAnnotation.MIN_EXCLUSIVE
@@ -297,7 +297,7 @@ class SHACLAnnotation:
         """SHACLAnnotation.MAX_EXCLUSIVE factory
 
         Args:
-            value (float): Max exclusive value of RDF literal
+            value (int | float): Max exclusive value of RDF literal
 
         Returns:
             SHACLAnnotation.MAX_EXCLUSIVE

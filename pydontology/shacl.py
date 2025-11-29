@@ -186,60 +186,144 @@ class SHACLAnnotation:
 
     @staticmethod
     def datatype(value: str) -> DATATYPE:
-        """SHACLAnnotation.DATATYPE factory"""
+        """SHACLAnnotation.DATATYPE factory
+
+        Args:
+            value (str): IRI of datatype
+
+        Returns:
+            SHACLAnnotation.DATATYPE
+        """
         return SHACLAnnotation.DATATYPE(value)
 
     @staticmethod
     def maxCount(value: int) -> MAX_COUNT:
-        """SHACLAnnotation.MAX_COUNT factory"""
+        """SHACLAnnotation.MAX_COUNT factory
+
+        Args:
+            value (int): Max cardinality of property
+
+        Returns:
+            SHACLAnnotation.MAX_COUNT
+        """
         return SHACLAnnotation.MAX_COUNT(value)
 
     @staticmethod
     def minCount(value: int) -> MIN_COUNT:
-        """SHACLAnnotation.MIN_COUNT factory"""
+        """SHACLAnnotation.MIN_COUNT factory
+
+        Args:
+            value (int): Min cardinality of property
+
+        Returns:
+            SHACLAnnotation.MIN_COUNT
+        """
         return SHACLAnnotation.MIN_COUNT(value)
 
     @staticmethod
     def pattern(value: str) -> PATTERN:
-        """SHACLAnnotation.PATTERN factory"""
+        """SHACLAnnotation.PATTERN factory
+
+        Args:
+            value (str): SPARQL regex (validation not implemented!)
+
+        Returns:
+            SHACLAnnotation.PATTERN
+        """
         return SHACLAnnotation.PATTERN(value)
 
     @staticmethod
     def minLength(value: int) -> MIN_LENGTH:
-        """SHACLAnnotation.MIN_LENGTH factory"""
+        """SHACLAnnotation.MIN_LENGTH factory
+
+        Args:
+            value (int): Min length of RDF literal
+
+        Returns:
+            SHACLAnnotation.MIN_LENGTH
+        """
         return SHACLAnnotation.MIN_LENGTH(value)
 
     @staticmethod
     def maxLength(value: int) -> MAX_LENGTH:
-        """SHACLAnnotation.MAX_LENGTH factory"""
+        """SHACLAnnotation.MAX_LENGTH factory
+
+        Args:
+            value (int): Max length of RDF literal
+
+        Returns:
+            SHACLAnnotation.MAX_LENGTH
+        """
         return SHACLAnnotation.MAX_LENGTH(value)
 
     @staticmethod
     def minInclusive(value: float) -> MIN_INCLUSIVE:
-        """SHACLAnnotation.MIN_INCLUSIVE factory"""
+        """SHACLAnnotation.MIN_INCLUSIVE factory
+
+        Args:
+            value (float): Min inclusive value of RDF literal
+
+        Returns:
+            SHACLAnnotation.MIN_INCLUSIVE
+        """
         return SHACLAnnotation.MIN_INCLUSIVE(value)
 
     @staticmethod
     def maxInclusive(value: float) -> MAX_INCLUSIVE:
-        """SHACLAnnotation.MAX_INCLUSIVE factory"""
+        """SHACLAnnotation.MAX_INCLUSIVE factory
+
+        Args:
+            value (float): Max inclusive value of RDF literal
+
+        Returns:
+            SHACLAnnotation.MAX_INCLUSIVE
+        """
         return SHACLAnnotation.MAX_INCLUSIVE(value)
 
     @staticmethod
     def minExclusive(value: float) -> MIN_EXCLUSIVE:
-        """SHACLAnnotation.MIN_EXCLUSIVE factory"""
+        """SHACLAnnotation.MIN_EXCLUSIVE factory
+
+        Args:
+            value (float): Min exclusive value of RDF literal
+
+        Returns:
+            SHACLAnnotation.MIN_EXCLUSIVE
+        """
         return SHACLAnnotation.MIN_EXCLUSIVE(value)
 
     @staticmethod
     def maxExclusive(value: float) -> MAX_EXCLUSIVE:
-        """SHACLAnnotation.MAX_EXCLUSIVE factory"""
+        """SHACLAnnotation.MAX_EXCLUSIVE factory
+
+        Args:
+            value (float): Max exclusive value of RDF literal
+
+        Returns:
+            SHACLAnnotation.MAX_EXCLUSIVE
+        """
         return SHACLAnnotation.MAX_EXCLUSIVE(value)
 
     @staticmethod
     def nodeKind(value: str) -> NODE_KIND:
-        """SHACLAnnotation.NODE_KIND factory"""
+        """SHACLAnnotation.NODE_KIND factory
+
+        Args:
+            value (str): Instance of node kind
+
+        Returns:
+            SHACLAnnotation.NODE_KIND
+        """
         return SHACLAnnotation.NODE_KIND(value)
 
     @staticmethod
     def shclass(value: str) -> CLASS:
-        """SHACLAnnotation.CLASS factory"""
+        """SHACLAnnotation.CLASS factory
+
+        Args:
+            value (str): IRI of class
+
+        Returns:
+            SHACLAnnotation.CLASS
+        """
         return SHACLAnnotation.CLASS(value)

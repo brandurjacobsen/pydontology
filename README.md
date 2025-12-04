@@ -1,7 +1,14 @@
 # Pydontology
-## Ontologies the Pydantic way
+## _Ontologies the Pydantic way_
 
-This package enables you to:
+This is a work in progress.
+
+In my opinion, if you call yourself a 'Python developer', you either have some bulky (recent) personal Python projects under your belt, 
+or you write Python code for a living, which unfortunately means that I'm not a 'Python developer', but I'm working on it...
+
+I would love to get feedback on this project, and help to develop it further. So, contributions are welcome!
+
+That being said, this package enables you to:
 
   * Build an RDF ontology using the well-known Pydantic model classes
   * Use typing.Annotated to add RDFS/OWL and SHACL metadata to your ontology class attributes

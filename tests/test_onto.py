@@ -217,3 +217,235 @@ def test_ontology_serialization(onto_graph):
     parsed = json.loads(json_output)
     assert "@context" in parsed
     assert "@graph" in parsed
+
+
+# Point 2: Edge Cases and Constraints
+
+
+def test_optional_fields_are_in_ontology(rdf_graph, vocab_ns):
+    """Test that optional fields (with default=None) are still included in ontology"""
+    VOCAB = vocab_ns
+
+    # age is Optional[int] with default=None
+    assert (VOCAB.age, RDF.type, OWL.DatatypeProperty) in rdf_graph
+
+    # manager is Optional[Relation] with default=None
+    assert (VOCAB.manager, RDF.type, OWL.ObjectProperty) in rdf_graph
+
+    # department is Optional[Relation] with default=None
+    assert (VOCAB.department, RDF.type, OWL.ObjectProperty) in rdf_graph
+
+
+def test_property_uniqueness(rdf_graph, vocab_ns):
+    """Test that each property is defined only once, even if used in multiple classes"""
+    VOCAB = vocab_ns
+
+    # 'name' appears in both Person and Department
+    # It should only have one rdf:type triple
+    name_types = list(rdf_graph.objects(VOCAB.name, RDF.type))
+    assert len(name_types) == 1
+    assert name_types[0] == OWL.DatatypeProperty
+
+    # It should only have one rdfs:comment
+    name_comments = list(rdf_graph.objects(VOCAB.name, RDFS.comment))
+    assert len(name_comments) == 1
+
+    # It should only have one rdfs:domain
+    name_domains = list(rdf_graph.objects(VOCAB.name, RDFS.domain))
+    assert len(name_domains) == 1
+
+
+def test_no_orphaned_properties(rdf_graph):
+    """Test that all properties have at least a domain"""
+    datatype_properties = list(rdf_graph.subjects(RDF.type, OWL.DatatypeProperty))
+    object_properties = list(rdf_graph.subjects(RDF.type, OWL.ObjectProperty))
+    all_properties = datatype_properties + object_properties
+
+    for prop in all_properties:
+        domains = list(rdf_graph.objects(prop, RDFS.domain))
+        assert len(domains) >= 1, f"Property {prop} has no domain"
+
+
+def test_no_duplicate_triples(rdf_graph):
+    """Test that there are no duplicate triples in the graph"""
+    triples = list(rdf_graph)
+    unique_triples = set(triples)
+    assert len(triples) == len(unique_triples), "Graph contains duplicate triples"
+
+
+def test_datatype_properties_dont_have_class_ranges(rdf_graph, vocab_ns):
+    """Test that datatype properties don't have rdfs:range pointing to ontology classes"""
+    VOCAB = vocab_ns
+
+    # Get all datatype properties
+    datatype_properties = list(rdf_graph.subjects(RDF.type, OWL.DatatypeProperty))
+
+    # Get all classes in the ontology
+    ontology_classes = list(rdf_graph.subjects(RDF.type, RDFS.Class))
+
+    for prop in datatype_properties:
+        ranges = list(rdf_graph.objects(prop, RDFS.range))
+        for range_val in ranges:
+            # Range should not be one of our ontology classes
+            assert range_val not in ontology_classes, (
+                f"Datatype property {prop} has range pointing to class {range_val}"
+            )
+
+
+def test_object_properties_have_class_ranges(rdf_graph, vocab_ns):
+    """Test that object properties have rdfs:range pointing to classes"""
+    VOCAB = vocab_ns
+
+    # manager should have range Manager
+    manager_ranges = list(rdf_graph.objects(VOCAB.manager, RDFS.range))
+    assert len(manager_ranges) == 1
+    assert manager_ranges[0] == VOCAB.Manager
+    assert (manager_ranges[0], RDF.type, RDFS.Class) in rdf_graph
+
+    # department should have range Department
+    dept_ranges = list(rdf_graph.objects(VOCAB.department, RDFS.range))
+    assert len(dept_ranges) == 1
+    assert dept_ranges[0] == VOCAB.Department
+    assert (dept_ranges[0], RDF.type, RDFS.Class) in rdf_graph
+
+
+# Point 7: SPARQL Queries
+
+
+def test_sparql_class_hierarchy_query(rdf_graph):
+    """Test querying the class hierarchy using SPARQL"""
+    query = """
+        SELECT ?subclass ?superclass
+        WHERE {
+            ?subclass rdfs:subClassOf ?superclass .
+        }
+    """
+    results = list(rdf_graph.query(query))
+    # Should have exactly 2 subclass relationships:
+    # Employee -> Person, Manager -> Employee
+    assert len(results) == 2
+
+
+def test_sparql_find_all_object_properties(rdf_graph):
+    """Test finding all object properties via SPARQL"""
+    query = """
+        PREFIX owl: <http://www.w3.org/2002/07/owl#>
+        SELECT ?prop
+        WHERE {
+            ?prop a owl:ObjectProperty .
+        }
+    """
+    results = list(rdf_graph.query(query))
+    # Should have exactly 2 object properties: manager, department
+    assert len(results) == 2
+
+
+def test_sparql_find_all_datatype_properties(rdf_graph):
+    """Test finding all datatype properties via SPARQL"""
+    query = """
+        PREFIX owl: <http://www.w3.org/2002/07/owl#>
+        SELECT ?prop
+        WHERE {
+            ?prop a owl:DatatypeProperty .
+        }
+    """
+    results = list(rdf_graph.query(query))
+    # Should have exactly 3 datatype properties: name, age, employee_id
+    assert len(results) == 3
+
+
+def test_sparql_find_properties_by_domain(rdf_graph, vocab_ns):
+    """Test finding properties by their domain using SPARQL"""
+    VOCAB = vocab_ns
+
+    query = f"""
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+        SELECT ?prop
+        WHERE {{
+            ?prop rdfs:domain <{VOCAB.Employee}> .
+        }}
+    """
+    results = list(rdf_graph.query(query))
+    # employee_id has domain Employee
+    assert len(results) == 1
+
+
+def test_sparql_find_classes_with_comments(rdf_graph):
+    """Test finding all classes that have rdfs:comment using SPARQL"""
+    query = """
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+        SELECT ?class ?comment
+        WHERE {
+            ?class a rdfs:Class .
+            ?class rdfs:comment ?comment .
+        }
+    """
+    results = list(rdf_graph.query(query))
+    # All 4 classes should have comments
+    assert len(results) == 4
+
+
+def test_sparql_transitive_subclass_query(rdf_graph, vocab_ns):
+    """Test transitive subclass relationships using SPARQL property paths"""
+    VOCAB = vocab_ns
+
+    query = f"""
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+        SELECT ?subclass
+        WHERE {{
+            ?subclass rdfs:subClassOf+ <{VOCAB.Person}> .
+        }}
+    """
+    results = list(rdf_graph.query(query))
+    # Both Employee and Manager are transitive subclasses of Person
+    assert len(results) == 2
+
+    subclasses = [row[0] for row in results]
+    assert VOCAB.Employee in subclasses
+    assert VOCAB.Manager in subclasses
+
+
+def test_sparql_count_properties_per_class(rdf_graph):
+    """Test counting properties per class using SPARQL"""
+    query = """
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+        SELECT ?class (COUNT(?prop) as ?propCount)
+        WHERE {
+            ?class a rdfs:Class .
+            ?prop rdfs:domain ?class .
+        }
+        GROUP BY ?class
+    """
+    results = list(rdf_graph.query(query))
+    # Should have results for classes that have properties with their domain
+    assert len(results) > 0
+
+    # Convert to dict for easier checking
+    class_prop_counts = {str(row[0]): int(row[1]) for row in results}
+
+    # Employee should have at least employee_id
+    employee_uri = "http://example.com/vocab/Employee"
+    assert employee_uri in class_prop_counts
+    assert class_prop_counts[employee_uri] >= 1
+
+
+def test_sparql_find_properties_with_range(rdf_graph):
+    """Test finding properties that have rdfs:range defined using SPARQL"""
+    query = """
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+        SELECT ?prop ?range
+        WHERE {
+            ?prop rdfs:range ?range .
+        }
+    """
+    results = list(rdf_graph.query(query))
+    # manager and department should have ranges
+    assert len(results) == 2
+
+    # Extract property-range pairs
+    prop_ranges = [(str(row[0]), str(row[1])) for row in results]
+
+    # Check that manager and department are in the results
+    prop_uris = [pr[0] for pr in prop_ranges]
+    assert "http://example.com/vocab/manager" in prop_uris
+    assert "http://example.com/vocab/department" in prop_uris

@@ -1,16 +1,23 @@
 import json
 
 import pytest
+from rdflib import OWL, RDF, RDFS, Graph, Namespace
 
 from pydontology import JSONLDGraph
 
-# See conftest.py for ontology_model
+# See conftest.py for TestModel definition
 
 
 @pytest.fixture
-def onto_graph(ontology_model):
-    """Fixture providing the generated ontology"""
-    return ontology_model.ontology_graph()
+def onto_graph(TestModel):
+    """Fixture providing the generated ontology graph"""
+    return TestModel.ontology_graph()
+
+
+@pytest.fixture
+def onto_graph_json(onto_graph):
+    """Returns the json-ld string of the ontology graph"""
+    return onto_graph.model_dump_json(exclude_none=True)
 
 
 def test_ontology_model_returns_jsonld_graph(onto_graph):
@@ -204,3 +211,49 @@ def test_ontology_output_format(onto_graph, capsys):
     parsed = json.loads(json_output)
     assert "@context" in parsed
     assert "@graph" in parsed
+
+
+def test_rdflib_parse_ontology_graph(onto_graph_json):
+    # Parse with rdflib
+    g = Graph()
+    g.parse(data=onto_graph_json, format="json-ld")
+
+    # Verify we have triples
+    assert len(g) > 0
+
+    # Define namespace
+    VOCAB = Namespace("http://example.com/vocab/")
+
+    # Verify classes exist
+    assert (VOCAB.Person, RDF.type, RDFS.Class) in g
+    assert (VOCAB.Employee, RDF.type, RDFS.Class) in g
+    assert (VOCAB.Manager, RDF.type, RDFS.Class) in g
+
+    # Verify inheritance relationships
+    assert (VOCAB.Employee, RDFS.subClassOf, VOCAB.Person) in g
+    assert (VOCAB.Manager, RDFS.subClassOf, VOCAB.Employee) in g
+
+    # Verify class descriptions
+    person_comments = list(g.objects(VOCAB.Person, RDFS.comment))
+    assert len(person_comments) == 1
+    assert str(person_comments[0]) == "A person"
+
+    # Verify properties exist
+    assert (VOCAB.name, RDF.type, OWL.DatatypeProperty) in g
+    assert (VOCAB.age, RDF.type, OWL.DatatypeProperty) in g
+    assert (VOCAB.employee_id, RDF.type, OWL.DatatypeProperty) in g
+    assert (VOCAB.manager, RDF.type, OWL.ObjectProperty) in g
+    assert (VOCAB.department, RDF.type, OWL.DatatypeProperty) in g
+
+    # Verify property domains
+    assert (VOCAB.name, RDFS.domain, VOCAB.Person) in g
+    assert (VOCAB.employee_id, RDFS.domain, VOCAB.Employee) in g
+    assert (VOCAB.department, RDFS.domain, VOCAB.Manager) in g
+
+    # Verify property range
+    assert (VOCAB.manager, RDFS.range, VOCAB.Manager) in g
+
+    # Verify property descriptions
+    name_comments = list(g.objects(VOCAB.name, RDFS.comment))
+    assert len(name_comments) == 1
+    assert str(name_comments[0]) == "Person's name"

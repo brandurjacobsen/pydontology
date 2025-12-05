@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pydontology"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = ["pydantic>=2.12"]
 requires-python = ">=3.8"
 authors = [
@@ -20,12 +20,13 @@ license = "MIT"
 
 keywords = ["Pydantic", "Ontology", "RDF", "RDFS", "SHACL", "JSON-LD", ]
 classifiers = [
-  "Development Status :: 4 - Beta",
+  "Development Status :: 3 - Alpha",
   "Programming Language :: Python"
 ]
 
 [project.optional-dependencies]
-examples = ["marimo", "rdflib"]
+examples = ["marimo", "rdflib", "pyshacl"]
+tests = ["rdflib", "pyshacl"]
 
 [tool.setuptools]
 packages = ["pydontology"]

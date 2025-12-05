@@ -1,13 +1,20 @@
 # Pydontology
-## *Ontologies the Pydantic way*
+## _Ontologies the Pydantic way_
 
-This package enables you to:
+This is a work in progress.
+
+In my opinion, if you call yourself a 'Python developer', you either have some bulky (recent) personal Python projects under your belt, 
+or you write Python code for a living, which unfortunately means that I'm not a 'Python developer'; this is also a work in progress.
+
+I would appreciate feedback on this project, and help to develop it further. So, contributions (and issues) are welcome!
+
+That being said, this package will enable you to:
 
   * Build an RDF ontology using the well-known Pydantic model classes
   * Use typing.Annotated to add RDFS/OWL and SHACL metadata to your ontology class attributes
   * Generate a JSON-LD (JSON for Linked Data) ontology graph from your ontology and metadata
   * Generate a JSON-LD SHACL (Shapes Constraint Language) graph from your ontology and metadata
-  * Generate a JSON schema, which for example can be passed to LLMs to produce structured output
+  * Generate a JSON schema from your ontology, which for example can be passed to LLMs to produce structured output
   * Parse data adhering to the JSON schema directly, using e.g. rdflib
 
 The package exposes, amongst others, the classes [Entity] and [Relation], which inherit Pydantic's BaseModel.

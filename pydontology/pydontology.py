@@ -9,7 +9,7 @@ from .shacl import SHACLAnnotation
 
 
 class Relation(BaseModel):
-    """This class should be the type of Entity attributes to be considered as IRIs.
+    """This class should be the type of Entity attributes for them to be considered as IRIs.
 
     Args:
         id (str): IRI of relation
@@ -220,7 +220,7 @@ class JSONLDGraph(BaseModel):
         """Generate an ontology graph from the classes in the ontology.
 
         Returns:
-            JSONLDGraph: With _OntologyClass and _OntologyProperty (internal classes) instances.
+            JSONLDGraph: With _OntologyClass and _OntologyProperty (internal classes) instances in the default graph.
         """
 
         # Collect unique entity types from the model

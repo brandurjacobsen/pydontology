@@ -1,29 +1,59 @@
+from typing import Annotated, Optional
+
 import pytest
-from rdflib import Graph, Namespace, RDF, Literal
-from rdflib.namespace import SH, XSD
-from pyshacl import validate
-from pydontology import Entity, Relation, JSONLDGraph, RDFSAnnotation, SHACLAnnotation, make_model
 from pydantic import Field
-from typing import Optional, Annotated
+from pyshacl import validate
+from rdflib import RDF, Graph, Literal, Namespace
+from rdflib.namespace import SH, XSD
+
+from pydontology import (
+    Entity,
+    JSONLDGraph,
+    RDFSAnnotation,
+    Relation,
+    SHACLAnnotation,
+    make_model,
+)
 
 
 @pytest.fixture
 def person_model_with_shacl():
     """Fixture providing entity classes with SHACL annotations"""
+
     class Person(Entity):
         """A person entity"""
-        name: Annotated[str, SHACLAnnotation.minLength(1), SHACLAnnotation.maxLength(100)] = Field(description="Person's name")
-        age: Annotated[Optional[int], SHACLAnnotation.minInclusive(0), SHACLAnnotation.maxInclusive(150)] = Field(default=None, description="Person's age")
-        email: Annotated[Optional[str], SHACLAnnotation.pattern(r'^[\w\.-]+@[\w\.-]+\.\w+$')] = Field(default=None, description="Email address")
+
+        name: Annotated[
+            str, SHACLAnnotation.minLength(1), SHACLAnnotation.maxLength(100)
+        ] = Field(description="Person's name")
+        age: Annotated[
+            Optional[int],
+            SHACLAnnotation.minInclusive(0),
+            SHACLAnnotation.maxInclusive(150),
+        ] = Field(default=None, description="Person's age")
+        email: Annotated[
+            Optional[str], SHACLAnnotation.pattern(r"^[\w\.-]+@[\w\.-]+\.\w+$")
+        ] = Field(default=None, description="Email address")
 
     class Employee(Person):
         """An employee entity, inherits from Person"""
-        employee_id: Annotated[str, SHACLAnnotation.pattern(r'^E\d{3}$')] = Field(description="Employee ID")
-        manager: Annotated[Optional[Relation], RDFSAnnotation.range('Manager'), SHACLAnnotation.shclass('Manager'), SHACLAnnotation.maxCount(1)] = Field(default=None, description="Link to manager")
+
+        employee_id: Annotated[str, SHACLAnnotation.pattern(r"^E\d{3}$")] = Field(
+            description="Employee ID"
+        )
+        manager: Annotated[
+            Optional[Relation],
+            RDFSAnnotation.range("Manager"),
+            SHACLAnnotation.shclass("Manager"),
+            SHACLAnnotation.maxCount(1),
+        ] = Field(default=None, description="Link to manager")
 
     class Manager(Employee):
         """A manager entity, inherits from Employee"""
-        department: Annotated[str, SHACLAnnotation.minLength(1)] = Field(description="Department name")
+
+        department: Annotated[str, SHACLAnnotation.minLength(1)] = Field(
+            description="Department name"
+        )
 
     return make_model(Person, name="PersonModel")
 
@@ -183,7 +213,7 @@ def test_pattern_constraints(rdf_graph, vocab_ns):
         path = rdf_graph.value(prop_shape, SH.path)
         if path == VOCAB.email:
             pattern = rdf_graph.value(prop_shape, SH.pattern)
-            assert str(pattern) == r'^[\w\.-]+@[\w\.-]+\.\w+$'
+            assert str(pattern) == r"^[\w\.-]+@[\w\.-]+\.\w+$"
             break
 
     # Test employee_id pattern in EmployeeShape
@@ -192,7 +222,7 @@ def test_pattern_constraints(rdf_graph, vocab_ns):
         path = rdf_graph.value(prop_shape, SH.path)
         if path == VOCAB.employee_id:
             pattern = rdf_graph.value(prop_shape, SH.pattern)
-            assert str(pattern) == r'^E\d{3}$'
+            assert str(pattern) == r"^E\d{3}$"
             break
 
 
@@ -266,7 +296,7 @@ def test_relation_class_constraint(rdf_graph, vocab_ns):
     for prop_shape in employee_properties:
         path = rdf_graph.value(prop_shape, SH.path)
         if path == VOCAB.manager:
-            shacl_class = rdf_graph.value(prop_shape, SH['class'])
+            shacl_class = rdf_graph.value(prop_shape, SH["class"])
             assert shacl_class == VOCAB.Manager
             break
 
@@ -306,7 +336,7 @@ def test_no_duplicate_triples(rdf_graph):
     assert len(triples) == len(unique_triples), "Graph contains duplicate triples"
 
 
-def test_pyshacl_validates_valid_data(person_model_with_shacl, shacl_graph_json):
+def test_pyshacl_validates_valid_data(shacl_graph_json):
     """Test that pyshacl validates conforming data"""
     # Create valid data graph
     data_graph_json = """
@@ -335,16 +365,13 @@ def test_pyshacl_validates_valid_data(person_model_with_shacl, shacl_graph_json)
 
     # Validate
     conforms, results_graph, results_text = validate(
-        data_g,
-        shacl_graph=shacl_g,
-        inference='rdfs',
-        abort_on_first=False
+        data_g, shacl_graph=shacl_g, inference="rdfs", abort_on_first=False
     )
 
     assert conforms, f"Validation failed: {results_text}"
 
 
-def test_pyshacl_detects_missing_required_field(person_model_with_shacl, shacl_graph_json):
+def test_pyshacl_detects_missing_required_field(shacl_graph_json):
     """Test that pyshacl detects missing required fields"""
     # Create invalid data graph (missing required 'name' field)
     data_graph_json = """
@@ -371,16 +398,13 @@ def test_pyshacl_detects_missing_required_field(person_model_with_shacl, shacl_g
 
     # Validate
     conforms, results_graph, results_text = validate(
-        data_g,
-        shacl_graph=shacl_g,
-        inference='rdfs',
-        abort_on_first=False
+        data_g, shacl_graph=shacl_g, inference="rdfs", abort_on_first=False
     )
 
     assert not conforms, "Validation should fail for missing required field"
 
 
-def test_pyshacl_detects_pattern_violation(person_model_with_shacl, shacl_graph_json):
+def test_pyshacl_detects_pattern_violation(shacl_graph_json):
     """Test that pyshacl detects pattern violations"""
     # Create invalid data graph (invalid email pattern)
     data_graph_json = """
@@ -408,16 +432,13 @@ def test_pyshacl_detects_pattern_violation(person_model_with_shacl, shacl_graph_
 
     # Validate
     conforms, results_graph, results_text = validate(
-        data_g,
-        shacl_graph=shacl_g,
-        inference='rdfs',
-        abort_on_first=False
+        data_g, shacl_graph=shacl_g, inference="rdfs", abort_on_first=False
     )
 
     assert not conforms, "Validation should fail for pattern violation"
 
 
-def test_pyshacl_detects_numeric_constraint_violation(person_model_with_shacl, shacl_graph_json):
+def test_pyshacl_detects_numeric_constraint_violation(shacl_graph_json):
     """Test that pyshacl detects numeric constraint violations"""
     # Create invalid data graph (age out of range)
     data_graph_json = """
@@ -445,16 +466,13 @@ def test_pyshacl_detects_numeric_constraint_violation(person_model_with_shacl, s
 
     # Validate
     conforms, results_graph, results_text = validate(
-        data_g,
-        shacl_graph=shacl_g,
-        inference='rdfs',
-        abort_on_first=False
+        data_g, shacl_graph=shacl_g, inference="rdfs", abort_on_first=False
     )
 
     assert not conforms, "Validation should fail for numeric constraint violation"
 
 
-def test_pyshacl_detects_string_length_violation(person_model_with_shacl, shacl_graph_json):
+def test_pyshacl_detects_string_length_violation(shacl_graph_json):
     """Test that pyshacl detects string length violations"""
     # Create invalid data graph (name too long)
     data_graph_json = """
@@ -481,16 +499,13 @@ def test_pyshacl_detects_string_length_violation(person_model_with_shacl, shacl_
 
     # Validate
     conforms, results_graph, results_text = validate(
-        data_g,
-        shacl_graph=shacl_g,
-        inference='rdfs',
-        abort_on_first=False
+        data_g, shacl_graph=shacl_g, inference="rdfs", abort_on_first=False
     )
 
     assert not conforms, "Validation should fail for string length violation"
 
 
-def test_pyshacl_validates_employee_with_manager(person_model_with_shacl, shacl_graph_json):
+def test_pyshacl_validates_employee_with_manager(shacl_graph_json):
     """Test that pyshacl validates employee with valid manager reference"""
     # Create valid data graph with employee and manager
     data_graph_json = """
@@ -526,10 +541,7 @@ def test_pyshacl_validates_employee_with_manager(person_model_with_shacl, shacl_
 
     # Validate
     conforms, results_graph, results_text = validate(
-        data_g,
-        shacl_graph=shacl_g,
-        inference='rdfs',
-        abort_on_first=False
+        data_g, shacl_graph=shacl_g, inference="rdfs", abort_on_first=False
     )
 
     assert conforms, f"Validation failed: {results_text}"

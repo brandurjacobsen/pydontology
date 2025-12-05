@@ -55,7 +55,7 @@ def person_model_with_shacl():
             description="Department name"
         )
 
-    return make_model(Person, name="PersonModel")
+    return make_model(Person | Employee | Manager, name="PersonModel")
 
 
 @pytest.fixture

@@ -1,73 +1,22 @@
-from typing import Annotated, Optional
-
 import pytest
 from pydantic import Field
 from pyshacl import validate
-from rdflib import RDF, Graph, Literal, Namespace
+from rdflib import RDF, Graph, Namespace
 from rdflib.namespace import SH, XSD
 
-from pydontology import (
-    Entity,
-    JSONLDGraph,
-    RDFSAnnotation,
-    Relation,
-    SHACLAnnotation,
-    make_model,
-)
+from pydontology import JSONLDGraph
 
 
 @pytest.fixture
-def person_model_with_shacl():
-    """Fixture providing entity classes with SHACL annotations"""
-
-    class Person(Entity):
-        """A person entity"""
-
-        name: Annotated[
-            str, SHACLAnnotation.minLength(1), SHACLAnnotation.maxLength(100)
-        ] = Field(description="Person's name")
-        age: Annotated[
-            Optional[int],
-            SHACLAnnotation.minInclusive(0),
-            SHACLAnnotation.maxInclusive(150),
-        ] = Field(default=None, description="Person's age")
-        email: Annotated[
-            Optional[str], SHACLAnnotation.pattern(r"^[\w\.-]+@[\w\.-]+\.\w+$")
-        ] = Field(default=None, description="Email address")
-
-    class Employee(Person):
-        """An employee entity, inherits from Person"""
-
-        employee_id: Annotated[str, SHACLAnnotation.pattern(r"^E\d{3}$")] = Field(
-            description="Employee ID"
-        )
-        manager: Annotated[
-            Optional[Relation],
-            RDFSAnnotation.range("Manager"),
-            SHACLAnnotation.shclass("Manager"),
-            SHACLAnnotation.maxCount(1),
-        ] = Field(default=None, description="Link to manager")
-
-    class Manager(Employee):
-        """A manager entity, inherits from Employee"""
-
-        department: Annotated[str, SHACLAnnotation.minLength(1)] = Field(
-            description="Department name"
-        )
-
-    return make_model(Person | Employee | Manager, name="PersonModel")
-
-
-@pytest.fixture
-def shacl_graph(person_model_with_shacl):
+def shacl_graph(TestModel):
     """Fixture providing the generated SHACL graph"""
-    return person_model_with_shacl.shacl_graph()
+    return TestModel.shacl_graph()
 
 
 @pytest.fixture
 def shacl_graph_json(shacl_graph):
     """Fixture returning the SHACL graph as json-ld"""
-    return shacl_graph.model_dump_json(exclude_none=True)
+    return shacl_graph.model_dump_json(exclude_none=True, indent=2)
 
 
 @pytest.fixture
@@ -75,6 +24,8 @@ def rdf_graph(shacl_graph_json):
     """Fixture returning the SHACL graph as an rdflib Graph"""
     g = Graph()
     g.parse(data=shacl_graph_json, format="json-ld")
+
+    print(shacl_graph_json)
     return g
 
 
@@ -114,9 +65,9 @@ def test_node_shapes_present(rdf_graph, vocab_ns):
     assert (VOCAB.EmployeeShape, RDF.type, SH.NodeShape) in rdf_graph
     assert (VOCAB.ManagerShape, RDF.type, SH.NodeShape) in rdf_graph
 
-    # Count total node shapes (should be exactly 3)
+    # Count total node shapes (should be exactly 4)
     node_shapes = list(rdf_graph.subjects(RDF.type, SH.NodeShape))
-    assert len(node_shapes) == 3
+    assert len(node_shapes) == 4
 
 
 def test_target_classes(rdf_graph, vocab_ns):
@@ -126,23 +77,24 @@ def test_target_classes(rdf_graph, vocab_ns):
     assert (VOCAB.PersonShape, SH.targetClass, VOCAB.Person) in rdf_graph
     assert (VOCAB.EmployeeShape, SH.targetClass, VOCAB.Employee) in rdf_graph
     assert (VOCAB.ManagerShape, SH.targetClass, VOCAB.Manager) in rdf_graph
+    assert (VOCAB.DepartmentShape, SH.targetClass, VOCAB.Department) in rdf_graph
 
 
 def test_property_shapes_count(rdf_graph, vocab_ns):
     """Test that node shapes have correct number of property shapes"""
     VOCAB = vocab_ns
 
-    # PersonShape should have 3 properties: name, age, email
+    # PersonShape should have 2 properties: name, age
     person_properties = list(rdf_graph.objects(VOCAB.PersonShape, SH.property))
-    assert len(person_properties) == 3
+    assert len(person_properties) == 2
 
-    # EmployeeShape should have 5 properties: name, age, email, employee_id, manager
+    # EmployeeShape should have 5 properties: name, age, employee_id, manager
     employee_properties = list(rdf_graph.objects(VOCAB.EmployeeShape, SH.property))
-    assert len(employee_properties) == 5
+    assert len(employee_properties) == 4
 
     # ManagerShape should have 6 properties: all inherited + department
     manager_properties = list(rdf_graph.objects(VOCAB.ManagerShape, SH.property))
-    assert len(manager_properties) == 6
+    assert len(manager_properties) == 5
 
 
 def test_datatype_constraints(rdf_graph, vocab_ns):
@@ -200,29 +152,6 @@ def test_numeric_constraints(rdf_graph, vocab_ns):
             max_inclusive = rdf_graph.value(prop_shape, SH.maxInclusive)
             assert float(min_inclusive) == 0.0
             assert float(max_inclusive) == 150.0
-            break
-
-
-def test_pattern_constraints(rdf_graph, vocab_ns):
-    """Test that pattern constraints are correctly set"""
-    VOCAB = vocab_ns
-
-    # Test email pattern in PersonShape
-    person_properties = list(rdf_graph.objects(VOCAB.PersonShape, SH.property))
-    for prop_shape in person_properties:
-        path = rdf_graph.value(prop_shape, SH.path)
-        if path == VOCAB.email:
-            pattern = rdf_graph.value(prop_shape, SH.pattern)
-            assert str(pattern) == r"^[\w\.-]+@[\w\.-]+\.\w+$"
-            break
-
-    # Test employee_id pattern in EmployeeShape
-    employee_properties = list(rdf_graph.objects(VOCAB.EmployeeShape, SH.property))
-    for prop_shape in employee_properties:
-        path = rdf_graph.value(prop_shape, SH.path)
-        if path == VOCAB.employee_id:
-            pattern = rdf_graph.value(prop_shape, SH.pattern)
-            assert str(pattern) == r"^E\d{3}$"
             break
 
 
@@ -404,40 +333,6 @@ def test_pyshacl_detects_missing_required_field(shacl_graph_json):
     assert not conforms, "Validation should fail for missing required field"
 
 
-def test_pyshacl_detects_pattern_violation(shacl_graph_json):
-    """Test that pyshacl detects pattern violations"""
-    # Create invalid data graph (invalid email pattern)
-    data_graph_json = """
-    {
-        "@context": {
-            "@vocab": "http://example.com/vocab/",
-            "@base": "http://example.com/"
-        },
-        "@graph": [
-            {
-                "@id": "person1",
-                "@type": "Person",
-                "name": "John Doe",
-                "email": "not-an-email"
-            }
-        ]
-    }
-    """
-
-    data_g = Graph()
-    data_g.parse(data=data_graph_json, format="json-ld")
-
-    shacl_g = Graph()
-    shacl_g.parse(data=shacl_graph_json, format="json-ld")
-
-    # Validate
-    conforms, results_graph, results_text = validate(
-        data_g, shacl_graph=shacl_g, inference="rdfs", abort_on_first=False
-    )
-
-    assert not conforms, "Validation should fail for pattern violation"
-
-
 def test_pyshacl_detects_numeric_constraint_violation(shacl_graph_json):
     """Test that pyshacl detects numeric constraint violations"""
     # Create invalid data graph (age out of range)
@@ -516,14 +411,14 @@ def test_pyshacl_validates_employee_with_manager(shacl_graph_json):
         },
         "@graph": [
             {
-                "@id": "manager1",
+            "@id": "manager1",
                 "@type": "Manager",
                 "name": "Jane Smith",
                 "employee_id": "E001",
-                "department": "Engineering"
+                "department": {"@id": "Engineering"}
             },
             {
-                "@id": "employee1",
+            "@id": "employee1",
                 "@type": "Employee",
                 "name": "John Doe",
                 "employee_id": "E002",

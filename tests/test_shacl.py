@@ -64,6 +64,7 @@ def test_node_shapes_present(rdf_graph, vocab_ns):
     assert (VOCAB.PersonShape, RDF.type, SH.NodeShape) in rdf_graph
     assert (VOCAB.EmployeeShape, RDF.type, SH.NodeShape) in rdf_graph
     assert (VOCAB.ManagerShape, RDF.type, SH.NodeShape) in rdf_graph
+    assert (VOCAB.DepartmentShape, RDF.type, SH.NodeShape) in rdf_graph
 
     # Count total node shapes (should be exactly 4)
     node_shapes = list(rdf_graph.subjects(RDF.type, SH.NodeShape))
@@ -92,9 +93,13 @@ def test_property_shapes_count(rdf_graph, vocab_ns):
     employee_properties = list(rdf_graph.objects(VOCAB.EmployeeShape, SH.property))
     assert len(employee_properties) == 4
 
-    # ManagerShape should have 6 properties: all inherited + department
+    # ManagerShape should have 5 properties: inherited + department
     manager_properties = list(rdf_graph.objects(VOCAB.ManagerShape, SH.property))
     assert len(manager_properties) == 5
+
+    # DepartmentShape should have 1 property: name
+    dept_properties = list(rdf_graph.objects(VOCAB.DepartmentShape, SH.property))
+    assert len(dept_properties) == 1
 
 
 def test_datatype_constraints(rdf_graph, vocab_ns):

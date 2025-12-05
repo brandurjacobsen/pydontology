@@ -48,4 +48,6 @@ def TestModel():
 
         name: str = Field(description="Department name")
 
-    return make_model(Person | Employee | Manager | Department, "TestModel")
+    return make_model(
+        ontology=Person | Employee | Manager | Department, name="TestModel"
+    )

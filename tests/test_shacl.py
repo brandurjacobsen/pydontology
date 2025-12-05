@@ -1,300 +1,447 @@
 import pytest
-from rdflib import Graph, Namespace, RDF, Literal
-from pydontology import Entity, Relation, JSONLDGraph, RDFSAnnotation, SHACLAnnotation, make_model
 from pydantic import Field
-from typing import Optional, Annotated
+from pyshacl import validate
+from rdflib import RDF, Graph, Namespace
+from rdflib.namespace import SH, XSD
+
+from pydontology import JSONLDGraph
 
 
 @pytest.fixture
-def person_model_with_shacl():
-    """Fixture providing entity classes with SHACL annotations"""
-    class Person(Entity):
-        """A person entity"""
-        name: Annotated[str, SHACLAnnotation.minLength(1), SHACLAnnotation.maxLength(100)] = Field(description="Person's name")
-        age: Annotated[Optional[int], SHACLAnnotation.minInclusive(0), SHACLAnnotation.maxInclusive(150)] = Field(default=None, description="Person's age")
-        email: Annotated[Optional[str], SHACLAnnotation.pattern(r'^[\w\.-]+@[\w\.-]+\.\w+$')] = Field(default=None, description="Email address")
-
-    class Employee(Person):
-        """An employee entity, inherits from Person"""
-        employee_id: Annotated[str, SHACLAnnotation.pattern(r'^E\d{3}$')] = Field(description="Employee ID")
-        manager: Annotated[Optional[Relation], RDFSAnnotation.range('Manager'), SHACLAnnotation.shclass('Manager'), SHACLAnnotation.maxCount(1)] = Field(default=None, description="Link to manager")
-
-    class Manager(Employee):
-        """A manager entity, inherits from Employee"""
-        department: Annotated[str, SHACLAnnotation.minLength(1)] = Field(description="Department name")
-
-    return make_model(Person, name="PersonModel")
+def shacl_graph(TestModel):
+    """Fixture providing the generated SHACL graph"""
+    return TestModel.shacl_graph()
 
 
-def test_shacl_graph_returns_jsonld_graph(person_model_with_shacl):
+@pytest.fixture
+def shacl_graph_json(shacl_graph):
+    """Fixture returning the SHACL graph as json-ld"""
+    return shacl_graph.model_dump_json(exclude_none=True, indent=2)
+
+
+@pytest.fixture
+def rdf_graph(shacl_graph_json):
+    """Fixture returning the SHACL graph as an rdflib Graph"""
+    g = Graph()
+    g.parse(data=shacl_graph_json, format="json-ld")
+
+    print(shacl_graph_json)
+    return g
+
+
+@pytest.fixture
+def vocab_ns():
+    """Fixture providing the vocabulary namespace"""
+    return Namespace("http://example.com/vocab/")
+
+
+def test_shacl_graph_returns_jsonld_graph(shacl_graph):
     """Test that shacl_graph returns a JSONLDGraph instance"""
-    shacl = person_model_with_shacl.shacl_graph()
-    assert isinstance(shacl, JSONLDGraph)
+    assert isinstance(shacl_graph, JSONLDGraph)
 
 
-def test_shacl_graph_structure(person_model_with_shacl):
-    """Test that SHACL graph has correct top-level structure"""
-    shacl = person_model_with_shacl.shacl_graph()
-    shacl_dict = shacl.model_dump(by_alias=True)
+def test_rdflib_can_parse_shacl_graph(rdf_graph):
+    """Test that rdflib can parse the SHACL graph and it contains triples"""
+    assert len(rdf_graph) > 0
+
+
+def test_shacl_context_structure(shacl_graph):
+    """Test that SHACL graph has correct context structure"""
+    shacl_dict = shacl_graph.model_dump(by_alias=True)
 
     assert "@context" in shacl_dict
-    assert "@graph" in shacl_dict
     assert "sh" in shacl_dict["@context"]
     assert "xsd" in shacl_dict["@context"]
     assert shacl_dict["@context"]["sh"] == "http://www.w3.org/ns/shacl#"
     assert shacl_dict["@context"]["xsd"] == "http://www.w3.org/2001/XMLSchema#"
 
 
-def test_shacl_node_shapes_present(person_model_with_shacl):
+def test_node_shapes_present(rdf_graph, vocab_ns):
     """Test that all expected node shapes are present"""
-    shacl = person_model_with_shacl.shacl_graph()
-    shacl_dict = shacl.model_dump(by_alias=True)
+    VOCAB = vocab_ns
 
-    node_shapes = [item for item in shacl_dict["@graph"] if item.get("@type") == "sh:NodeShape"]
-    shape_names = {shape["@id"] for shape in node_shapes}
+    # Verify all node shapes exist
+    assert (VOCAB.PersonShape, RDF.type, SH.NodeShape) in rdf_graph
+    assert (VOCAB.EmployeeShape, RDF.type, SH.NodeShape) in rdf_graph
+    assert (VOCAB.ManagerShape, RDF.type, SH.NodeShape) in rdf_graph
+    assert (VOCAB.DepartmentShape, RDF.type, SH.NodeShape) in rdf_graph
 
-    assert len(node_shapes) == 3
-    assert "PersonShape" in shape_names
-    assert "EmployeeShape" in shape_names
-    assert "ManagerShape" in shape_names
+    # Count total node shapes (should be exactly 4)
+    node_shapes = list(rdf_graph.subjects(RDF.type, SH.NodeShape))
+    assert len(node_shapes) == 4
 
 
-def test_shacl_target_classes(person_model_with_shacl):
+def test_target_classes(rdf_graph, vocab_ns):
     """Test that node shapes have correct target classes"""
-    shacl = person_model_with_shacl.shacl_graph()
-    shacl_dict = shacl.model_dump(by_alias=True)
+    VOCAB = vocab_ns
 
-    node_shapes = [item for item in shacl_dict["@graph"] if item.get("@type") == "sh:NodeShape"]
-
-    person_shape = next(shape for shape in node_shapes if shape["@id"] == "PersonShape")
-    assert person_shape["sh:targetClass"]["@id"] == "Person"
-
-    employee_shape = next(shape for shape in node_shapes if shape["@id"] == "EmployeeShape")
-    assert employee_shape["sh:targetClass"]["@id"] == "Employee"
-
-    manager_shape = next(shape for shape in node_shapes if shape["@id"] == "ManagerShape")
-    assert manager_shape["sh:targetClass"]["@id"] == "Manager"
+    assert (VOCAB.PersonShape, SH.targetClass, VOCAB.Person) in rdf_graph
+    assert (VOCAB.EmployeeShape, SH.targetClass, VOCAB.Employee) in rdf_graph
+    assert (VOCAB.ManagerShape, SH.targetClass, VOCAB.Manager) in rdf_graph
+    assert (VOCAB.DepartmentShape, SH.targetClass, VOCAB.Department) in rdf_graph
 
 
-def test_shacl_property_shapes_present(person_model_with_shacl):
-    """Test that property shapes are present in node shapes"""
-    shacl = person_model_with_shacl.shacl_graph()
-    shacl_dict = shacl.model_dump(by_alias=True)
+def test_property_shapes_count(rdf_graph, vocab_ns):
+    """Test that node shapes have correct number of property shapes"""
+    VOCAB = vocab_ns
 
-    node_shapes = [item for item in shacl_dict["@graph"] if item.get("@type") == "sh:NodeShape"]
+    # PersonShape should have 2 properties: name, age
+    person_properties = list(rdf_graph.objects(VOCAB.PersonShape, SH.property))
+    assert len(person_properties) == 2
 
-    person_shape = next(shape for shape in node_shapes if shape["@id"] == "PersonShape")
-    assert "sh:property" in person_shape
-    assert len(person_shape["sh:property"]) == 3  # name, age, email
+    # EmployeeShape should have 5 properties: name, age, employee_id, manager
+    employee_properties = list(rdf_graph.objects(VOCAB.EmployeeShape, SH.property))
+    assert len(employee_properties) == 4
 
-    employee_shape = next(shape for shape in node_shapes if shape["@id"] == "EmployeeShape")
-    assert "sh:property" in employee_shape
-    assert len(employee_shape["sh:property"]) == 5  # name, age, email, employee_id, manager
+    # ManagerShape should have 5 properties: inherited + department
+    manager_properties = list(rdf_graph.objects(VOCAB.ManagerShape, SH.property))
+    assert len(manager_properties) == 5
 
-    manager_shape = next(shape for shape in node_shapes if shape["@id"] == "ManagerShape")
-    assert "sh:property" in manager_shape
-    assert len(manager_shape["sh:property"]) == 6  # all inherited + department
+    # DepartmentShape should have 1 property: name
+    dept_properties = list(rdf_graph.objects(VOCAB.DepartmentShape, SH.property))
+    assert len(dept_properties) == 1
 
 
-def test_shacl_datatype_constraints(person_model_with_shacl):
+def test_datatype_constraints(rdf_graph, vocab_ns):
     """Test that datatype constraints are correctly set"""
-    shacl = person_model_with_shacl.shacl_graph()
-    shacl_dict = shacl.model_dump(by_alias=True)
+    VOCAB = vocab_ns
 
-    node_shapes = [item for item in shacl_dict["@graph"] if item.get("@type") == "sh:NodeShape"]
-    person_shape = next(shape for shape in node_shapes if shape["@id"] == "PersonShape")
+    # Get PersonShape properties
+    person_properties = list(rdf_graph.objects(VOCAB.PersonShape, SH.property))
 
-    # Find name property shape
-    name_prop = next(prop for prop in person_shape["sh:property"] if prop["sh:path"]["@id"] == "name")
-    assert name_prop["sh:datatype"]["@id"] == "xsd:string"
-
-    # Find age property shape
-    age_prop = next(prop for prop in person_shape["sh:property"] if prop["sh:path"]["@id"] == "age")
-    assert age_prop["sh:datatype"]["@id"] == "xsd:integer"
-
-
-def test_shacl_string_constraints(person_model_with_shacl):
-    """Test that string length constraints are correctly set"""
-    shacl = person_model_with_shacl.shacl_graph()
-    shacl_dict = shacl.model_dump(by_alias=True)
-
-    node_shapes = [item for item in shacl_dict["@graph"] if item.get("@type") == "sh:NodeShape"]
-    person_shape = next(shape for shape in node_shapes if shape["@id"] == "PersonShape")
-
-    # Find name property shape
-    name_prop = next(prop for prop in person_shape["sh:property"] if prop["sh:path"]["@id"] == "name")
-    assert name_prop["sh:minLength"] == 1
-    assert name_prop["sh:maxLength"] == 100
-
-
-def test_shacl_numeric_constraints(person_model_with_shacl):
-    """Test that numeric constraints are correctly set"""
-    shacl = person_model_with_shacl.shacl_graph()
-    shacl_dict = shacl.model_dump(by_alias=True)
-
-    node_shapes = [item for item in shacl_dict["@graph"] if item.get("@type") == "sh:NodeShape"]
-    person_shape = next(shape for shape in node_shapes if shape["@id"] == "PersonShape")
-
-    # Find age property shape
-    age_prop = next(prop for prop in person_shape["sh:property"] if prop["sh:path"]["@id"] == "age")
-    assert age_prop["sh:minInclusive"] == 0
-    assert age_prop["sh:maxInclusive"] == 150
-
-
-def test_shacl_pattern_constraints(person_model_with_shacl):
-    """Test that pattern constraints are correctly set"""
-    shacl = person_model_with_shacl.shacl_graph()
-    shacl_dict = shacl.model_dump(by_alias=True)
-
-    node_shapes = [item for item in shacl_dict["@graph"] if item.get("@type") == "sh:NodeShape"]
-
-    person_shape = next(shape for shape in node_shapes if shape["@id"] == "PersonShape")
-    email_prop = next(prop for prop in person_shape["sh:property"] if prop["sh:path"]["@id"] == "email")
-    assert email_prop["sh:pattern"] == r'^[\w\.-]+@[\w\.-]+\.\w+$'
-
-    employee_shape = next(shape for shape in node_shapes if shape["@id"] == "EmployeeShape")
-    employee_id_prop = next(prop for prop in employee_shape["sh:property"] if prop["sh:path"]["@id"] == "employee_id")
-    assert employee_id_prop["sh:pattern"] == r'^E\d{3}$'
-
-
-def test_shacl_cardinality_constraints(person_model_with_shacl):
-    """Test that cardinality constraints are correctly set"""
-    shacl = person_model_with_shacl.shacl_graph()
-    shacl_dict = shacl.model_dump(by_alias=True)
-
-    node_shapes = [item for item in shacl_dict["@graph"] if item.get("@type") == "sh:NodeShape"]
-
-    person_shape = next(shape for shape in node_shapes if shape["@id"] == "PersonShape")
-
-    # Required field should have minCount = 1
-    name_prop = next(prop for prop in person_shape["sh:property"] if prop["sh:path"]["@id"] == "name")
-    assert name_prop["sh:minCount"] == 1
-
-    # Optional field should not have minCount
-    age_prop = next(prop for prop in person_shape["sh:property"] if prop["sh:path"]["@id"] == "age")
-    assert "sh:minCount" not in age_prop or age_prop.get("sh:minCount") is None
-
-    # Field with explicit maxCount annotation
-    employee_shape = next(shape for shape in node_shapes if shape["@id"] == "EmployeeShape")
-    manager_prop = next(prop for prop in employee_shape["sh:property"] if prop["sh:path"]["@id"] == "manager")
-    assert manager_prop["sh:maxCount"] == 1
-
-
-def test_shacl_relation_constraints(person_model_with_shacl):
-    """Test that relation fields have correct constraints"""
-    shacl = person_model_with_shacl.shacl_graph()
-    shacl_dict = shacl.model_dump(by_alias=True)
-
-    node_shapes = [item for item in shacl_dict["@graph"] if item.get("@type") == "sh:NodeShape"]
-    employee_shape = next(shape for shape in node_shapes if shape["@id"] == "EmployeeShape")
-
-    # Find manager property shape
-    manager_prop = next(prop for prop in employee_shape["sh:property"] if prop["sh:path"]["@id"] == "manager")
-    assert manager_prop["sh:nodeKind"] == "sh:IRI"
-    assert manager_prop["sh:class"]["@id"] == "Manager"
-
-
-def test_rdflib_parse_shacl_graph(person_model_with_shacl):
-    """Test that rdflib can parse the SHACL graph output"""
-    # Generate SHACL graph
-    shacl = person_model_with_shacl.shacl_graph()
-
-    # Serialize to JSON-LD string
-    shacl_str = shacl.model_dump_json(by_alias=True, exclude_none=True)
-
-    # Parse with rdflib
-    g = Graph()
-    g.parse(data=shacl_str, format='json-ld')
-
-    # Verify we have triples
-    assert len(g) > 0
-
-    # Define namespaces
-    VOCAB = Namespace("http://example.com/vocab/")
-    SH = Namespace("http://www.w3.org/ns/shacl#")
-
-    # Verify node shapes exist
-    assert (VOCAB.PersonShape, RDF.type, SH.NodeShape) in g
-    assert (VOCAB.EmployeeShape, RDF.type, SH.NodeShape) in g
-    assert (VOCAB.ManagerShape, RDF.type, SH.NodeShape) in g
-
-    # Verify target classes
-    assert (VOCAB.PersonShape, SH.targetClass, VOCAB.Person) in g
-    assert (VOCAB.EmployeeShape, SH.targetClass, VOCAB.Employee) in g
-    assert (VOCAB.ManagerShape, SH.targetClass, VOCAB.Manager) in g
-
-    # Verify property shapes exist (check that PersonShape has property shapes)
-    person_shape_properties = list(g.objects(VOCAB.PersonShape, SH.property))
-    assert len(person_shape_properties) == 3
-
-    # Find the name property shape and verify constraints
-    for prop_shape in person_shape_properties:
-        path = g.value(prop_shape, SH.path)
+    # Find name property and verify datatype
+    for prop_shape in person_properties:
+        path = rdf_graph.value(prop_shape, SH.path)
         if path == VOCAB.name:
-            # Check minLength constraint
-            min_length = g.value(prop_shape, SH.minLength)
-            assert min_length is not None
-            assert int(min_length) == 1
-
-            # Check maxLength constraint
-            max_length = g.value(prop_shape, SH.maxLength)
-            assert max_length is not None
-            assert int(max_length) == 100
-
-            # Check datatype
-            datatype = g.value(prop_shape, SH.datatype)
-            assert datatype is not None
+            datatype = rdf_graph.value(prop_shape, SH.datatype)
+            assert datatype == XSD.string
             break
 
-    # Find the age property shape and verify numeric constraints
-    for prop_shape in person_shape_properties:
-        path = g.value(prop_shape, SH.path)
+    # Find age property and verify datatype
+    for prop_shape in person_properties:
+        path = rdf_graph.value(prop_shape, SH.path)
         if path == VOCAB.age:
-            # Check minInclusive constraint
-            min_inclusive = g.value(prop_shape, SH.minInclusive)
-            assert min_inclusive is not None
-            assert float(min_inclusive) == 0.0
+            datatype = rdf_graph.value(prop_shape, SH.datatype)
+            assert datatype == XSD.integer
+            break
 
-            # Check maxInclusive constraint
-            max_inclusive = g.value(prop_shape, SH.maxInclusive)
-            assert max_inclusive is not None
+
+def test_string_length_constraints(rdf_graph, vocab_ns):
+    """Test that string length constraints are correctly set"""
+    VOCAB = vocab_ns
+
+    person_properties = list(rdf_graph.objects(VOCAB.PersonShape, SH.property))
+
+    # Find name property and verify length constraints
+    for prop_shape in person_properties:
+        path = rdf_graph.value(prop_shape, SH.path)
+        if path == VOCAB.name:
+            min_length = rdf_graph.value(prop_shape, SH.minLength)
+            max_length = rdf_graph.value(prop_shape, SH.maxLength)
+            assert int(min_length) == 1
+            assert int(max_length) == 100
+            break
+
+
+def test_numeric_constraints(rdf_graph, vocab_ns):
+    """Test that numeric constraints are correctly set"""
+    VOCAB = vocab_ns
+
+    person_properties = list(rdf_graph.objects(VOCAB.PersonShape, SH.property))
+
+    # Find age property and verify numeric constraints
+    for prop_shape in person_properties:
+        path = rdf_graph.value(prop_shape, SH.path)
+        if path == VOCAB.age:
+            min_inclusive = rdf_graph.value(prop_shape, SH.minInclusive)
+            max_inclusive = rdf_graph.value(prop_shape, SH.maxInclusive)
+            assert float(min_inclusive) == 0.0
             assert float(max_inclusive) == 150.0
             break
 
-    # Find the email property shape and verify pattern constraint
-    for prop_shape in person_shape_properties:
-        path = g.value(prop_shape, SH.path)
-        if path == VOCAB.email:
-            # Check pattern constraint
-            pattern = g.value(prop_shape, SH.pattern)
-            assert pattern is not None
-            assert str(pattern) == r'^[\w\.-]+@[\w\.-]+\.\w+$'
+
+def test_cardinality_constraints_required(rdf_graph, vocab_ns):
+    """Test that required fields have minCount = 1"""
+    VOCAB = vocab_ns
+
+    person_properties = list(rdf_graph.objects(VOCAB.PersonShape, SH.property))
+
+    # name is required, should have minCount = 1
+    for prop_shape in person_properties:
+        path = rdf_graph.value(prop_shape, SH.path)
+        if path == VOCAB.name:
+            min_count = rdf_graph.value(prop_shape, SH.minCount)
+            assert int(min_count) == 1
             break
 
-    # Verify employee_id pattern constraint
-    employee_shape_properties = list(g.objects(VOCAB.EmployeeShape, SH.property))
-    for prop_shape in employee_shape_properties:
-        path = g.value(prop_shape, SH.path)
-        if path == VOCAB.employee_id:
-            pattern = g.value(prop_shape, SH.pattern)
-            assert pattern is not None
-            assert str(pattern) == r'^E\d{3}$'
+
+def test_cardinality_constraints_optional(rdf_graph, vocab_ns):
+    """Test that optional fields don't have minCount"""
+    VOCAB = vocab_ns
+
+    person_properties = list(rdf_graph.objects(VOCAB.PersonShape, SH.property))
+
+    # age is optional, should not have minCount
+    for prop_shape in person_properties:
+        path = rdf_graph.value(prop_shape, SH.path)
+        if path == VOCAB.age:
+            min_count = rdf_graph.value(prop_shape, SH.minCount)
+            assert min_count is None
             break
 
-    # Verify manager relation constraints
-    for prop_shape in employee_shape_properties:
-        path = g.value(prop_shape, SH.path)
+
+def test_max_count_constraint(rdf_graph, vocab_ns):
+    """Test that maxCount annotation is applied"""
+    VOCAB = vocab_ns
+
+    employee_properties = list(rdf_graph.objects(VOCAB.EmployeeShape, SH.property))
+
+    # manager has maxCount = 1
+    for prop_shape in employee_properties:
+        path = rdf_graph.value(prop_shape, SH.path)
         if path == VOCAB.manager:
-            # Check nodeKind
-            node_kind = g.value(prop_shape, SH.nodeKind)
-            assert str(node_kind) == "sh:IRI"
-
-            # Check class constraint
-            shacl_class = g.value(prop_shape, SH['class'])
-            assert shacl_class == VOCAB.Manager
-
-            # Check maxCount
-            max_count = g.value(prop_shape, SH.maxCount)
-            assert max_count is not None
+            max_count = rdf_graph.value(prop_shape, SH.maxCount)
             assert int(max_count) == 1
             break
+
+
+def test_relation_node_kind(rdf_graph, vocab_ns):
+    """Test that relation fields have sh:nodeKind sh:IRI"""
+    VOCAB = vocab_ns
+
+    employee_properties = list(rdf_graph.objects(VOCAB.EmployeeShape, SH.property))
+
+    # manager is a Relation, should have nodeKind = sh:IRI
+    for prop_shape in employee_properties:
+        path = rdf_graph.value(prop_shape, SH.path)
+        if path == VOCAB.manager:
+            node_kind = rdf_graph.value(prop_shape, SH.nodeKind)
+            assert node_kind == SH.IRI
+            break
+
+
+def test_relation_class_constraint(rdf_graph, vocab_ns):
+    """Test that relation fields have sh:class constraint"""
+    VOCAB = vocab_ns
+
+    employee_properties = list(rdf_graph.objects(VOCAB.EmployeeShape, SH.property))
+
+    # manager should have sh:class Manager
+    for prop_shape in employee_properties:
+        path = rdf_graph.value(prop_shape, SH.path)
+        if path == VOCAB.manager:
+            shacl_class = rdf_graph.value(prop_shape, SH["class"])
+            assert shacl_class == VOCAB.Manager
+            break
+
+
+def test_property_shape_has_name(rdf_graph, vocab_ns):
+    """Test that property shapes have sh:name"""
+    VOCAB = vocab_ns
+
+    person_properties = list(rdf_graph.objects(VOCAB.PersonShape, SH.property))
+
+    # All property shapes should have sh:name
+    for prop_shape in person_properties:
+        name = rdf_graph.value(prop_shape, SH.name)
+        assert name is not None
+
+
+def test_property_shape_has_description(rdf_graph, vocab_ns):
+    """Test that property shapes have sh:description"""
+    VOCAB = vocab_ns
+
+    person_properties = list(rdf_graph.objects(VOCAB.PersonShape, SH.property))
+
+    # Find name property and verify it has description
+    for prop_shape in person_properties:
+        path = rdf_graph.value(prop_shape, SH.path)
+        if path == VOCAB.name:
+            description = rdf_graph.value(prop_shape, SH.description)
+            assert description is not None
+            assert str(description) == "Person's name"
+            break
+
+
+def test_no_duplicate_triples(rdf_graph):
+    """Test that there are no duplicate triples in the SHACL graph"""
+    triples = list(rdf_graph)
+    unique_triples = set(triples)
+    assert len(triples) == len(unique_triples), "Graph contains duplicate triples"
+
+
+def test_pyshacl_validates_valid_data(shacl_graph_json):
+    """Test that pyshacl validates conforming data"""
+    # Create valid data graph
+    data_graph_json = """
+    {
+        "@context": {
+            "@vocab": "http://example.com/vocab/",
+            "@base": "http://example.com/"
+        },
+        "@graph": [
+            {
+                "@id": "person1",
+                "@type": "Person",
+                "name": "John Doe",
+                "age": 30,
+                "email": "john.doe@example.com"
+            }
+        ]
+    }
+    """
+
+    data_g = Graph()
+    data_g.parse(data=data_graph_json, format="json-ld")
+
+    shacl_g = Graph()
+    shacl_g.parse(data=shacl_graph_json, format="json-ld")
+
+    # Validate
+    conforms, results_graph, results_text = validate(
+        data_g, shacl_graph=shacl_g, inference="rdfs", abort_on_first=False
+    )
+
+    assert conforms, f"Validation failed: {results_text}"
+
+
+def test_pyshacl_detects_missing_required_field(shacl_graph_json):
+    """Test that pyshacl detects missing required fields"""
+    # Create invalid data graph (missing required 'name' field)
+    data_graph_json = """
+    {
+        "@context": {
+            "@vocab": "http://example.com/vocab/",
+            "@base": "http://example.com/"
+        },
+        "@graph": [
+            {
+                "@id": "person1",
+                "@type": "Person",
+                "age": 30
+            }
+        ]
+    }
+    """
+
+    data_g = Graph()
+    data_g.parse(data=data_graph_json, format="json-ld")
+
+    shacl_g = Graph()
+    shacl_g.parse(data=shacl_graph_json, format="json-ld")
+
+    # Validate
+    conforms, results_graph, results_text = validate(
+        data_g, shacl_graph=shacl_g, inference="rdfs", abort_on_first=False
+    )
+
+    assert not conforms, "Validation should fail for missing required field"
+
+
+def test_pyshacl_detects_numeric_constraint_violation(shacl_graph_json):
+    """Test that pyshacl detects numeric constraint violations"""
+    # Create invalid data graph (age out of range)
+    data_graph_json = """
+    {
+        "@context": {
+            "@vocab": "http://example.com/vocab/",
+            "@base": "http://example.com/"
+        },
+        "@graph": [
+            {
+                "@id": "person1",
+                "@type": "Person",
+                "name": "John Doe",
+                "age": 200
+            }
+        ]
+    }
+    """
+
+    data_g = Graph()
+    data_g.parse(data=data_graph_json, format="json-ld")
+
+    shacl_g = Graph()
+    shacl_g.parse(data=shacl_graph_json, format="json-ld")
+
+    # Validate
+    conforms, results_graph, results_text = validate(
+        data_g, shacl_graph=shacl_g, inference="rdfs", abort_on_first=False
+    )
+
+    assert not conforms, "Validation should fail for numeric constraint violation"
+
+
+def test_pyshacl_detects_string_length_violation(shacl_graph_json):
+    """Test that pyshacl detects string length violations"""
+    # Create invalid data graph (name too long)
+    data_graph_json = """
+    {
+        "@context": {
+            "@vocab": "http://example.com/vocab/",
+            "@base": "http://example.com/"
+        },
+        "@graph": [
+            {
+                "@id": "person1",
+                "@type": "Person",
+                "name": "a very long name that exceeds the maximum length constraint of one hundred characters which should fail"
+            }
+        ]
+    }
+    """
+
+    data_g = Graph()
+    data_g.parse(data=data_graph_json, format="json-ld")
+
+    shacl_g = Graph()
+    shacl_g.parse(data=shacl_graph_json, format="json-ld")
+
+    # Validate
+    conforms, results_graph, results_text = validate(
+        data_g, shacl_graph=shacl_g, inference="rdfs", abort_on_first=False
+    )
+
+    assert not conforms, "Validation should fail for string length violation"
+
+
+def test_pyshacl_validates_employee_with_manager(shacl_graph_json):
+    """Test that pyshacl validates employee with valid manager reference"""
+    # Create valid data graph with employee and manager
+    data_graph_json = """
+    {
+        "@context": {
+            "@vocab": "http://example.com/vocab/",
+            "@base": "http://example.com/"
+        },
+        "@graph": [
+            {
+            "@id": "manager1",
+                "@type": "Manager",
+                "name": "Jane Smith",
+                "employee_id": "E001",
+                "department": {"@id": "Engineering"}
+            },
+            {
+            "@id": "employee1",
+                "@type": "Employee",
+                "name": "John Doe",
+                "employee_id": "E002",
+                "manager": {"@id": "manager1"}
+            }
+        ]
+    }
+    """
+
+    data_g = Graph()
+    data_g.parse(data=data_graph_json, format="json-ld")
+
+    shacl_g = Graph()
+    shacl_g.parse(data=shacl_graph_json, format="json-ld")
+
+    # Validate
+    conforms, results_graph, results_text = validate(
+        data_g, shacl_graph=shacl_g, inference="rdfs", abort_on_first=False
+    )
+
+    assert conforms, f"Validation failed: {results_text}"

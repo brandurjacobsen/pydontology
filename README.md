@@ -4,18 +4,18 @@
 This is a work in progress.
 
 In my opinion, if you call yourself a 'Python developer', you either have some bulky (recent) personal Python projects under your belt, 
-or you write Python code for a living, which unfortunately means that I'm not a 'Python developer', but I'm working on it...
+or you write Python code for a living, which unfortunately means that I'm not a 'Python developer'; this is also a work in progress.
 
-I would love to get feedback on this project, and help to develop it further. So, contributions are welcome!
+I would appreciate feedback on this project, and help to develop it further. So, contributions (and issues) are welcome!
 
-That being said, this package enables you to:
+That being said, this package will enable you to:
 
   * Build an RDF ontology using the well-known Pydantic model classes
   * Use typing.Annotated to add RDFS/OWL and SHACL metadata to your ontology class attributes
   * Generate a JSON-LD (JSON for Linked Data) ontology graph from your ontology and metadata
   * Generate a JSON-LD SHACL (Shapes Constraint Language) graph from your ontology and metadata
-  * Generate a JSON schema, which for example can be passed to LLMs to produce structured output
-  * Parse data adhering to the JSON schema directly, using e.g. rdflib
+  * Generate a JSON schema from your ontology, which for example can be passed to LLMs to produce structured output
+  * Parse data adhering to the JSON schema directly, using e.g. rdflib 
 
 The package exposes, amongst others, the classes *Entity* and *Relation*, which inherit Pydantic's BaseModel.
 Entity serves as the base class for ontology classes.
@@ -67,7 +67,7 @@ class Manager(Employee):
     department: str = Field(description="Department name")
 ~~~
 
-Note the use of typing.Annotated above to have the ontology graph include the triple: `ex:has_manager rdfs:range ex:Manager`,
+Note the use of typing.Annotated above to have the ontology graph include the triple: `:has_manager rdfs:range :Manager`,
 by using the *RDFSAnnotation.range* method.
 The RDFS domain is per default assumed to be the class wherein the attribute is defined.
 

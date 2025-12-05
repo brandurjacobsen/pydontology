@@ -15,7 +15,7 @@
         <link href="css/solid.min.css" rel="stylesheet">
         <link href="css/v4-font-face.min.css" rel="stylesheet">
         <link href="css/base.css" rel="stylesheet">
-        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/rainbow.min.css" >
         <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
         <link href="assets/_mkdocstrings.css" rel="stylesheet">
         <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
@@ -98,13 +98,17 @@
 
 <h1 id="pydontology">Pydontology<a class="headerlink" href="#pydontology" title="Permanent link">#</a></h1>
 <h2 id="ontologies-the-pydantic-way"><em>Ontologies the Pydantic way</em><a class="headerlink" href="#ontologies-the-pydantic-way" title="Permanent link">#</a></h2>
-<p>This package enables you to:</p>
+<p>This is a work in progress.</p>
+<p>In my opinion, if you call yourself a 'Python developer', you either have some bulky (recent) personal Python projects under your belt, 
+or you write Python code for a living, which unfortunately means that I'm not a 'Python developer'; this is also a work in progress.</p>
+<p>I would appreciate feedback on this project, and help to develop it further. So, contributions (and issues) are welcome!</p>
+<p>That being said, this package will enable you to:</p>
 <ul>
 <li>Build an RDF ontology using the well-known Pydantic model classes</li>
 <li>Use typing.Annotated to add RDFS/OWL and SHACL metadata to your ontology class attributes</li>
 <li>Generate a JSON-LD (JSON for Linked Data) ontology graph from your ontology and metadata</li>
 <li>Generate a JSON-LD SHACL (Shapes Constraint Language) graph from your ontology and metadata</li>
-<li>Generate a JSON schema, which for example can be passed to LLMs to produce structured output</li>
+<li>Generate a JSON schema from your ontology, which for example can be passed to LLMs to produce structured output</li>
 <li>Parse data adhering to the JSON schema directly, using e.g. rdflib</li>
 </ul>
 <p>The package exposes, amongst others, the classes <a href="reference/#pydontology.pydontology.Entity">Entity</a> and <a href="reference/#pydontology.pydontology.Relation">Relation</a>, which inherit Pydantic's BaseModel.
@@ -218,5 +222,5 @@ print(Model.ontology_graph().model_dump_json(indent=2))
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2025-11-29 19:58:49.429429+00:00
+Build Date UTC : 2025-12-05 17:34:16.003631+00:00
 -->

@@ -37,7 +37,10 @@ jobs:
 
       - name: AI Chat
         env:
-          ISSUE_BODY: ${{ github.event.comment.body }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           aider \
@@ -45,7 +48,16 @@ jobs:
           --yes \
           --read Architecture.md \
           --file ISSUE_COMMENT_REPLY.md \
-          --message "You are the architect of Pydontology. Respond to this issue comment in ISSUE_COMMENT_REPLY.md as such:\n${{ env.ISSUE_BODY }}"
+          --message "You are the architect of Pydontology. Respond to this issue comment in ISSUE_COMMENT_REPLY.md.
+
+          ISSUE CONTEXT:
+          Issue #${ISSUE_NUMBER}: ${ISSUE_TITLE}
+          
+          Original Issue Description:
+          ${ISSUE_BODY}
+          
+          COMMENT TO RESPOND TO:
+          ${COMMENT_BODY}"
 
       - name: Reply to Issue Comment
         uses: actions/github-script@v8

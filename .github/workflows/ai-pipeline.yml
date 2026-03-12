@@ -2,10 +2,9 @@
 name: AI-Pipeline
 
 on:
-  workflow_dispatch:
-  #issues_comment:
-  #  types:
-  #    - created
+  issue_comment:
+    types:
+      - created
 
 jobs:
   chat:

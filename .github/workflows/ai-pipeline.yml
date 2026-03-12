@@ -27,12 +27,25 @@ jobs:
       - name: Install Aider
         run: pip install --upgrade pip && pip install aider-chat
 
+      - name: Get All Comments
+        id: comments
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+            return comments.data.map(c => `**${c.user.login}** (${c.created_at}):\n${c.body}`).join('\n\n---\n\n');
+
       - name: AI Chat
         env:
           COMMENT_BODY: ${{ github.event.comment.body }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ALL_COMMENTS: ${{ steps.comments.outputs.result }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           aider \
@@ -48,7 +61,10 @@ jobs:
           Original Issue Description:
           ${ISSUE_BODY}
 
-          COMMENT TO RESPOND TO:
+          FULL COMMENT HISTORY:
+          ${ALL_COMMENTS}
+
+          LATEST COMMENT TO RESPOND TO:
           ${COMMENT_BODY}"
 
       - name: Reply to Issue Comment

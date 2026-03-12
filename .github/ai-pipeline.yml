@@ -1,0 +1,49 @@
+---
+name: AI-Pipeline
+
+on:
+  issues_comment:
+    types:
+      - created
+
+jobs:
+  chat:
+    if: ${{ startsWith( github.event.comment.body, '/ai-chat' ) }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Aider
+        run: pip install --upgrade pip && pip install aider-chat
+
+      - name: AI Chat
+        env:
+          ISSUE_BODY: ${{ github.event.comment.body }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          aider \
+          --model openrouter/claude-4.5-sonnet \
+          --yes \
+          --read Architecture.md \
+          --file ISSUE_COMMENT_REPLY.md \
+          --message "You are the architect of Pydontology. Respond to this issue comment in ISSUE_COMMENT_REPLY.md as such:\n${{ env.ISSUE_BODY }}"
+
+      - name: Reply to Issue Comment
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const reply = fs.readFileSync('./ISSUE_COMMENT_REPLY.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: reply
+            })

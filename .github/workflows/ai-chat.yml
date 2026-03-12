@@ -1,5 +1,5 @@
 ---
-name: AI-Pipeline
+name: AI Chat Workflow
 
 on:
   issue_comment:
@@ -16,6 +16,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check collaborator
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const checkCollaborator = require('.github/scripts/check-collaborator.js');
+            await checkCollaborator({
+              github,
+              context,
+              core,
+              username: '${{ github.event.comment.user.login }}',
+              requiredPermission: 'write'
+            });
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -48,23 +61,28 @@ jobs:
           ALL_COMMENTS: ${{ steps.comments.outputs.result }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
+          PROMPT="$(cat ./agents/architect-prompt.txt)
           aider \
           --model openrouter/anthropic/claude-sonnet-4.5 \
           --yes \
           --read Architecture.md \
           --file ISSUE_COMMENT_REPLY.md \
-          --message "You are the architect of Pydontology. Respond to this issue comment in ISSUE_COMMENT_REPLY.md.
+          --message "
+          ${PROMPT}
 
-          ISSUE CONTEXT:
+          Task:
+          Respond to this issue comment in ISSUE_COMMENT_REPLY.md.
+
+          Issue Context:
           Issue #${ISSUE_NUMBER}: ${ISSUE_TITLE}
 
           Original Issue Description:
           ${ISSUE_BODY}
 
-          FULL COMMENT HISTORY:
+          Full Comment History:
           ${ALL_COMMENTS}
 
-          LATEST COMMENT TO RESPOND TO:
+          Latest Comment to Respond To:
           ${COMMENT_BODY}"
 
       - name: Reply to Issue Comment

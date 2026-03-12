@@ -27,14 +27,6 @@ jobs:
       - name: Install Aider
         run: pip install --upgrade pip && pip install aider-chat
 
-      - name: Debug
-        env:
-          ISSUE_BODY: ${{ github.event.comment.body }}
-        uses: actions/github-script@v8
-        with:
-          script: |
-            console.log("Comment body:", github.event.comment.body)
-
       - name: AI Chat
         env:
           COMMENT_BODY: ${{ github.event.comment.body }}
@@ -52,10 +44,10 @@ jobs:
 
           ISSUE CONTEXT:
           Issue #${ISSUE_NUMBER}: ${ISSUE_TITLE}
-          
+
           Original Issue Description:
           ${ISSUE_BODY}
-          
+
           COMMENT TO RESPOND TO:
           ${COMMENT_BODY}"
 

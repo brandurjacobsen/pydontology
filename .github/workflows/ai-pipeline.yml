@@ -5,6 +5,10 @@ on:
   issue_comment:
     types:
       - created
+      -
+permissions:
+  contents: read
+  issues: write
 
 jobs:
   chat:
@@ -23,13 +27,21 @@ jobs:
       - name: Install Aider
         run: pip install --upgrade pip && pip install aider-chat
 
+      - name: Debug
+        env:
+          ISSUE_BODY: ${{ github.event.comment.body }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            console.log("Comment body:", github.event.comment.body)
+
       - name: AI Chat
         env:
           ISSUE_BODY: ${{ github.event.comment.body }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           aider \
-          --model openrouter/claude-4.5-sonnet \
+          --model openrouter/anthropic/claude-sonnet-4.5 \
           --yes \
           --read Architecture.md \
           --file ISSUE_COMMENT_REPLY.md \

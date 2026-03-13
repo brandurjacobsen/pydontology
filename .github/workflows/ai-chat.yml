@@ -85,6 +85,11 @@ jobs:
           Latest Comment to Respond To:
           ${COMMENT_BODY}"
 
+          # Add sign-off
+          echo "" >> ISSUE_COMMENT_REPLY.md
+          echo "---" >> ISSUE_COMMENT_REPLY.md
+          echo "Regards, Pydontology Team Architect" >> ISSUE_COMMENT_REPLY.md
+
       - name: Reply to Issue Comment
         uses: actions/github-script@v8
         with:

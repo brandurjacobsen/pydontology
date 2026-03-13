@@ -45,12 +45,8 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            const comments = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number
-            });
-            return comments.data.map(c => `**${c.user.login}** (${c.created_at}):\n${c.body}`).join('\n\n---\n\n');
+            const listComments = require('./.github/scripts/list-comments.js');
+            return await listComments({ github, context, core });
 
       - name: AI Chat
         env:

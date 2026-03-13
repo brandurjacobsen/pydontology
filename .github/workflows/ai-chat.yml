@@ -20,7 +20,7 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            const checkCollaborator = require('./.github/scripts/check-collaborator.js');
+            const checkCollaborator = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/check-collaborator.js`);
             await checkCollaborator({
               github,
               context,

@@ -16,11 +16,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Check collaborator
         uses: actions/github-script@v8
         with:
           script: |
-            const checkCollaborator = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/check-collaborator.js`);
+            const checkCollaborator = require('.github/scripts/check-collaborator.js');
             await checkCollaborator({
               github,
               context,
@@ -28,9 +31,6 @@ jobs:
               username: '${{ github.event.comment.user.login }}',
               requiredPermission: 'write'
             });
-
-      - name: Checkout
-        uses: actions/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v5

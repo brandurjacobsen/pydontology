@@ -77,6 +77,12 @@ jobs:
             git push --set-upstream origin "$BRANCH_NAME"
           fi
 
+      - name: Setup agent state directory
+        run: |
+          mkdir -p .git/info
+          echo "agents/state/" > .git/info/exclude
+          mkdir -p agents/state
+
       - name: Generate coder instructions
         env:
           ALL_COMMENTS: ${{ steps.comments.outputs.result }}
@@ -139,6 +145,12 @@ jobs:
           Task:
           Follow the instructions of the Architect in 'agents/state/implementation.md' to write the implementation.
           "
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: implement
+          path: agents/state/
 
       - name: Push changes
         run: |

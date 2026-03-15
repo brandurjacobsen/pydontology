@@ -57,7 +57,7 @@ jobs:
           ALL_COMMENTS: ${{ steps.comments.outputs.result }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
-          PROMPT="$(cat ./agents/architect-prompt.txt)
+          PROMPT=$(cat agents/architect-prompt.txt)
           aider \
           --model openrouter/anthropic/claude-sonnet-4.5 \
           --yes \

@@ -19,13 +19,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create and checkout new branch
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          BRANCH_NAME="ai-implement-issue-${{ github.event.issue.number }}"
-          git checkout -b "$BRANCH_NAME"
-
       - name: Check collaborator
         uses: actions/github-script@v8
         with:
@@ -47,6 +40,9 @@ jobs:
       - name: Install Aider
         run: pip install --upgrade pip && pip install aider-chat
 
+      - name: Install requirements
+        run: pip install -r requirements.txt
+
       - name: Get Issue Comments
         id: comments
         uses: actions/github-script@v8
@@ -55,7 +51,15 @@ jobs:
             const listComments = require('./.github/scripts/list-comments.js');
             return await listComments({ github, context, core });
 
-      - name: AI Implement
+      - name: Create and checkout new branch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH_NAME="ai-implement-issue-${{ github.event.issue.number }}"
+          git checkout -b "$BRANCH_NAME"
+          git push --set-upstream origin "$BRANCH_NAME"
+
+      - name: Generate coder instructions
         env:
           COMMENT_BODY: ${{ github.event.comment.body }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
@@ -69,6 +73,7 @@ jobs:
           --model openrouter/anthropic/claude-sonnet-4.5 \
           --yes \
           --read Architecture.md \
+          --file agents/state/tests.md \
           --file agents/state/implementation.md \
           --message "
           ${PROMPT}
@@ -77,7 +82,8 @@ jobs:
           Using the issue description below, give instructions to the implementer regarding:
             - Which TDD tests to write to verify the implementation or change (in 'agents/state/tests.md').
             - Which classes, functions or methods to implement or change (in 'agents/state/implementation.md').
-
+          Pay particular attention to issues or comments created by the owner or yourself.
+          Sign off as 'Pydontology Team Architect'.
 
           Issue Context:
           Issue #${ISSUE_NUMBER}: ${ISSUE_TITLE}
@@ -87,21 +93,45 @@ jobs:
 
           Full Comment History:
           ${ALL_COMMENTS}
+          "
 
-          # Add sign-off
-          echo "" >> ISSUE_COMMENT_REPLY.md
-          echo "---" >> ISSUE_COMMENT_REPLY.md
-          echo "Regards, Pydontology Team Architect" >> ISSUE_COMMENT_REPLY.md
+      - name: Write tests
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          PROMPT="$(cat ./agents/coder-prompt.txt)
+          aider \
+          --model openrouter/anthropic/claude-sonnet-4.5 \
+          --yes \
+          --read agents/state/tests.md \
+          --auto-commits \
+          --message "
+          ${PROMPT}
 
-      - name: Reply to Issue Comment
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const fs = require('fs');
-            const reply = fs.readFileSync('./ISSUE_COMMENT_REPLY.md', 'utf8');
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: reply
-            })
+          Task:
+          Follow the instructions of the Architect in 'agents/state/tests.md' to write the tests.
+          "
+
+      - name: Write implementation
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          PROMPT="$(cat ./agents/coder-prompt.txt)
+          aider \
+          --model openrouter/anthropic/claude-sonnet-4.5 \
+          --yes \
+          --read agents/state/implementation.md \
+          --auto-commits \
+          --test-cmd "python -m pytest" \
+          --auto-tests \
+          --message "
+          ${PROMPT}
+
+          Task:
+          Follow the instructions of the Architect in 'agents/state/implementation.md' to write the implementation.
+          "
+
+      - name: Push changes
+        run: |
+          git push origin
+          # Create pr AI!

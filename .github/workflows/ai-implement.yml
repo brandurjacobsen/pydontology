@@ -122,7 +122,7 @@ jobs:
           --read agents/state/implementation.md \
           --auto-commits \
           --test-cmd "python -m pytest" \
-          --auto-tests \
+          --auto-test \
           --message "
           ${PROMPT}
 

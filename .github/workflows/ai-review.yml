@@ -43,9 +43,14 @@ jobs:
       - name: Install Aider
         run: pip install --upgrade pip && pip install aider-chat
 
+      - name: Setup agent state directory
+        run: |
+          mkdir -p .git/info
+          echo "agents/state/" > .git/info/exclude
+          mkdir -p agents/state
+
       - name: Fetch PR files
         run: |
-          mkdir -p agents/state
           gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files > agents/state/files.json
 
       - name: Run AI reviewer
@@ -63,8 +68,14 @@ jobs:
 
           Task:
           Review the changes in the pull request using the current repo as a reference,
-          and provide feedback in 'agents/state/review.json'.
+          and write feedback in 'agents/state/review.json'.
           "
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: review
+          path: agents/state/
 
       - name: Post review
         run: |

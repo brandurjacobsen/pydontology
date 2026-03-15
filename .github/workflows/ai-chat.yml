@@ -1,5 +1,5 @@
 ---
-name: AI Chat Workflow
+name: AI Chat
 
 on:
   issue_comment:
@@ -16,11 +16,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Check collaborator
         uses: actions/github-script@v8
         with:
           script: |
-            const checkCollaborator = require('./.github/scripts/check-collaborator.js');
+            const checkCollaborator = require('.github/scripts/check-collaborator.js');
             await checkCollaborator({
               github,
               context,
@@ -28,9 +31,6 @@ jobs:
               username: '${{ github.event.comment.user.login }}',
               requiredPermission: 'write'
             });
-
-      - name: Checkout
-        uses: actions/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -40,17 +40,13 @@ jobs:
       - name: Install Aider
         run: pip install --upgrade pip && pip install aider-chat
 
-      - name: Get All Comments
+      - name: Get Issue Comments
         id: comments
         uses: actions/github-script@v8
         with:
           script: |
-            const comments = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number
-            });
-            return comments.data.map(c => `**${c.user.login}** (${c.created_at}):\n${c.body}`).join('\n\n---\n\n');
+            const listComments = require('./.github/scripts/list-comments.js');
+            return await listComments({ github, context, core });
 
       - name: AI Chat
         env:
@@ -71,7 +67,8 @@ jobs:
           ${PROMPT}
 
           Task:
-          Respond to this issue comment in ISSUE_COMMENT_REPLY.md.
+          Respond to latest issue comment in ISSUE_COMMENT_REPLY.md,
+          paying special attention to previous comments by the owner.
 
           Issue Context:
           Issue #${ISSUE_NUMBER}: ${ISSUE_TITLE}
@@ -84,6 +81,11 @@ jobs:
 
           Latest Comment to Respond To:
           ${COMMENT_BODY}"
+
+          # Add sign-off
+          echo "" >> ISSUE_COMMENT_REPLY.md
+          echo "---" >> ISSUE_COMMENT_REPLY.md
+          echo "Regards, Pydontology Team Architect" >> ISSUE_COMMENT_REPLY.md
 
       - name: Reply to Issue Comment
         uses: actions/github-script@v8

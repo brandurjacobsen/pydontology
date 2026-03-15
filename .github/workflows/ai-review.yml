@@ -31,7 +31,7 @@ jobs:
               github,
               context,
               core,
-              username: '${{ context.actor }}',
+              username: '${{ github.actor }}',
               requiredPermission: 'write'
             });
 

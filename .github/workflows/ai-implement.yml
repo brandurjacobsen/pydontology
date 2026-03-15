@@ -60,13 +60,21 @@ jobs:
             const listComments = require('./.github/scripts/list-comments.js');
             return await listComments({ github, context, core });
 
-      # Create and checkout new branch unless it already exists AI!
       - name: Create and checkout new branch
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH_NAME"
-          git push --set-upstream origin "$BRANCH_NAME"
+          if git show-ref --verify --quiet refs/heads/"$BRANCH_NAME"; then
+            echo "Branch $BRANCH_NAME already exists locally, checking it out"
+            git checkout "$BRANCH_NAME"
+          elif git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
+            echo "Branch $BRANCH_NAME exists on remote, checking it out"
+            git checkout -b "$BRANCH_NAME" origin/"$BRANCH_NAME"
+          else
+            echo "Creating new branch $BRANCH_NAME"
+            git checkout -b "$BRANCH_NAME"
+            git push --set-upstream origin "$BRANCH_NAME"
+          fi
 
       - name: Generate coder instructions
         env:

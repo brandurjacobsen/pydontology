@@ -18,7 +18,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        # Checkout a new branch for the implementation AI!
+
+      - name: Create and checkout new branch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH_NAME="ai-implement-issue-${{ github.event.issue.number }}"
+          git checkout -b "$BRANCH_NAME"
 
       - name: Check collaborator
         uses: actions/github-script@v8

@@ -60,6 +60,7 @@ jobs:
             const listComments = require('./.github/scripts/list-comments.js');
             return await listComments({ github, context, core });
 
+      # Create and checkout new branch unless it already exists AI!
       - name: Create and checkout new branch
         run: |
           git config --global user.name "github-actions[bot]"

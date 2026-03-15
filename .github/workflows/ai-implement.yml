@@ -1,0 +1,101 @@
+---
+name: AI Implement
+
+on:
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  implement:
+    if: ${{ startsWith( github.event.comment.body, '/ai-implement' ) }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        # Checkout a new branch for the implementation AI!
+
+      - name: Check collaborator
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const checkCollaborator = require('.github/scripts/check-collaborator.js');
+            await checkCollaborator({
+              github,
+              context,
+              core,
+              username: '${{ github.event.comment.user.login }}',
+              requiredPermission: 'write'
+            });
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Aider
+        run: pip install --upgrade pip && pip install aider-chat
+
+      - name: Get Issue Comments
+        id: comments
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const listComments = require('./.github/scripts/list-comments.js');
+            return await listComments({ github, context, core });
+
+      - name: AI Implement
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ALL_COMMENTS: ${{ steps.comments.outputs.result }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          PROMPT="$(cat ./agents/architect-prompt.txt)
+          aider \
+          --model openrouter/anthropic/claude-sonnet-4.5 \
+          --yes \
+          --read Architecture.md \
+          --file agents/state/implementation.md \
+          --message "
+          ${PROMPT}
+
+          Task:
+          Using the issue description below, give instructions to the implementer regarding:
+            - Which TDD tests to write to verify the implementation or change (in 'agents/state/tests.md').
+            - Which classes, functions or methods to implement or change (in 'agents/state/implementation.md').
+
+
+          Issue Context:
+          Issue #${ISSUE_NUMBER}: ${ISSUE_TITLE}
+
+          Original Issue Description:
+          ${ISSUE_BODY}
+
+          Full Comment History:
+          ${ALL_COMMENTS}
+
+          # Add sign-off
+          echo "" >> ISSUE_COMMENT_REPLY.md
+          echo "---" >> ISSUE_COMMENT_REPLY.md
+          echo "Regards, Pydontology Team Architect" >> ISSUE_COMMENT_REPLY.md
+
+      - name: Reply to Issue Comment
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const reply = fs.readFileSync('./ISSUE_COMMENT_REPLY.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: reply
+            })

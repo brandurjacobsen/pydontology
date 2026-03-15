@@ -1,5 +1,5 @@
 ---
-name: AI Chat Workflow
+name: AI Chat
 
 on:
   issue_comment:
@@ -40,7 +40,7 @@ jobs:
       - name: Install Aider
         run: pip install --upgrade pip && pip install aider-chat
 
-      - name: Get All Comments
+      - name: Get Issue Comments
         id: comments
         uses: actions/github-script@v8
         with:
@@ -67,7 +67,8 @@ jobs:
           ${PROMPT}
 
           Task:
-          Respond to this issue comment in ISSUE_COMMENT_REPLY.md.
+          Respond to latest issue comment in ISSUE_COMMENT_REPLY.md,
+          paying special attention to previous comments by the owner.
 
           Issue Context:
           Issue #${ISSUE_NUMBER}: ${ISSUE_TITLE}

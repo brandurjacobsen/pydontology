@@ -1,0 +1,70 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [created, synchronize, labeled]
+
+jobs:
+  ai-review:
+    if: contains(github.event.pull_request.labels.*.name, 'ai-review') ||
+      (github.event.action == 'labeled' && github.event.label.name == 'ai-review')
+
+    runs-on: ubuntu-latest
+
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check collaborator permissions
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const checkCollaborator = require('.github/scripts/check-collaborator.js');
+            await checkCollaborator({
+              github,
+              context,
+              core,
+              username: '${{ context.actor }}',
+              requiredPermission: 'write'
+            });
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Aider
+        run: pip install --upgrade pip && pip install aider-chat
+
+      - name: Fetch PR files
+        run: |
+          gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files > agents/state/files.json
+
+      - name: Run AI reviewer
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          PROMPT="$(cat ./agents/reviewer-prompt.txt)"
+          aider \
+          --model openrouter/anthropic/claude-sonnet-4.5 \
+          --yes \
+          --read agents/state/files.json \
+          --file agents/state/review.json \
+          --message "
+          ${PROMPT}
+
+          Task:
+          Review the changes in the pull request using the current repo as a reference,
+          and provide feedback in 'agents/state/review.json'.
+          "
+
+      - name: Post review
+        run: |
+          gh api -X POST repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews --input agents/state/review.json

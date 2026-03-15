@@ -71,7 +71,7 @@ jobs:
         env:
           ALL_COMMENTS: ${{ steps.comments.outputs.result }}
         run: |
-          PROMPT="$(cat ./agents/architect-prompt.txt)"
+          PROMPT=$(cat agents/architect-prompt.txt)
           aider \
           --model openrouter/anthropic/claude-sonnet-4.5 \
           --yes \
@@ -100,7 +100,7 @@ jobs:
 
       - name: Write tests
         run: |
-          PROMPT="$(cat ./agents/coder-prompt.txt)"
+          PROMPT=$(cat agents/coder-prompt.txt)
           aider \
           --model openrouter/anthropic/claude-sonnet-4.5 \
           --yes \
@@ -115,7 +115,7 @@ jobs:
 
       - name: Write implementation
         run: |
-          PROMPT="$(cat ./agents/coder-prompt.txt)"
+          PROMPT=$(cat agents/coder-prompt.txt)
           aider \
           --model openrouter/anthropic/claude-sonnet-4.5 \
           --yes \

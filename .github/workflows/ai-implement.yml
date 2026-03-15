@@ -69,7 +69,8 @@ jobs:
             git checkout "$BRANCH_NAME"
           elif git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
             echo "Branch $BRANCH_NAME exists on remote, checking it out"
-            git checkout -b "$BRANCH_NAME" origin/"$BRANCH_NAME"
+            git checkout "$BRANCH_NAME"
+            git pull
           else
             echo "Creating new branch $BRANCH_NAME"
             git checkout -b "$BRANCH_NAME"

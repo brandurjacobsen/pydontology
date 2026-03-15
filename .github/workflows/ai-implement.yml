@@ -64,13 +64,13 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin
           if git show-ref --verify --quiet refs/heads/"$BRANCH_NAME"; then
             echo "Branch $BRANCH_NAME already exists locally, checking it out"
             git checkout "$BRANCH_NAME"
-          elif git ls-remote --exit-code --heads origin "$BRANCH_NAME"; then
+          elif git show-ref --verify --quiet refs/remotes/origin/"$BRANCH_NAME"; then
             echo "Branch $BRANCH_NAME exists on remote, checking it out"
-            git checkout "$BRANCH_NAME"
-            git pull
+            git checkout -b "$BRANCH_NAME" origin/"$BRANCH_NAME"
           else
             echo "Creating new branch $BRANCH_NAME"
             git checkout -b "$BRANCH_NAME"

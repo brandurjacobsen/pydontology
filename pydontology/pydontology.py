@@ -1,3 +1,4 @@
+import warnings
 from types import UnionType
 from typing import Annotated, List, Literal, Optional, Union, get_args, get_origin
 
@@ -6,6 +7,11 @@ from pydantic.json_schema import SkipJsonSchema
 
 from .rdfs import RDFSAnnotation
 from .shacl import SHACLAnnotation
+
+
+class PydontologyDuplicatePropertyWarning(UserWarning):
+    """Warning for duplicate property definitions in ontology graph."""
+    pass
 
 
 class Relation(BaseModel):
@@ -219,6 +225,10 @@ class JSONLDGraph(BaseModel):
     def ontology_graph(cls) -> "JSONLDGraph":
         """Generate an ontology graph from the classes in the ontology.
 
+        Properties are tracked by their alias (if present) or field name to detect duplicates.
+        When a duplicate property is detected, a PydontologyDuplicatePropertyWarning is emitted
+        and the duplicate definition is skipped (first-wins strategy).
+
         Returns:
             JSONLDGraph: With _OntologyClass and _OntologyProperty (internal classes) instances in the default graph.
         """
@@ -388,7 +398,7 @@ class JSONLDGraph(BaseModel):
 
         Args:
             entity_class: The Entity class to create property definitions for.
-            properties_seen: Set of property names already processed.
+            properties_seen: Set of property names already processed (tracked by alias if present).
 
         Returns:
             List[_OntologyProperty]: Property definitions for the class fields.
@@ -401,14 +411,24 @@ class JSONLDGraph(BaseModel):
             if field_name in ["id", "type"] or field_name in parent_fields:
                 continue
 
-            # Skip duplicates
-            if field_name in properties_seen:
-                continue
-            properties_seen.add(field_name)
+            # Track by alias if present, otherwise by field_name
+            tracking_name = field_info.alias or field_name
 
-            # Create property definition
+            # Check for duplicates and warn
+            if tracking_name in properties_seen:
+                warnings.warn(
+                    f"Duplicate property '{tracking_name}' detected in class '{entity_class.__name__}'. "
+                    f"Skipping duplicate definition (first definition wins).",
+                    PydontologyDuplicatePropertyWarning,
+                    stacklevel=4
+                )
+                continue
+            
+            properties_seen.add(tracking_name)
+
+            # Create property definition using tracking_name
             prop_def = cls._create_single_property_definition(
-                entity_class, field_name, field_info, field_name
+                entity_class, field_name, field_info, tracking_name
             )
             property_defs.append(prop_def)
 

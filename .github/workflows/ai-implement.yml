@@ -77,10 +77,13 @@ jobs:
             git push --set-upstream origin "$BRANCH_NAME"
           fi
 
+      - name: Get HEAD hash
+        id: head
+        run: |
+          echo "head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Setup agent state directory
         run: |
-          mkdir -p .git/info
-          echo "agents/state/" > .git/info/exclude
           mkdir -p agents/state
 
       - name: Generate coder instructions
@@ -151,6 +154,11 @@ jobs:
         with:
           name: implement
           path: agents/state/
+
+      - name: Restore agent state dir
+        run: |
+          git restore --source=${{ steps.head.outputs.head }} --staged --worktree -- agents/state/
+          git commit -m "Restore agent state dir"
 
       - name: Push changes
         run: |

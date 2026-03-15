@@ -66,7 +66,7 @@ jobs:
 
           Task:
           Review the changes in the pull request using the current repo as a reference,
-          and write feedback in 'agents/state/review.json'.
+          and write feedback to 'agents/state/review.json'.
           "
 
       - name: Upload artifacts

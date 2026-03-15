@@ -71,7 +71,7 @@ jobs:
           ${PROMPT}
 
           Task:
-          Respond to latest issue comment in by writing to 'agents/state/reply.md',
+          Respond to latest issue comment by writing to 'agents/state/reply.md',
           paying special attention to previous comments by the owner and yourself.
 
           Issue Context:

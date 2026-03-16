@@ -71,6 +71,7 @@ jobs:
           elif git show-ref --verify --quiet refs/remotes/origin/"$BRANCH_NAME"; then
             echo "Branch $BRANCH_NAME exists on remote, checking it out"
             git checkout -b "$BRANCH_NAME" origin/"$BRANCH_NAME"
+            git pull origin "$BRANCH_NAME"
           else
             echo "Creating new branch $BRANCH_NAME"
             git checkout -b "$BRANCH_NAME"
@@ -176,6 +177,8 @@ jobs:
           git push origin
 
       - name: Create Pull Request
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh pr create \
             --title "AI Implementation: ${{ github.event.issue.title }}" \

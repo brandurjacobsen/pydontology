@@ -57,7 +57,7 @@ jobs:
         run: |
           PROMPT="$(cat ./agents/reviewer-prompt.txt)"
           aider \
-          --model openrouter/anthropic/claude-3.7-sonnet \
+          --model openrouter/openai/gpt-4.1 \
           --yes-always \
           --map-refresh always \
           --edit-format whole \

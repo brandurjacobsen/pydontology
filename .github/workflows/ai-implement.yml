@@ -161,6 +161,7 @@ jobs:
           Using your own instructions in 'agents/state/tests.md', give general instructions to the engineer regarding
           the implementation that should be tested against the tests in \"tests/test_issue${ISSUE_NUMBER}.py\".
           Put implementation instructions in 'agents/state/implementation.md'.
+          Sign off as 'Pydontology Team Architect'.
           "
 
       - name: Write implementation

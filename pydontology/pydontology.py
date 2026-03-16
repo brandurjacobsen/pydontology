@@ -202,8 +202,8 @@ class JSONLDGraph(BaseModel):
 
     context: SkipJsonSchema[dict] = Field(
         default={
-            "@vocab": "http://example.com/vocab/",
-            "@base": "http://example.com/",
+            "@vocab": "http://example.org/vocab#",
+            "@base": "http://example.org/",
         },
         alias="@context",
         title="@context",
@@ -231,7 +231,8 @@ class JSONLDGraph(BaseModel):
         ontology_entities: List[_OntologyClass | _OntologyProperty] = []
         properties_seen = set()
 
-        for entity_class in entity_classes:
+        # Convert to list to avoid "Set changed size during iteration" errors
+        for entity_class in list(entity_classes):
             # Add class definition
             class_def = cls._create_class_definition(entity_class, entity_classes)
             ontology_entities.append(class_def)
@@ -244,7 +245,7 @@ class JSONLDGraph(BaseModel):
 
         # Extract vocab from context
         vocab = cls.model_fields["context"].default.get(
-            "@vocab", "http://example.com/vocab/"
+            "@vocab", "http://example.org/vocab#"
         )
 
         # Build ontology context
@@ -272,14 +273,14 @@ class JSONLDGraph(BaseModel):
         # Generate node shapes
         shacl_shapes: List[_NodeShape] = []
 
-        for entity_class in entity_classes:
+        for entity_class in list(entity_classes):
             # Create node shape for this class
             node_shape = cls._create_node_shape(entity_class)
             shacl_shapes.append(node_shape)
 
         # Extract vocab from context
         vocab = cls.model_fields["context"].default.get(
-            "@vocab", "http://example.com/vocab/"
+            "@vocab", "http://example.org/vocab#"
         )
 
         # Build SHACL context
@@ -377,6 +378,8 @@ class JSONLDGraph(BaseModel):
         for base in entity_class.__bases__:
             if base != Entity and issubclass(base, Entity):
                 class_def.subClassOf = Relation(id=base.__name__)
+                # Use a snapshot to avoid mutating the set mid-iteration upstream;
+                # the caller already iterates over list(entity_classes).
                 entity_classes.add(base)
 
         return class_def
@@ -428,7 +431,7 @@ class JSONLDGraph(BaseModel):
             # Resolve the property identifier (alias or field name)
             prop_id = cls._resolve_property_identifier(field_name, field_info)
 
-            # Skip inherited property identifiers
+            # Skip fields whose resolved identifier belongs to a parent class
             if prop_id in parent_prop_ids:
                 continue
 
@@ -456,19 +459,25 @@ class JSONLDGraph(BaseModel):
     def _get_parent_property_identifiers(cls, entity_class) -> set:
         """Get all resolved property identifiers from parent classes.
 
+        Walks the full MRO (excluding Entity itself and object) so that
+        identifiers introduced anywhere in the inheritance chain are captured.
+
         Args:
             entity_class: The Entity class to get parent property identifiers for.
 
         Returns:
             set: Resolved property identifiers (alias or field name) from all
-                 direct parent Entity classes (excluding Entity itself).
+                 ancestor Entity classes (excluding Entity itself).
         """
         parent_prop_ids = set()
-        for base in entity_class.__bases__:
-            if base != Entity and issubclass(base, Entity):
-                for field_name, field_info in base.model_fields.items():
-                    prop_id = cls._resolve_property_identifier(field_name, field_info)
-                    parent_prop_ids.add(prop_id)
+        for base in entity_class.__mro__[1:]:
+            if base is Entity or not (
+                isinstance(base, type) and issubclass(base, Entity)
+            ):
+                continue
+            for field_name, field_info in base.model_fields.items():
+                prop_id = cls._resolve_property_identifier(field_name, field_info)
+                parent_prop_ids.add(prop_id)
         return parent_prop_ids
 
     @classmethod

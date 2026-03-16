@@ -63,7 +63,7 @@ jobs:
         run: |
           PROMPT=$(cat agents/architect-prompt.txt)
           aider \
-          --model openrouter/anthropic/claude-sonnet-4.5 \
+          --model openrouter/anthropic/claude-3.7-sonnet \
           --yes \
           --read Architecture.md \
           --file agents/state/reply.md \

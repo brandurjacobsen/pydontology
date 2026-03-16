@@ -124,7 +124,7 @@ jobs:
         run: |
           PROMPT=$(cat agents/coder-prompt.txt)
           aider \
-          --model openrouter/openai/gpt-4.1 \
+          --model openrouter/anthropic/claude-sonnet-4.6 \
           --yes-always \
           --map-refresh always \
           --edit-format whole \
@@ -168,7 +168,7 @@ jobs:
         run: |
           PROMPT=$(cat agents/coder-prompt.txt)
           aider \
-          --model openrouter/openai/gpt-4.1 \
+          --model openrouter/anthropic/claude-sonnet-4.6 \
           --yes-always \
           --map-refresh always \
           --edit-format whole \

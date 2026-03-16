@@ -9,4 +9,4 @@ you either:
 - Write code that passes the previously written tests for the feature/enhancement/bug fix.
 
 Do not mix writing tests and writing code that passes those tests unless trying to debug a failing test,
-or trying to pass acode review.
+or trying to pass a code review.

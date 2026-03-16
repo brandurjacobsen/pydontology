@@ -151,7 +151,7 @@ jobs:
           --edit-format whole \
           --map-refresh always \
           --read agents/state/tests.md \
-          --read tests/test_issue${ISSUE_NUMBER}.py
+          --read tests/test_issue${ISSUE_NUMBER}.py \
           --file agents/state/implementation.md \
           --auto-commits \
           --message "
@@ -181,7 +181,7 @@ jobs:
 
           Task:
           Follow the instructions of the Architect in 'agents/state/implementation.md' to write the implementation
-          that should be tested against the tests in 'tests/test_issue${ISSUE_NUMBER}.py'.
+          that should be tested against the tests in \"tests/test_issue${ISSUE_NUMBER}.py\".
           Edit any necessary files in order to complete the task.
           "
 

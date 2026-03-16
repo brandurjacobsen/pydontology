@@ -1,5 +1,6 @@
 from types import UnionType
 from typing import Annotated, List, Literal, Optional, Union, get_args, get_origin
+import warnings
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, create_model
 from pydantic.json_schema import SkipJsonSchema
@@ -401,14 +402,22 @@ class JSONLDGraph(BaseModel):
             if field_name in ["id", "type"] or field_name in parent_fields:
                 continue
 
-            # Skip duplicates
-            if field_name in properties_seen:
+            # Use alias if present, otherwise use field_name
+            prop_name = field_info.alias or field_name
+
+            # Skip duplicates with warning
+            if prop_name in properties_seen:
+                warnings.warn(
+                    f"Property '{prop_name}' defined multiple times; later definitions ignored",
+                    UserWarning
+                )
                 continue
-            properties_seen.add(field_name)
+            
+            properties_seen.add(prop_name)
 
             # Create property definition
             prop_def = cls._create_single_property_definition(
-                entity_class, field_name, field_info, field_name
+                entity_class, field_name, field_info, prop_name
             )
             property_defs.append(prop_def)
 
@@ -528,7 +537,7 @@ class JSONLDGraph(BaseModel):
         # Create base property shape
         prop_shape = _PropertyShape(
             id=f"{entity_class.__name__}Shape_{field_name}",
-            path=Relation(id=field_name),
+            path=Relation(id=field_info.alias or field_name),
             name=field_name,
             description=field_info.description,
         )

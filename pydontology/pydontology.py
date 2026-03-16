@@ -405,15 +405,18 @@ class JSONLDGraph(BaseModel):
             # Use alias if present, otherwise use field_name
             prop_name = field_info.alias or field_name
 
+            # Track properties by alias if present, otherwise by field_name
+            key = field_info.alias or field_name
+
             # Skip duplicates with warning
-            if prop_name in properties_seen:
+            if key in properties_seen:
                 warnings.warn(
-                    f"Property '{prop_name}' defined multiple times; later definitions ignored",
+                    f"Property '{key}' defined multiple times; later definitions ignored",
                     UserWarning
                 )
                 continue
-            
-            properties_seen.add(prop_name)
+
+            properties_seen.add(key)
 
             # Create property definition
             prop_def = cls._create_single_property_definition(
@@ -536,9 +539,9 @@ class JSONLDGraph(BaseModel):
 
         # Create base property shape
         prop_shape = _PropertyShape(
-            id=f"{entity_class.__name__}Shape_{field_name}",
+            id=f"{entity_class.__name__}Shape_{field_info.alias or field_name}",
             path=Relation(id=field_info.alias or field_name),
-            name=field_name,
+            name=field_info.alias or field_name,
             description=field_info.description,
         )
 

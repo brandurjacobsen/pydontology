@@ -71,6 +71,7 @@ jobs:
           elif git show-ref --verify --quiet refs/remotes/origin/"$BRANCH_NAME"; then
             echo "Branch $BRANCH_NAME exists on remote, checking it out"
             git checkout -b "$BRANCH_NAME" origin/"$BRANCH_NAME"
+            git pull origin "$BRANCH_NAME"
           else
             echo "Creating new branch $BRANCH_NAME"
             git checkout -b "$BRANCH_NAME"
@@ -92,18 +93,24 @@ jobs:
         run: |
           PROMPT=$(cat agents/architect-prompt.txt)
           aider \
-          --model openrouter/anthropic/claude-sonnet-4.5 \
-          --yes \
+          --model openrouter/openai/gpt-4.1 \
+          --architect \
+          --yes-always \
+          --edit-format whole \
+          --map-refresh always \
           --read Architecture.md \
           --file agents/state/tests.md \
           --file agents/state/implementation.md \
+          --auto-commits \
           --message "
           ${PROMPT}
 
           Task:
-          Using the issue description below, give instructions to the implementer regarding:
-            - Which TDD tests to write to verify the implementation or change (in 'agents/state/tests.md').
+          Using the issue description below, give general instructions to the implementer regarding:
+            - Which TDD tests to write to verify the implementation or change.
             - Which classes, functions or methods to implement or change (in 'agents/state/implementation.md').
+          Put tests instructions in 'agents/state/tests.md'.
+          Put implementation instructions in 'agents/state/implementation.md'.
           Pay particular attention to issues or comments created by the owner or yourself.
           Sign off as 'Pydontology Team Architect'.
 
@@ -121,8 +128,10 @@ jobs:
         run: |
           PROMPT=$(cat agents/coder-prompt.txt)
           aider \
-          --model openrouter/anthropic/claude-sonnet-4.5 \
-          --yes \
+          --model openrouter/openai/gpt-4.1 \
+          --yes-always \
+          --map-refresh always \
+          --edit-format whole \
           --read agents/state/tests.md \
           --auto-commits \
           --message "
@@ -136,8 +145,10 @@ jobs:
         run: |
           PROMPT=$(cat agents/coder-prompt.txt)
           aider \
-          --model openrouter/anthropic/claude-sonnet-4.5 \
-          --yes \
+          --model openrouter/openai/gpt-4.1 \
+          --yes-always \
+          --map-refresh always \
+          --edit-format whole \
           --read agents/state/implementation.md \
           --auto-commits \
           --test-cmd "python -m pytest" \
@@ -157,14 +168,17 @@ jobs:
 
       - name: Restore agent state dir
         run: |
-          git restore --source=${{ steps.head.outputs.head }} --staged --worktree -- agents/state/
-          git commit -m "Restore agent state dir"
+          git restore --source=${{ steps.head.outputs.head }} --staged --worktree -- agents/
+          git add .
+          git commit -m "Restore agent dir"
 
       - name: Push changes
         run: |
           git push origin
 
       - name: Create Pull Request
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh pr create \
             --title "AI Implementation: ${{ github.event.issue.title }}" \

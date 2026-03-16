@@ -1,3 +1,4 @@
+import warnings
 from types import UnionType
 from typing import Annotated, List, Literal, Optional, Union, get_args, get_origin
 
@@ -381,38 +382,94 @@ class JSONLDGraph(BaseModel):
         return class_def
 
     @classmethod
+    def _resolve_property_identifier(cls, field_name: str, field_info) -> str:
+        """Resolve the property identifier for a field.
+
+        If the field has a Pydantic alias, the alias is used as the property
+        identifier. Otherwise, the field name is used.
+
+        Args:
+            field_name: The field's Python attribute name.
+            field_info: Pydantic field information.
+
+        Returns:
+            str: The property identifier (alias if present, else field name).
+        """
+        alias = field_info.alias
+        if alias is not None:
+            return alias
+        return field_name
+
+    @classmethod
     def _create_property_definitions(
         cls, entity_class, properties_seen: set
     ) -> List[_OntologyProperty]:
         """Create property definitions for fields defined on a class.
 
+        Uses the field alias as the property identifier when present, otherwise
+        uses the field name. Emits a warning and skips later definitions when
+        two fields resolve to the same property identifier.
+
         Args:
             entity_class: The Entity class to create property definitions for.
-            properties_seen: Set of property names already processed.
+            properties_seen: Set of property identifiers already processed.
 
         Returns:
             List[_OntologyProperty]: Property definitions for the class fields.
         """
         property_defs = []
-        parent_fields = cls._get_parent_fields(entity_class)
+        parent_prop_ids = cls._get_parent_property_identifiers(entity_class)
 
         for field_name, field_info in entity_class.model_fields.items():
-            # Skip special fields and inherited fields
-            if field_name in ["id", "type"] or field_name in parent_fields:
+            # Skip special fields
+            if field_name in ["id", "type"]:
                 continue
 
-            # Skip duplicates
-            if field_name in properties_seen:
-                continue
-            properties_seen.add(field_name)
+            # Resolve the property identifier (alias or field name)
+            prop_id = cls._resolve_property_identifier(field_name, field_info)
 
-            # Create property definition
+            # Skip inherited property identifiers
+            if prop_id in parent_prop_ids:
+                continue
+
+            # Detect and warn about duplicates; skip later definitions
+            if prop_id in properties_seen:
+                warnings.warn(
+                    f"Duplicate property identifier '{prop_id}' detected in "
+                    f"'{entity_class.__name__}'. Later definition will be ignored.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                continue
+
+            properties_seen.add(prop_id)
+
+            # Create property definition using the resolved identifier
             prop_def = cls._create_single_property_definition(
-                entity_class, field_name, field_info, field_name
+                entity_class, field_name, field_info, prop_id
             )
             property_defs.append(prop_def)
 
         return property_defs
+
+    @classmethod
+    def _get_parent_property_identifiers(cls, entity_class) -> set:
+        """Get all resolved property identifiers from parent classes.
+
+        Args:
+            entity_class: The Entity class to get parent property identifiers for.
+
+        Returns:
+            set: Resolved property identifiers (alias or field name) from all
+                 direct parent Entity classes (excluding Entity itself).
+        """
+        parent_prop_ids = set()
+        for base in entity_class.__bases__:
+            if base != Entity and issubclass(base, Entity):
+                for field_name, field_info in base.model_fields.items():
+                    prop_id = cls._resolve_property_identifier(field_name, field_info)
+                    parent_prop_ids.add(prop_id)
+        return parent_prop_ids
 
     @classmethod
     def _get_parent_fields(cls, entity_class) -> set:
@@ -440,7 +497,7 @@ class JSONLDGraph(BaseModel):
             entity_class: The Entity class containing the field.
             field_name: Name of the field.
             field_info: Pydantic field information.
-            prop_name: Name for the property.
+            prop_name: Resolved property identifier (alias or field name).
 
         Returns:
             _OntologyProperty: Property definition for the field.
@@ -488,7 +545,7 @@ class JSONLDGraph(BaseModel):
             if field_name in ["id", "type"]:
                 continue
 
-            # Create property shape
+            # Create property shape using the resolved property identifier
             prop_shape = cls._create_property_shape(
                 entity_class, field_name, field_info
             )
@@ -517,6 +574,9 @@ class JSONLDGraph(BaseModel):
         Returns:
             _PropertyShape: SHACL property shape for the field.
         """
+        # Resolve the property identifier (alias or field name)
+        prop_id = cls._resolve_property_identifier(field_name, field_info)
+
         # Extract type and metadata
         field_type, metadata = cls._extract_field_type_and_metadata(
             entity_class, field_name, field_info
@@ -525,11 +585,11 @@ class JSONLDGraph(BaseModel):
         # Determine if this is a relation
         is_relation = cls._is_relation_type(field_type)
 
-        # Create base property shape
+        # Create base property shape using the resolved identifier
         prop_shape = _PropertyShape(
-            id=f"{entity_class.__name__}Shape_{field_name}",
-            path=Relation(id=field_name),
-            name=field_name,
+            id=f"{entity_class.__name__}Shape_{prop_id}",
+            path=Relation(id=prop_id),
+            name=prop_id,
             description=field_info.description,
         )
 

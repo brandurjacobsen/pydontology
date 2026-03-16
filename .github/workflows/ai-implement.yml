@@ -93,7 +93,7 @@ jobs:
           PROMPT=$(cat agents/architect-prompt.txt)
           aider \
           --model openrouter/anthropic/claude-3.7-sonnet \
-          --yes \
+          --yes-always \
           --read Architecture.md \
           --file agents/state/tests.md \
           --file agents/state/implementation.md \
@@ -124,7 +124,8 @@ jobs:
           PROMPT=$(cat agents/coder-prompt.txt)
           aider \
           --model openrouter/anthropic/claude-3.7-sonnet \
-          --yes \
+          --yes-always \
+          --edit-format whole \
           --read agents/state/tests.md \
           --auto-commits \
           --message "
@@ -139,7 +140,8 @@ jobs:
           PROMPT=$(cat agents/coder-prompt.txt)
           aider \
           --model openrouter/anthropic/claude-3.7-sonnet \
-          --yes \
+          --yes-always \
+          --edit-format whole \
           --read agents/state/implementation.md \
           --auto-commits \
           --test-cmd "python -m pytest" \

@@ -58,7 +58,8 @@ jobs:
           PROMPT="$(cat ./agents/reviewer-prompt.txt)"
           aider \
           --model openrouter/anthropic/claude-3.7-sonnet \
-          --yes \
+          --yes-always \
+          --edit-format whole \
           --read agents/state/files.json \
           --file agents/state/review.json \
           --message "

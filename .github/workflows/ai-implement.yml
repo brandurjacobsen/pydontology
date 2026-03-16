@@ -168,6 +168,7 @@ jobs:
       - name: Restore agent state dir
         run: |
           git restore --source=${{ steps.head.outputs.head }} --staged --worktree -- agents/
+          git add .
           git commit -m "Restore agent dir"
 
       - name: Push changes

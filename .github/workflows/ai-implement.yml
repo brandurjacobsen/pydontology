@@ -101,9 +101,11 @@ jobs:
           ${PROMPT}
 
           Task:
-          Using the issue description below, give instructions to the implementer regarding:
-            - Which TDD tests to write to verify the implementation or change (in 'agents/state/tests.md').
+          Using the issue description below, give general instructions to the implementer regarding:
+            - Which TDD tests to write to verify the implementation or change.
             - Which classes, functions or methods to implement or change (in 'agents/state/implementation.md').
+          Put tests instructions in 'agents/state/tests.md'.
+          Put implementation instructions in 'agents/state/implementation.md'.
           Pay particular attention to issues or comments created by the owner or yourself.
           Sign off as 'Pydontology Team Architect'.
 
@@ -157,8 +159,8 @@ jobs:
 
       - name: Restore agent state dir
         run: |
-          git restore --source=${{ steps.head.outputs.head }} --staged --worktree -- agents/state/
-          git commit -m "Restore agent state dir"
+          git restore --source=${{ steps.head.outputs.head }} --staged --worktree -- agents/
+          git commit -m "Restore agent dir"
 
       - name: Push changes
         run: |

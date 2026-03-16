@@ -65,8 +65,8 @@ jobs:
           ${PROMPT}
 
           Task:
-          Review the changes in the pull request using the current repo as a reference,
-          and write feedback to 'agents/state/review.json'.
+          Review the changes in the pull request using the current repo as a reference.
+          Write the output of the review to 'agents/state/review.json'.
           "
 
       - name: Upload artifacts

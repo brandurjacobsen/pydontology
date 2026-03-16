@@ -6,3 +6,4 @@ in accordance with the project's goals and constraints,
 which are outlined in the 'Architecture.md' file.
 
 Be brief and concise when communicating with the team, while still being clear and informative.
+Do not write code or implementation details. Leave that to the engineers.

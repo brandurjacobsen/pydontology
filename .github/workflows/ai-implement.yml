@@ -93,10 +93,14 @@ jobs:
           PROMPT=$(cat agents/architect-prompt.txt)
           aider \
           --model openrouter/anthropic/claude-3.7-sonnet \
+          --architect \
           --yes-always \
+          --edit-format whole \
+          --map-refresh always \
           --read Architecture.md \
           --file agents/state/tests.md \
           --file agents/state/implementation.md \
+          --auto-commits \
           --message "
           ${PROMPT}
 
@@ -125,6 +129,7 @@ jobs:
           aider \
           --model openrouter/anthropic/claude-3.7-sonnet \
           --yes-always \
+          --map-refresh always \
           --edit-format whole \
           --read agents/state/tests.md \
           --auto-commits \
@@ -141,6 +146,7 @@ jobs:
           aider \
           --model openrouter/anthropic/claude-3.7-sonnet \
           --yes-always \
+          --map-refresh always \
           --edit-format whole \
           --read agents/state/implementation.md \
           --auto-commits \

@@ -59,9 +59,12 @@ jobs:
           aider \
           --model openrouter/anthropic/claude-3.7-sonnet \
           --yes-always \
+          --map-refresh always \
           --edit-format whole \
           --read agents/state/files.json \
           --file agents/state/review.json \
+          --auto-commits \
+
           --message "
           ${PROMPT}
 

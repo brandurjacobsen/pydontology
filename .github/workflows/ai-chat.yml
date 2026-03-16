@@ -65,6 +65,7 @@ jobs:
           aider \
           --model openrouter/anthropic/claude-3.7-sonnet \
           --yes-always \
+          --architect \
           --edit-format whole \
           --read Architecture.md \
           --file agents/state/reply.md \

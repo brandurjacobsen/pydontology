@@ -129,7 +129,7 @@ jobs:
           --map-refresh always \
           --edit-format whole \
           --read agents/state/tests.md \
-          --file tests/test_issue${ISSUE_NUMBER}.py
+          --file tests/test_issue${ISSUE_NUMBER}.py \
           --auto-commits \
           --message "
           ${PROMPT}

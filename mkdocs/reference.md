@@ -18,7 +18,12 @@ The 'rdfs:subClassOf' construct is added implicitly to an ontology class via inh
 Multiple inheritance is currently not supported, but will be in a future release.
 
 ### Supported SHACL constructs
-# Add the supported shacl constructs AI!
+Pydontology supports the following SHACL constructs via annotations:
+
+- **Value Type Constraints**: `sh:datatype`, `sh:nodeKind`, `sh:class`
+- **Cardinality Constraints**: `sh:minCount`, `sh:maxCount`
+- **String-based Constraints**: `sh:pattern`, `sh:minLength`, `sh:maxLength`
+- **Value Range Constraints**: `sh:minInclusive`, `sh:maxInclusive`, `sh:minExclusive`, `sh:maxExclusive`
 
 ::: pydontology.rdfs.RDFSAnnotation
 ::: pydontology.shacl.SHACLAnnotation

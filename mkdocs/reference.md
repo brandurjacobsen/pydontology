@@ -34,4 +34,15 @@ Pydontology supports the following SHACL constructs via annotations:
 ::: pydontology.shacl.SHACLAnnotation
     options:
       filters:
-      #Add filters for the shacl dataclasses AI!
+        - "!DATATYPE"
+        - "!MAX_COUNT"
+        - "!MIN_COUNT"
+        - "!PATTERN"
+        - "!MIN_LENGTH"
+        - "!MAX_LENGTH"
+        - "!MIN_INCLUSIVE"
+        - "!MAX_INCLUSIVE"
+        - "!MIN_EXCLUSIVE"
+        - "!MAX_EXCLUSIVE"
+        - "!NODE_KIND"
+        - "!CLASS"

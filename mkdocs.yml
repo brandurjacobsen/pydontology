@@ -8,6 +8,12 @@ plugins:
       handlers:
         python:
           docstring_style: google
+          options:
+            show_root_heading: true
+            show_root_full_path: false
+            extensions:
+              - griffe_pydantic:
+                schema: true
 
 nav:
   - Home: index.md

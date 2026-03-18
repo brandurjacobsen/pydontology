@@ -153,7 +153,7 @@ def test_ontology_property_descriptions(rdf_graph, vocab_ns):
     # Check age property comment
     age_comments = list(rdf_graph.objects(VOCAB.age, RDFS.comment))
     assert len(age_comments) == 1
-    assert str(age_comments[0]) == "Person's age"
+    assert str(age_comments[0]) == "Person's age in years"
 
     # Check department property comment
     dept_comments = list(rdf_graph.objects(VOCAB.department, RDFS.comment))

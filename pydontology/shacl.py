@@ -21,46 +21,124 @@ class SHACLAnnotation:
 
     @dataclass
     class DATATYPE:
-        """Dataclass that holds sh:datatype annotation for a property.
+        """Dataclass that holds sh:datatype annotation for a property."""
+
+        value: Annotated[str, AfterValidator(val_datatype)]
+
+    @dataclass
+    class MAX_COUNT:
+        """Dataclass that holds sh:maxCount annotation for a property."""
+
+        value: Annotated[int, AfterValidator(val_non_negative_int)]
+
+    @dataclass
+    class MIN_COUNT:
+        """Dataclass that holds sh:minCount annotation for a property."""
+
+        value: Annotated[int, AfterValidator(val_non_negative_int)]
+
+    @dataclass
+    class PATTERN:
+        """Dataclass that holds sh:pattern annotation for a property."""
+
+        value: Annotated[str, AfterValidator(val_regex_pattern)]
+
+    @dataclass
+    class MIN_LENGTH:
+        """Dataclass that holds sh:minLength annotation for a property."""
+
+        value: Annotated[int, AfterValidator(val_non_negative_int)]
+
+    @dataclass
+    class MAX_LENGTH:
+        """Dataclass that holds sh:maxLength annotation for a property."""
+
+        value: Annotated[int, AfterValidator(val_non_negative_int)]
+
+    @dataclass
+    class MIN_INCLUSIVE:
+        """Dataclass that holds sh:minInclusive annotation for a property."""
+
+        value: int | float
+
+    @dataclass
+    class MAX_INCLUSIVE:
+        """Dataclass that holds sh:maxInclusive annotation for a property."""
+
+        value: int | float
+
+    @dataclass
+    class MIN_EXCLUSIVE:
+        """Dataclass that holds sh:minExclusive annotation for a property."""
+
+        value: int | float
+
+    @dataclass
+    class MAX_EXCLUSIVE:
+        """Dataclass that holds sh:maxExclusive annotation for a property."""
+
+        value: int | float
+
+    @dataclass
+    class NODE_KIND:
+        """Dataclass that holds sh:nodeKind annotation for a property."""
+
+        value: Annotated[str, AfterValidator(val_node_kind)]
+
+    @dataclass
+    class CLASS:
+        """Dataclass that holds sh:class annotation for a property."""
+
+        value: Annotated[str, AfterValidator(val_no_whitespace)]
+
+    @staticmethod
+    def datatype(value: str) -> DATATYPE:
+        """SHACL datatype annotation.
 
         The values of sh:datatype in a shape are IRIs (e.g. xsd:integer).
         A shape has at most one value for sh:datatype.
 
         Args:
             value (str): IRI of datatype
+
+        Returns:
+            SHACLAnnotation.DATATYPE (dataclass)
         """
+        return SHACLAnnotation.DATATYPE(value)
 
-        value: Annotated[str, AfterValidator(val_datatype)]
-
-    @dataclass
-    class MAX_COUNT:
-        """Dataclass that holds sh:maxCount annotation for a property.
+    @staticmethod
+    def maxCount(value: int) -> MAX_COUNT:
+        """SHACL maxCount annotation.
 
         The maximum cardinality.
         The values of sh:maxCount in a property shape are literals with datatype xsd:integer.
 
         Args:
             value (int): Max cardinality of property
+
+        Returns:
+            SHACLAnnotation.MAX_COUNT (dataclass)
         """
+        return SHACLAnnotation.MAX_COUNT(value)
 
-        value: Annotated[int, AfterValidator(val_non_negative_int)]
-
-    @dataclass
-    class MIN_COUNT:
-        """Dataclass that holds sh:minCount annotation for a property.
+    @staticmethod
+    def minCount(value: int) -> MIN_COUNT:
+        """SHACL minCount annotation.
 
         The minimum cardinality.
         The values of sh:minCount in a property shape are literals with datatype xsd:integer.
 
         Args:
             value (int): Min cardinality of property
+
+        Returns:
+            SHACLAnnotation.MIN_COUNT (dataclass)
         """
+        return SHACLAnnotation.MIN_COUNT(value)
 
-        value: Annotated[int, AfterValidator(val_non_negative_int)]
-
-    @dataclass
-    class PATTERN:
-        """Dataclass that holds sh:pattern annotation for a property.
+    @staticmethod
+    def pattern(value: str) -> PATTERN:
+        """SHACL pattern annotation.
 
         String-based constraint.
         A regular expression that all value nodes need to match.
@@ -68,262 +146,134 @@ class SHACLAnnotation:
 
         Args:
             value (str): SPARQL regex (validation not implemented!)
-        """
-
-        value: Annotated[str, AfterValidator(val_regex_pattern)]
-
-    @dataclass
-    class MIN_LENGTH:
-        """Dataclass that holds sh:minLength annotation for a property.
-
-        String-based constraint.
-        The minimum length. The values of sh:minLength in a shape are literals with datatype xsd:integer.
-        A shape has at most one value for sh:minLength.
-
-        Args:
-            value (int): Min length of RDF literal
-        """
-
-        value: Annotated[int, AfterValidator(val_non_negative_int)]
-
-    @dataclass
-    class MAX_LENGTH:
-        """Dataclass that holds sh:maxLength annotation for a property.
-
-        String-based constraint.
-        The maximum length. The values of sh:maxLength in a shape are literals with datatype xsd:integer.
-        A shape has at most one value for sh:maxLength.
-
-        Args:
-            value (int): Max length of RDF literal
-        """
-
-        value: Annotated[int, AfterValidator(val_non_negative_int)]
-
-    @dataclass
-    class MIN_INCLUSIVE:
-        """Dataclass that holds sh:minInclusive annotation for a property.
-
-        Value range constraint.
-        The minimum inclusive value. The values of sh:minInclusive in a shape are literals.
-        A shape has at most one value for sh:minInclusive.
-
-        Args:
-            value (int | float): Min inclusive value of RDF literal
-        """
-
-        value: int | float
-
-    @dataclass
-    class MAX_INCLUSIVE:
-        """Dataclass that holds sh:maxInclusive annotation for a property.
-
-        Value range constraint.
-        The maximum inclusive value. The values of sh:maxInclusive in a shape are literals.
-        A shape has at most one value for sh:maxInclusive.
-
-        Args:
-            value (int | float): Max inclusive value of RDF literal
-        """
-
-        value: int | float
-
-    @dataclass
-    class MIN_EXCLUSIVE:
-        """Dataclass that holds sh:minExclusive annotation for a property.
-
-        Value range constraint.
-        The minimum exclusive value. The values of sh:minExclusive in a shape are literals.
-        A shape has at most one value for sh:minExclusive.
-
-        Args:
-            value (int | float): Min exclusive value of RDF literal
-        """
-
-        value: int | float
-
-    @dataclass
-    class MAX_EXCLUSIVE:
-        """Dataclass that holds sh:maxExclusive annotation for a property.
-
-        Value range constraint.
-        The maximum exclusive value. The values of sh:maxExclusive in a shape are literals.
-        A shape has at most one value for sh:maxExclusive.
-
-        Args:
-            value (int | float): Max exclusive value of RDF literal
-        """
-
-        value: int | float
-
-    @dataclass
-    class NODE_KIND:
-        """Dataclass that holds sh:nodeKind annotation for a property.
-
-        Value type constraint.
-        The values of sh:nodeKind in a shape are one of the following six instances of the class sh:NodeKind:
-        sh:BlankNode, sh:IRI, sh:Literal sh:BlankNodeOrIRI, sh:BlankNodeOrLiteral and sh:IRIOrLiteral.
-        A shape has at most one value for sh:nodeKind.
-
-        Args:
-            value (str): Instance of node kind
-        """
-
-        value: Annotated[str, AfterValidator(val_node_kind)]
-
-    @dataclass
-    class CLASS:
-        """Dataclass that holds sh:class annotation for a property.
-
-        Value type constraint.
-        The type of all value nodes. The values of sh:class in a shape are IRIs.
-
-        Args:
-            value (str): IRI of class
-        """
-
-        value: Annotated[str, AfterValidator(val_no_whitespace)]
-
-    @staticmethod
-    def datatype(value: str) -> DATATYPE:
-        """SHACLAnnotation.DATATYPE factory
-
-        Args:
-            value (str): IRI of datatype
 
         Returns:
-            SHACLAnnotation.DATATYPE
-        """
-        return SHACLAnnotation.DATATYPE(value)
-
-    @staticmethod
-    def maxCount(value: int) -> MAX_COUNT:
-        """SHACLAnnotation.MAX_COUNT factory
-
-        Args:
-            value (int): Max cardinality of property
-
-        Returns:
-            SHACLAnnotation.MAX_COUNT
-        """
-        return SHACLAnnotation.MAX_COUNT(value)
-
-    @staticmethod
-    def minCount(value: int) -> MIN_COUNT:
-        """SHACLAnnotation.MIN_COUNT factory
-
-        Args:
-            value (int): Min cardinality of property
-
-        Returns:
-            SHACLAnnotation.MIN_COUNT
-        """
-        return SHACLAnnotation.MIN_COUNT(value)
-
-    @staticmethod
-    def pattern(value: str) -> PATTERN:
-        """SHACLAnnotation.PATTERN factory
-
-        Args:
-            value (str): SPARQL regex (validation not implemented!)
-
-        Returns:
-            SHACLAnnotation.PATTERN
+            SHACLAnnotation.PATTERN (dataclass)
         """
         return SHACLAnnotation.PATTERN(value)
 
     @staticmethod
     def minLength(value: int) -> MIN_LENGTH:
-        """SHACLAnnotation.MIN_LENGTH factory
+        """SHACL minLength annotation.
+
+        The minimum length of an RDF literal.
+        The values of sh:minLength in a shape are literals with datatype xsd:integer.
 
         Args:
             value (int): Min length of RDF literal
 
         Returns:
-            SHACLAnnotation.MIN_LENGTH
+            SHACLAnnotation.MIN_LENGTH (dataclass)
         """
         return SHACLAnnotation.MIN_LENGTH(value)
 
     @staticmethod
     def maxLength(value: int) -> MAX_LENGTH:
-        """SHACLAnnotation.MAX_LENGTH factory
+        """SHACL maxLength annotation.
+
+        The maximum length of an RDF literal.
+        The values of sh:maxLength in a shape are literals with datatype xsd:integer.
 
         Args:
             value (int): Max length of RDF literal
 
         Returns:
-            SHACLAnnotation.MAX_LENGTH
+            SHACLAnnotation.MAX_LENGTH (dataclass)
         """
         return SHACLAnnotation.MAX_LENGTH(value)
 
     @staticmethod
     def minInclusive(value: float) -> MIN_INCLUSIVE:
-        """SHACLAnnotation.MIN_INCLUSIVE factory
+        """SHACL minInclusive annotation.
+
+        The minimum value of an RDF literal.
+        The values of sh:minInclusive in a shape are literals with numeric datatype.
+        A shape has at most one value for sh:minInclusive.
 
         Args:
             value (int | float): Min inclusive value of RDF literal
 
         Returns:
-            SHACLAnnotation.MIN_INCLUSIVE
+            SHACLAnnotation.MIN_INCLUSIVE (dataclass)
         """
         return SHACLAnnotation.MIN_INCLUSIVE(value)
 
     @staticmethod
     def maxInclusive(value: float) -> MAX_INCLUSIVE:
-        """SHACLAnnotation.MAX_INCLUSIVE factory
+        """SHACL maxInclusive annotation.
+
+        The maximum value of an RDF literal.
+        The values of sh:maxInclusive in a shape are literals with numeric datatype.
+        A shape has at most one value for sh:maxInclusive.
 
         Args:
             value (int | float): Max inclusive value of RDF literal
 
         Returns:
-            SHACLAnnotation.MAX_INCLUSIVE
+            SHACLAnnotation.MAX_INCLUSIVE (dataclass)
         """
         return SHACLAnnotation.MAX_INCLUSIVE(value)
 
     @staticmethod
     def minExclusive(value: float) -> MIN_EXCLUSIVE:
-        """SHACLAnnotation.MIN_EXCLUSIVE factory
+        """SHACL minExclusive annotation.
+
+        The minimum value of an RDF literal.
+        The values of sh:minExclusive in a shape are literals with numeric datatype.
+        A shape has at most one value for sh:minExclusive.
 
         Args:
             value (int | float): Min exclusive value of RDF literal
 
         Returns:
-            SHACLAnnotation.MIN_EXCLUSIVE
+            SHACLAnnotation.MIN_EXCLUSIVE (dataclass)
         """
         return SHACLAnnotation.MIN_EXCLUSIVE(value)
 
     @staticmethod
     def maxExclusive(value: float) -> MAX_EXCLUSIVE:
-        """SHACLAnnotation.MAX_EXCLUSIVE factory
+        """SHACL maxExclusive annotation.
+
+        The maximum value of an RDF literal.
+        The values of sh:maxExclusive in a shape are literals with numeric datatype.
+        A shape has at most one value for sh:maxExclusive.
 
         Args:
             value (int | float): Max exclusive value of RDF literal
 
         Returns:
-            SHACLAnnotation.MAX_EXCLUSIVE
+            SHACLAnnotation.MAX_EXCLUSIVE (dataclass)
         """
         return SHACLAnnotation.MAX_EXCLUSIVE(value)
 
     @staticmethod
     def nodeKind(value: str) -> NODE_KIND:
-        """SHACLAnnotation.NODE_KIND factory
+        """SHACL nodeKind annotation.
+
+        The kind of node that an RDF literal must be.
+        The values of sh:nodeKind in a shape are literals with datatype xsd:anyURI.
+        A shape has at most one value for sh:nodeKind.
 
         Args:
             value (str): Instance of node kind
 
         Returns:
-            SHACLAnnotation.NODE_KIND
+            SHACLAnnotation.NODE_KIND (dataclass)
         """
         return SHACLAnnotation.NODE_KIND(value)
 
     @staticmethod
     def shclass(value: str) -> CLASS:
-        """SHACLAnnotation.CLASS factory
+        """SHACL class annotation.
+
+        The class of an RDF literal must be an instance of the given class.
+        The values of sh:class in a shape are literals with datatype xsd:anyURI.
+        A shape has at most one value for sh:class.
 
         Args:
             value (str): IRI of class
 
         Returns:
-            SHACLAnnotation.CLASS
+            SHACLAnnotation.CLASS (dataclass)
         """
         return SHACLAnnotation.CLASS(value)

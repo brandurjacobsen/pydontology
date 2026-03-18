@@ -1,5 +1,5 @@
 from types import UnionType
-from typing import Annotated, List, Literal, Optional, Union, get_args, get_origin
+from typing import Annotated, Dict, List, Literal, Optional, Union, get_args, get_origin
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, create_model
 from pydantic.json_schema import SkipJsonSchema
@@ -9,22 +9,14 @@ from .shacl import SHACLAnnotation
 
 
 class Relation(BaseModel):
-    """This class should be the type of Entity attributes for them to be considered as IRIs.
-
-    Args:
-        id (str): IRI of relation
-    """
+    """This class should be the type of Entity attributes for them to be considered as IRIs."""
 
     id: str = Field(alias="@id", title="@id", description="IRI (possibly relative)")
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
 
 class Entity(BaseModel):
-    """The base class of all ontology classes.
-
-    Args:
-        id (str): IRI
-    """
+    """The base class of all ontology classes."""
 
     id: str = Field(alias="@id", description="IRI (possibly relative)", title="@id")
 
@@ -189,14 +181,11 @@ class _NodeShape(BaseModel):
 
 
 class JSONLDGraph(BaseModel):
-    """Encapsulates a JSON-LD document/graph.
+    """Class that encapsulates a JSON-LD document/graph.
 
     This is the return type of the make_model() function, and
     ontology_graph(), shacl_graph() class methods.
-
-    Args:
-        context (dict): JSON-LD context (mapped to @context)
-        graph (List): Default graph containing entities (mapped to @graph)
+    This class serializes as a JSON-LD document/graph.
     """
 
     context: SkipJsonSchema[dict] = Field(
@@ -206,11 +195,14 @@ class JSONLDGraph(BaseModel):
         },
         alias="@context",
         title="@context",
-        description="JSON-LD context",
+        description="JSON-LD context (alias: @context)",
     )
 
     graph: List = Field(
-        default=[], alias="@graph", title="@graph", description="Default graph"
+        default=[],
+        alias="@graph",
+        title="@graph",
+        description="Default graph containing Entity instances, or subclasses thereof (alias: @graph)",
     )
 
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
@@ -225,8 +217,6 @@ class JSONLDGraph(BaseModel):
 
         # Collect unique entity types from the model
         entity_classes = cls._collect_entity_classes_from_model()
-
-        # Generate class and property definitions
         ontology_entities: List[_OntologyClass | _OntologyProperty] = []
         properties_seen = set()
 
@@ -262,7 +252,7 @@ class JSONLDGraph(BaseModel):
         """Generate SHACL shapes graph from the classes in the ontology.
 
         Returns:
-            JSONLDGraph: With _NodeShape and _PropertyShape (internal classes) instances.
+            JSONLDGraph: With _NodeShape and _PropertyShape (internal classes) instances in the default graph.
         """
 
         # Collect unique entity types from the model
@@ -324,16 +314,12 @@ class JSONLDGraph(BaseModel):
                                 entity_type, Entity
                             ):
                                 entity_classes.add(entity_type)
-                                entity_classes.update(
-                                    cls._get_all_subclasses(entity_type)
-                                )
                     else:
                         # Handle List[EntityType] - single entity type
                         if isinstance(inner_type, type) and issubclass(
                             inner_type, Entity
                         ):
                             entity_classes.add(inner_type)
-                            entity_classes.update(cls._get_all_subclasses(inner_type))
 
         return entity_classes
 
@@ -376,7 +362,9 @@ class JSONLDGraph(BaseModel):
         for base in entity_class.__bases__:
             if base != Entity and issubclass(base, Entity):
                 class_def.subClassOf = Relation(id=base.__name__)
-                entity_classes.add(base)
+                entity_classes.add(
+                    base
+                )  # Side effect: adds 'base' class to entity_classes
 
         return class_def
 
@@ -396,15 +384,18 @@ class JSONLDGraph(BaseModel):
         property_defs = []
         parent_fields = cls._get_parent_fields(entity_class)
 
+        # Track fields by alias if available, otherwise use field name
         for field_name, field_info in entity_class.model_fields.items():
-            # Skip special fields and inherited fields
-            if field_name in ["id", "type"] or field_name in parent_fields:
-                continue
+            if field_info.alias:
+                field_id = field_info.alias
+            else:
+                field_id = field_name
 
-            # Skip duplicates
-            if field_name in properties_seen:
+            if field_id in properties_seen or field_id in ["@id", "@type"]:
                 continue
-            properties_seen.add(field_name)
+            if field_id in parent_fields:
+                continue
+            properties_seen.add(field_id)
 
             # Create property definition
             prop_def = cls._create_single_property_definition(

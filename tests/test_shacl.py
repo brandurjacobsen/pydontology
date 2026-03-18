@@ -89,7 +89,7 @@ def test_property_shapes_count(rdf_graph, vocab_ns):
     person_properties = list(rdf_graph.objects(VOCAB.PersonShape, SH.property))
     assert len(person_properties) == 2
 
-    # EmployeeShape should have 5 properties: name, age, employee_id, manager
+    # EmployeeShape should have 4 properties: name, age, employee_id, manager
     employee_properties = list(rdf_graph.objects(VOCAB.EmployeeShape, SH.property))
     assert len(employee_properties) == 4
 

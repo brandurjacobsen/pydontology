@@ -19,7 +19,7 @@ def TestModel():
             Optional[int],
             SHACLAnnotation.minInclusive(0),
             SHACLAnnotation.maxInclusive(150),
-        ] = Field(default=None, description="Person's age")
+        ] = Field(default=None, description="Person's age in years")
 
     class Employee(Person):
         """An employee, inherits from Person"""

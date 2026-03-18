@@ -1,14 +1,7 @@
 # Pydontology
 ## _Ontologies the Pydantic way_
 
-This is a work in progress.
-
-In my opinion, if you call yourself a 'Python developer', you either have some bulky (recent) personal Python projects under your belt, 
-or you write Python code for a living, which unfortunately means that I'm not a 'Python developer'; this is also a work in progress.
-
-I would appreciate feedback on this project, and help to develop it further. So, contributions (and issues) are welcome!
-
-That being said, this package will enable you to:
+This package will enable you to:
 
   * Build an RDF ontology using the well-known Pydantic model classes
   * Use typing.Annotated to add RDFS/OWL and SHACL metadata to your ontology class attributes
@@ -19,7 +12,8 @@ That being said, this package will enable you to:
 
 The package exposes, amongst others, the classes [Entity] and [Relation], which inherit Pydantic's BaseModel.
 Entity serves as the base class for ontology classes.
-An attribute of an Entity class is considered to be an RDF literal, unless the attribute is of type Relation.
+An attribute of an Entity class is considered to be an RDF literal, unless the attribute is of type Relation, 
+in which case the value is interpreted as an IRI.
 
 Once the ontology classes are defined, a call to [make_model] will return a [JSONLDGraph] class
 that, once instantiated and populated with ontology 'individuals', will serialize as a valid JSON-LD document, ready for parsing by e.g. rdflib.

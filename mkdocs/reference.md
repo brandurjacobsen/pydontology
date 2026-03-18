@@ -13,8 +13,8 @@ to attributes of the ontology classes, which is then used in the construction
 of the ontology graph and SHACL graph.
 
 ### Supported RDFS and OWL constructs
-Pydontology supports the 'rdfs:domain' and 'rdfs:range' constructs via annotations.
-The 'rdfs:subClassOf' construct is added implicitly to an ontology class via inheritance of an another class.
+Pydontology supports the `rdfs:domain` and `rdfs:range` constructs via annotations.
+The `rdfs:subClassOf` construct is added implicitly to an ontology class via inheritance of an another class.
 Multiple inheritance is currently not supported, but will be in a future release.
 
 ### Supported SHACL constructs
@@ -26,4 +26,12 @@ Pydontology supports the following SHACL constructs via annotations:
 - **Value Range Constraints**: `sh:minInclusive`, `sh:maxInclusive`, `sh:minExclusive`, `sh:maxExclusive`
 
 ::: pydontology.rdfs.RDFSAnnotation
+    options:
+      filters:
+        - "!DOMAIN"
+        - "!RANGE"
+
 ::: pydontology.shacl.SHACLAnnotation
+    options:
+      filters:
+      #Add filters for the shacl dataclasses AI!

@@ -1,10 +1,9 @@
 import pytest
-from pydantic import Field
 from pyshacl import validate
 from rdflib import RDF, Graph, Namespace
 from rdflib.namespace import SH, XSD
 
-from pydontology import JSONLDGraph
+from pydontology.pydontology import JSONLDGraph
 
 
 @pytest.fixture

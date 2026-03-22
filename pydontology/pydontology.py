@@ -1,7 +1,8 @@
+from inspect import get_annotations
 from types import UnionType
-from typing import Annotated, Dict, List, Literal, Optional, Union, get_args, get_origin
+from typing import List, Literal, Optional, get_args
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, create_model
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 from pydantic.json_schema import SkipJsonSchema
 
 from .rdfs import RDFSAnnotation
@@ -207,465 +208,166 @@ class JSONLDGraph(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
-    @classmethod
-    def ontology_graph(cls) -> "JSONLDGraph":
-        """Generate an ontology graph from the classes in the ontology.
 
-        Returns:
-            JSONLDGraph: With _OntologyClass and _OntologyProperty (internal classes) instances in the default graph.
-        """
+class Pydontology:
+    def __init__(self, ontology: UnionType):
+        entities = get_args(ontology)
+        for cls in entities:
+            if not issubclass(cls, Entity):
+                raise TypeError(
+                    f"Expected subclass of Entity, got {cls} with type {type(cls)}"
+                )
+        self.db = dict()
+        for e in entities:
+            # Set 'description' to docstring.
+            # Set 'fields' to Pydantic model fields that are in class annotations
+            # Set 'parent' to first non-Entity superclass in the MRO
+            model_fields = e.model_fields
+            annotations = get_annotations(e)
+            self.db[e.__name__] = {
+                "description": e.__doc__.strip() if e.__doc__ else None,
+                "fields": {
+                    k: v for k, v in e.model_fields.items() if k in get_annotations(e)
+                },
+                "all_fields": {k: v for k, v in e.model_fields.items()},
+                "parent": e.__mro__[1].__name__ if e.__mro__[1] != Entity else None,
+            }
 
-        # Collect unique entity types from the model
-        entity_classes = cls._collect_entity_classes_from_model()
-        ontology_entities: List[_OntologyClass | _OntologyProperty] = []
-        properties_seen = set()
+    def ontology_graph(self):
+        """Generate ontology graph"""
+        ontology_classes = []
+        ontology_props = set()
 
-        for entity_class in entity_classes:
-            # Add class definition
-            class_def = cls._create_class_definition(entity_class, entity_classes)
-            ontology_entities.append(class_def)
+        for class_name, class_info in self.db.items():
+            # Build class definitions
+            class_def = _OntologyClass(
+                id=class_name,
+                label=class_name,
+                comment=class_info["description"],
+                subClassOf=Relation(id=class_info["parent"])
+                if class_info["parent"]
+                else None,
+            )  # pyright: ignore
+            ontology_classes.append(class_def)
 
-            # Add property definitions
-            property_defs = cls._create_property_definitions(
-                entity_class, properties_seen
-            )
-            ontology_entities.extend(property_defs)
+            # Build property definitions
+            for field_name, field_info in class_info["fields"].items():
+                if field_name in ontology_props:
+                    # TODO:
+                    # Compare props and ensure that only 'description' differs
+                    # If identical, skip
+                    continue  # Skip for now...
+                ontology_props.add(field_name)
+                is_relation = "Relation" in str(field_info.annotation)
+                prop_def = _OntologyProperty(
+                    id=field_name,  # pyright: ignore
+                    type="owl:ObjectProperty"  # pyright: ignore
+                    if is_relation
+                    else "owl:DatatypeProperty",
+                    label=field_name,
+                    domain=Relation(id=class_name),
+                    comment=field_info.description,
+                    range=None,
+                )  # pyright: ignore
+                ontology_classes.append(prop_def)
+                # Add RDFSAnnotation if present
+                if field_info.metadata:
+                    for annotation in field_info.metadata:
+                        if isinstance(annotation, RDFSAnnotation.DOMAIN):
+                            prop_def.domain = Relation(id=annotation.value)
+                        if isinstance(annotation, RDFSAnnotation.RANGE):
+                            prop_def.range = Relation(id=annotation.value)
 
-        # Extract vocab from context
-        vocab = cls.model_fields["context"].default.get(
-            "@vocab", "http://example.com/vocab/"
-        )
-
-        # Build ontology context
+        # Build context
+        vocab = "http://example.com/vocab/"
         ontology_context = {
             "@vocab": vocab,
             "@base": vocab,
             "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
             "owl": "http://www.w3.org/2002/07/owl#",
         }
+        return JSONLDGraph(context=ontology_context, graph=ontology_classes)
 
-        # Return as JSONLDGraph
-        return JSONLDGraph(context=ontology_context, graph=ontology_entities)
+    def shacl_graph(self):
+        """Generate SHACL graph"""
+        shacl_shapes = []
+        datatype_map = {
+            "str": "xsd:string",
+            "int": "xsd:integer",
+            "float": "xsd:decimal",
+            "bool": "xsd:boolean",
+        }
+        for class_name, class_info in self.db.items():
+            property_shapes = []
+            for field_name, field_info in class_info["fields"].items():
+                prop_shape = _PropertyShape(
+                    id=f"{class_name}Shape_{field_name}",
+                    path=Relation(id=field_name),
+                    name=field_name,
+                    description=field_info.description,
+                )
+                # Check if field is a Relation type
+                annotation_str = str(field_info.annotation)
+                if "Relation" in annotation_str:
+                    prop_shape.nodeKind = Relation(id="sh:IRI")
+                else:
+                    # Map basic Python types to XSD datatypes
+                    type_name = (
+                        annotation_str.replace("typing.", "")
+                        .replace("Optional[", "")
+                        .replace("]", "")
+                    )
+                    if type_name in datatype_map:
+                        prop_shape.datatype = Relation(id=datatype_map[type_name])
 
-    @classmethod
-    def shacl_graph(cls) -> "JSONLDGraph":
-        """Generate SHACL shapes graph from the classes in the ontology.
+                # Required/Optional
+                if field_info.is_required:
+                    prop_shape.minCount = 1
+                else:
+                    prop_shape.minCount = None
 
-        Returns:
-            JSONLDGraph: With _NodeShape and _PropertyShape (internal classes) instances in the default graph.
-        """
+                # SHACLAnnotation if present
+                if field_info.metadata:
+                    for annotation in field_info.metadata:
+                        if isinstance(annotation, SHACLAnnotation.DATATYPE):
+                            prop_shape.datatype = Relation(id=annotation.value)
+                        elif isinstance(annotation, SHACLAnnotation.MAX_COUNT):
+                            prop_shape.maxCount = annotation.value
+                        elif isinstance(annotation, SHACLAnnotation.MIN_COUNT):
+                            prop_shape.minCount = annotation.value
+                        elif isinstance(annotation, SHACLAnnotation.PATTERN):
+                            prop_shape.pattern = annotation.value
+                        elif isinstance(annotation, SHACLAnnotation.MIN_LENGTH):
+                            prop_shape.minLength = annotation.value
+                        elif isinstance(annotation, SHACLAnnotation.MAX_LENGTH):
+                            prop_shape.maxLength = annotation.value
+                        elif isinstance(annotation, SHACLAnnotation.MIN_INCLUSIVE):
+                            prop_shape.minInclusive = annotation.value
+                        elif isinstance(annotation, SHACLAnnotation.MAX_INCLUSIVE):
+                            prop_shape.maxInclusive = annotation.value
+                        elif isinstance(annotation, SHACLAnnotation.MIN_EXCLUSIVE):
+                            prop_shape.minExclusive = annotation.value
+                        elif isinstance(annotation, SHACLAnnotation.MAX_EXCLUSIVE):
+                            prop_shape.maxExclusive = annotation.value
+                        elif isinstance(annotation, SHACLAnnotation.NODE_KIND):
+                            prop_shape.nodeKind = Relation(id=annotation.value)
+                        elif isinstance(annotation, SHACLAnnotation.CLASS):
+                            prop_shape.shclass = Relation(id=annotation.value)
 
-        # Collect unique entity types from the model
-        entity_classes = cls._collect_entity_classes_from_model()
+                property_shapes.append(prop_shape)
 
-        # Generate node shapes
-        shacl_shapes: List[_NodeShape] = []
-
-        for entity_class in entity_classes:
-            # Create node shape for this class
-            node_shape = cls._create_node_shape(entity_class)
+            node_shape = _NodeShape(
+                id=f"{class_name}Shape",
+                targetClass=Relation(id=class_name),
+                property=property_shapes,
+            )
             shacl_shapes.append(node_shape)
 
-        # Extract vocab from context
-        vocab = cls.model_fields["context"].default.get(
-            "@vocab", "http://example.com/vocab/"
-        )
-
-        # Build SHACL context
+        vocab = "http://example.com/vocab/"
         shacl_context = {
             "@vocab": vocab,
             "@base": vocab,
             "sh": "http://www.w3.org/ns/shacl#",
             "xsd": "http://www.w3.org/2001/XMLSchema#",
         }
-
-        # Return as JSONLDGraph
         return JSONLDGraph(context=shacl_context, graph=shacl_shapes)
-
-    @classmethod
-    def _collect_entity_classes_from_model(cls) -> set:
-        """Collect all Entity classes from the model's graph field type annotation.
-
-        Returns:
-            set: All Entity classes found in the model's graph field annotation.
-        """
-        entity_classes = set()
-
-        # Get the graph field's annotation
-        graph_field = cls.model_fields.get("graph")
-        if graph_field and graph_field.annotation:
-            annotation = graph_field.annotation
-
-            # Extract the entity type from List[EntityType] or List[A|B|C]
-            origin = get_origin(annotation)
-            if origin is list or origin is List:
-                args = get_args(annotation)
-                if args:
-                    inner_type = args[0]
-
-                    # Check if inner type is a Union (A|B|C or Union[A, B, C])
-                    inner_origin = get_origin(inner_type)
-                    # Handle both Union[A, B, C] and A|B|C (UnionType in Python 3.10+)
-                    if inner_origin is Union or isinstance(inner_type, UnionType):
-                        # Handle List[A|B|C] - extract all union members
-                        union_args = get_args(inner_type)
-                        for entity_type in union_args:
-                            if isinstance(entity_type, type) and issubclass(
-                                entity_type, Entity
-                            ):
-                                entity_classes.add(entity_type)
-                    else:
-                        # Handle List[EntityType] - single entity type
-                        if isinstance(inner_type, type) and issubclass(
-                            inner_type, Entity
-                        ):
-                            entity_classes.add(inner_type)
-
-        return entity_classes
-
-    @classmethod
-    def _get_all_subclasses(cls, entity_class) -> set:
-        """Recursively get all subclasses of an entity class.
-
-        Args:
-            entity_class: The entity class to find subclasses for.
-
-        Returns:
-            set: All subclasses of the given entity class.
-        """
-        subclasses = set()
-        for subclass in entity_class.__subclasses__():
-            subclasses.add(subclass)
-            subclasses.update(cls._get_all_subclasses(subclass))
-        return subclasses
-
-    @classmethod
-    def _create_class_definition(
-        cls, entity_class, entity_classes: set
-    ) -> _OntologyClass:
-        """Create an RDFS class definition for an Entity class.
-
-        Args:
-            entity_class: The Entity class to create a definition for.
-            entity_classes: Set of all entity classes in the model.
-
-        Returns:
-            _OntologyClass: RDFS class definition.
-        """
-        class_def = _OntologyClass(
-            id=entity_class.__name__,
-            label=entity_class.__name__,
-            comment=entity_class.__doc__.strip() if entity_class.__doc__ else None,
-        )
-
-        # Add inheritance relationships
-        for base in entity_class.__bases__:
-            if base != Entity and issubclass(base, Entity):
-                class_def.subClassOf = Relation(id=base.__name__)
-                entity_classes.add(
-                    base
-                )  # Side effect: adds 'base' class to entity_classes
-
-        return class_def
-
-    @classmethod
-    def _create_property_definitions(
-        cls, entity_class, properties_seen: set
-    ) -> List[_OntologyProperty]:
-        """Create property definitions for fields defined on a class.
-
-        Args:
-            entity_class: The Entity class to create property definitions for.
-            properties_seen: Set of property names already processed.
-
-        Returns:
-            List[_OntologyProperty]: Property definitions for the class fields.
-        """
-        property_defs = []
-        parent_fields = cls._get_parent_fields(entity_class)
-
-        # Track fields by alias if available, otherwise use field name
-        for field_name, field_info in entity_class.model_fields.items():
-            if field_info.alias:
-                field_id = field_info.alias
-            else:
-                field_id = field_name
-
-            if field_id in properties_seen or field_id in ["@id", "@type"]:
-                continue
-            if field_id in parent_fields:
-                continue
-            properties_seen.add(field_id)
-
-            # Create property definition
-            prop_def = cls._create_single_property_definition(
-                entity_class, field_name, field_info, field_name
-            )
-            property_defs.append(prop_def)
-
-        return property_defs
-
-    @classmethod
-    def _get_parent_fields(cls, entity_class) -> set:
-        """Get all field names from parent classes.
-
-        Args:
-            entity_class: The Entity class to get parent fields for.
-
-        Returns:
-            set: Field names from all parent classes.
-        """
-        parent_fields = set()
-        for base in entity_class.__bases__:
-            if base != Entity and issubclass(base, Entity):
-                parent_fields.update(base.model_fields.keys())
-        return parent_fields
-
-    @classmethod
-    def _create_single_property_definition(
-        cls, entity_class, field_name: str, field_info, prop_name: str
-    ) -> _OntologyProperty:
-        """Create a single property definition.
-
-        Args:
-            entity_class: The Entity class containing the field.
-            field_name: Name of the field.
-            field_info: Pydantic field information.
-            prop_name: Name for the property.
-
-        Returns:
-            _OntologyProperty: Property definition for the field.
-        """
-        # Extract type and metadata
-        field_type, metadata = cls._extract_field_type_and_metadata(
-            entity_class, field_name, field_info
-        )
-
-        # Determine if ObjectProperty or DatatypeProperty
-        is_relation = cls._is_relation_type(field_type)
-
-        prop_def = _OntologyProperty(
-            id=prop_name,
-            type="owl:ObjectProperty" if is_relation else "owl:DatatypeProperty",
-            label=prop_name,
-            domain=Relation(id=entity_class.__name__),
-            comment=field_info.description,
-        )
-
-        # Add properties to _OntologyProperty according to annotation
-        for meta in metadata:
-            if isinstance(meta, RDFSAnnotation.DOMAIN):
-                prop_def.domain = Relation(id=meta.value)
-            if isinstance(meta, RDFSAnnotation.RANGE):
-                prop_def.range = Relation(id=meta.value)
-
-        return prop_def
-
-    @classmethod
-    def _create_node_shape(cls, entity_class) -> _NodeShape:
-        """Create a SHACL node shape for an Entity class.
-
-        Args:
-            entity_class: The Entity class to create a node shape for.
-
-        Returns:
-            _NodeShape: SHACL node shape for the entity class.
-        """
-        # Create property shapes for all fields
-        property_shapes = []
-
-        for field_name, field_info in entity_class.model_fields.items():
-            # Skip special fields
-            if field_name in ["id", "type"]:
-                continue
-
-            # Create property shape
-            prop_shape = cls._create_property_shape(
-                entity_class, field_name, field_info
-            )
-            property_shapes.append(prop_shape)
-
-        # Create node shape
-        node_shape = _NodeShape(
-            id=f"{entity_class.__name__}Shape",
-            targetClass=Relation(id=entity_class.__name__),
-            property=property_shapes,
-        )
-
-        return node_shape
-
-    @classmethod
-    def _create_property_shape(
-        cls, entity_class, field_name: str, field_info
-    ) -> _PropertyShape:
-        """Create a SHACL property shape for a field.
-
-        Args:
-            entity_class: The Entity class containing the field.
-            field_name: Name of the field.
-            field_info: Pydantic field information.
-
-        Returns:
-            _PropertyShape: SHACL property shape for the field.
-        """
-        # Extract type and metadata
-        field_type, metadata = cls._extract_field_type_and_metadata(
-            entity_class, field_name, field_info
-        )
-
-        # Determine if this is a relation
-        is_relation = cls._is_relation_type(field_type)
-
-        # Create base property shape
-        prop_shape = _PropertyShape(
-            id=f"{entity_class.__name__}Shape_{field_name}",
-            path=Relation(id=field_name),
-            name=field_name,
-            description=field_info.description,
-        )
-
-        # Map Python types to XSD datatypes
-        datatype_map = {
-            str: "xsd:string",
-            int: "xsd:integer",
-            float: "xsd:decimal",
-            bool: "xsd:boolean",
-        }
-
-        # Set datatype or class based on field type
-        if is_relation:
-            prop_shape.nodeKind = Relation(id="sh:IRI")
-        else:
-            if field_type in datatype_map:
-                prop_shape.datatype = Relation(id=datatype_map[field_type])
-
-        # Check if field is required (not Optional)
-        if not field_info.is_required():
-            # Optional field - no minCount constraint
-            pass
-        else:
-            # Required field has minCount constraint
-            prop_shape.minCount = 1
-
-        # Apply SHACL annotations from metadata
-        for meta in metadata:
-            if isinstance(meta, SHACLAnnotation.DATATYPE):
-                prop_shape.datatype = Relation(id=meta.value)
-            elif isinstance(meta, SHACLAnnotation.MAX_COUNT):
-                prop_shape.maxCount = meta.value
-            elif isinstance(meta, SHACLAnnotation.MIN_COUNT):
-                prop_shape.minCount = meta.value
-            elif isinstance(meta, SHACLAnnotation.PATTERN):
-                prop_shape.pattern = meta.value
-            elif isinstance(meta, SHACLAnnotation.MIN_LENGTH):
-                prop_shape.minLength = meta.value
-            elif isinstance(meta, SHACLAnnotation.MAX_LENGTH):
-                prop_shape.maxLength = meta.value
-            elif isinstance(meta, SHACLAnnotation.MIN_INCLUSIVE):
-                prop_shape.minInclusive = meta.value
-            elif isinstance(meta, SHACLAnnotation.MAX_INCLUSIVE):
-                prop_shape.maxInclusive = meta.value
-            elif isinstance(meta, SHACLAnnotation.MIN_EXCLUSIVE):
-                prop_shape.minExclusive = meta.value
-            elif isinstance(meta, SHACLAnnotation.MAX_EXCLUSIVE):
-                prop_shape.maxExclusive = meta.value
-            elif isinstance(meta, SHACLAnnotation.NODE_KIND):
-                prop_shape.nodeKind = Relation(id=meta.value)
-            elif isinstance(meta, SHACLAnnotation.CLASS):
-                prop_shape.shclass = Relation(id=meta.value)
-
-        return prop_shape
-
-    @classmethod
-    def _extract_field_type_and_metadata(
-        cls, entity_class, field_name: str, field_info
-    ) -> tuple:
-        """Extract the field type and metadata from annotations.
-
-        Args:
-            entity_class: The Entity class containing the field.
-            field_name: Name of the field.
-            field_info: Pydantic field information.
-
-        Returns:
-            tuple: Field type and metadata tuple.
-        """
-        field_type = field_info.annotation
-        metadata = ()
-
-        # Get original annotation
-        original_annotation = None
-        if (
-            hasattr(entity_class, "__annotations__")
-            and field_name in entity_class.__annotations__
-        ):
-            original_annotation = entity_class.__annotations__[field_name]
-
-        # Extract metadata from Annotated
-        if original_annotation and get_origin(original_annotation) is Annotated:
-            args = get_args(original_annotation)
-            field_type = args[0]
-            metadata = args[1:]
-
-        # Handle Optional types
-        origin = getattr(field_type, "__origin__", None)
-        if origin is not None:
-            args = getattr(field_type, "__args__", ())
-            if args:
-                field_type = args[0]
-
-        return field_type, metadata
-
-    @classmethod
-    def _is_relation_type(cls, field_type) -> bool:
-        """Check if a field type is a Relation (ObjectProperty).
-
-        Args:
-            field_type: The field type to check.
-
-        Returns:
-            bool: True if the field type is a Relation, False otherwise.
-        """
-        try:
-            if isinstance(field_type, type) and issubclass(field_type, Relation):
-                return True
-        except TypeError:
-            pass
-        return False
-
-
-def make_model(ontology: type[Entity], name: str = "Pydontology") -> type[JSONLDGraph]:
-    """Create a JSONLDGraph Pydantic model class
-
-    Args:
-        ontology (Union): Entity type or union of Entity types for the ontology.
-        name (str): Name for the generated model class.
-
-    Returns:
-        type[JSONLDGraph]: A Pydantic model class with the specified ontology.
-
-    Example::
-
-        from pydontology import Entity, make_model
-
-        class Person(Entity):
-            name: str
-
-        class Employee(Person):
-            title: str
-
-        ontology = Person | Employee
-        Model = make_model(ontology)
-    """
-
-    return create_model(
-        f"{name}",
-        graph=(
-            List[ontology],
-            Field(
-                alias="@graph",
-                json_schema_extra={"name": "@graph", "description": "Default graph"},
-            ),
-        ),
-        __base__=JSONLDGraph,
-    )

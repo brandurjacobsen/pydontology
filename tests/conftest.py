@@ -3,7 +3,13 @@ from typing import Annotated, Optional
 import pytest
 from pydantic import Field
 
-from pydontology import Entity, RDFSAnnotation, Relation, SHACLAnnotation, make_model
+from pydontology.pydontology import (
+    Entity,
+    Pydontology,
+    RDFSAnnotation,
+    Relation,
+    SHACLAnnotation,
+)
 
 
 # Define ontology_model fixture to be used across test files
@@ -48,6 +54,5 @@ def TestModel():
 
         name: str = Field(description="Department name")
 
-    return make_model(
-        ontology=Person | Employee | Manager | Department, name="TestModel"
-    )
+    onto = Pydontology(ontology=Person | Employee | Manager | Department)
+    return onto

@@ -1,7 +1,7 @@
 import pytest
 from rdflib import OWL, RDF, RDFS, Graph, Namespace
 
-from pydontology.pydontology import JSONLDGraph
+from pydontology.pydontology import BaseContext, JSONLDGraph
 
 # See conftest.py for TestModel definition
 
@@ -27,9 +27,9 @@ def rdf_graph(onto_graph_json):
 
 
 @pytest.fixture
-def vocab_ns():  # vocab namespace
+def vocab_namespaces():  # vocab namespace
     """Fixture providing the vocabulary namespace"""
-    return Namespace("http://example.com/vocab/")
+    return Namespace(BaseContext().vocab)
 
 
 def test_returns_jsonld_graph(onto_graph):
@@ -42,9 +42,9 @@ def test_rdflib_can_parse_rdf_graph(rdf_graph):
     assert len(rdf_graph) > 0
 
 
-def test_ontology_classes_present(rdf_graph, vocab_ns):
+def test_ontology_classes_present(rdf_graph, vocab_namespace):
     """Test that all expected classes are present in ontology graph"""
-    VOCAB = vocab_ns
+    VOCAB = vocab_namespace
 
     # Verify all classes exist as rdfs:Class
     assert (VOCAB.Person, RDF.type, RDFS.Class) in rdf_graph
@@ -57,9 +57,9 @@ def test_ontology_classes_present(rdf_graph, vocab_ns):
     assert len(classes) == 4
 
 
-def test_ontology_inheritance(rdf_graph, vocab_ns):
+def test_ontology_inheritance(rdf_graph, vocab_namespace):
     """Test that inheritance relationships are correctly represented"""
-    VOCAB = vocab_ns
+    VOCAB = vocab_namespace
 
     # Employee should inherit from Person
     assert (VOCAB.Employee, RDFS.subClassOf, VOCAB.Person) in rdf_graph
@@ -76,9 +76,9 @@ def test_ontology_inheritance(rdf_graph, vocab_ns):
     assert len(department_subclasses) == 0
 
 
-def test_ontology_properties_present(rdf_graph, vocab_ns):
+def test_ontology_properties_present(rdf_graph, vocab_namespace):
     """Test that all expected properties are present"""
-    VOCAB = vocab_ns
+    VOCAB = vocab_namespace
 
     # Get all properties (both ObjectProperty and DatatypeProperty)
     object_properties = list(rdf_graph.subjects(RDF.type, OWL.ObjectProperty))
@@ -96,9 +96,9 @@ def test_ontology_properties_present(rdf_graph, vocab_ns):
     assert VOCAB.department in all_properties
 
 
-def test_ontology_property_types(rdf_graph, vocab_ns):
+def test_ontology_property_types(rdf_graph, vocab_namespace):
     """Test that properties have correct types (ObjectProperty vs DatatypeProperty)"""
-    VOCAB = vocab_ns
+    VOCAB = vocab_namespace
 
     # Relation fields should be ObjectProperty
     assert (VOCAB.manager, RDF.type, OWL.ObjectProperty) in rdf_graph
@@ -110,9 +110,9 @@ def test_ontology_property_types(rdf_graph, vocab_ns):
     assert (VOCAB.employee_id, RDF.type, OWL.DatatypeProperty) in rdf_graph
 
 
-def test_ontology_class_descriptions(rdf_graph, vocab_ns):
+def test_ontology_class_descriptions(rdf_graph, vocab_namespace):
     """Test that class descriptions are included as rdfs:comment"""
-    VOCAB = vocab_ns
+    VOCAB = vocab_namespace
 
     # Check Person comment
     person_comments = list(rdf_graph.objects(VOCAB.Person, RDFS.comment))
@@ -135,9 +135,9 @@ def test_ontology_class_descriptions(rdf_graph, vocab_ns):
     assert str(department_comments[0]) == "A department, inherits from Entity"
 
 
-def test_ontology_property_descriptions(rdf_graph, vocab_ns):
+def test_ontology_property_descriptions(rdf_graph, vocab_namespace):
     """Test that property descriptions are included"""
-    VOCAB = vocab_ns
+    VOCAB = vocab_namespace
 
     # Check manager property comment
     manager_comments = list(rdf_graph.objects(VOCAB.manager, RDFS.comment))
@@ -161,9 +161,9 @@ def test_ontology_property_descriptions(rdf_graph, vocab_ns):
     assert str(dept_comments[0]) == "Department IRI"
 
 
-def test_ontology_property_domains(rdf_graph, vocab_ns):
+def test_ontology_property_domains(rdf_graph, vocab_namespace):
     """Test that properties have correct domain assignments"""
-    VOCAB = vocab_ns
+    VOCAB = vocab_namespace
 
     # TODO: Align with fix for https://github.com/brandurjacobsen/pydontology/issues/8#issue-3698657336
     # Check name property domain (could be Person or Department)
@@ -182,9 +182,9 @@ def test_ontology_property_domains(rdf_graph, vocab_ns):
     assert department_domains[0] == VOCAB.Manager
 
 
-def test_ontology_property_range(rdf_graph, vocab_ns):
+def test_ontology_property_range(rdf_graph, vocab_namespace):
     """Test that rdfs:range is correctly set from Annotated metadata"""
-    VOCAB = vocab_ns
+    VOCAB = vocab_namespace
 
     # Check manager property range
     manager_ranges = list(rdf_graph.objects(VOCAB.manager, RDFS.range))
@@ -197,9 +197,9 @@ def test_ontology_property_range(rdf_graph, vocab_ns):
     assert dept_ranges[0] == VOCAB.Department
 
 
-def test_optional_fields_are_in_ontology(rdf_graph, vocab_ns):
+def test_optional_fields_are_in_ontology(rdf_graph, vocab_namespace):
     """Test that optional fields (with default=None) are still included in ontology"""
-    VOCAB = vocab_ns
+    VOCAB = vocab_namespace
 
     # age is Optional[int] with default=None
     assert (VOCAB.age, RDF.type, OWL.DatatypeProperty) in rdf_graph
@@ -211,9 +211,9 @@ def test_optional_fields_are_in_ontology(rdf_graph, vocab_ns):
     assert (VOCAB.department, RDF.type, OWL.ObjectProperty) in rdf_graph
 
 
-def test_property_uniqueness(rdf_graph, vocab_ns):
+def test_property_uniqueness(rdf_graph, vocab_namespace):
     """Test that each property is defined only once, even if used in multiple classes"""
-    VOCAB = vocab_ns
+    VOCAB = vocab_namespace
 
     # 'name' appears in both Person and Department
     # It should only have one rdf:type triple
@@ -248,7 +248,7 @@ def test_no_duplicate_triples(rdf_graph):
     assert len(triples) == len(unique_triples), "Graph contains duplicate triples"
 
 
-def test_datatype_properties_dont_have_class_ranges(rdf_graph, vocab_ns):
+def test_datatype_properties_dont_have_class_ranges(rdf_graph, vocab_namespace):
     """Test that datatype properties don't have rdfs:range pointing to ontology classes"""
 
     # Get all datatype properties
@@ -266,9 +266,9 @@ def test_datatype_properties_dont_have_class_ranges(rdf_graph, vocab_ns):
             )
 
 
-def test_object_properties_have_class_ranges(rdf_graph, vocab_ns):
+def test_object_properties_have_class_ranges(rdf_graph, vocab_namespace):
     """Test that object properties have rdfs:range pointing to classes"""
-    VOCAB = vocab_ns
+    VOCAB = vocab_namespace
 
     # manager should have range Manager
     manager_ranges = list(rdf_graph.objects(VOCAB.manager, RDFS.range))

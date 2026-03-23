@@ -9,6 +9,26 @@ from .rdfs import RDFSAnnotation
 from .shacl import SHACLAnnotation
 
 
+class BaseContext(BaseModel):
+    """Default context"""
+
+    vocab: str = Field(alias="@vocab", default="http://example.com/vocab/")
+    base: str = Field(alias="@base", default="http://example.com/")
+    sh: Literal["http://www.w3.org/ns/shacl#"] = Field(
+        default="http://www.w3.org/ns/shacl#"
+    )
+    xsd: Literal["http://www.w3.org/2001/XMLSchema#"] = Field(
+        default="http://www.w3.org/2001/XMLSchema#"
+    )
+    rdfs: Literal["http://www.w3.org/2000/01/rdf-schema#"] = Field(
+        default="http://www.w3.org/2000/01/rdf-schema#"
+    )
+    owl: Literal["http://www.w3.org/2002/07/owl#"] = Field(
+        default="http://www.w3.org/2002/07/owl#"
+    )
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+
+
 class Relation(BaseModel):
     """This class should be the type of Entity attributes for them to be considered as IRIs."""
 
@@ -189,21 +209,18 @@ class JSONLDGraph(BaseModel):
     This class serializes as a JSON-LD document/graph.
     """
 
-    context: SkipJsonSchema[dict] = Field(
-        default={
-            "@vocab": "http://example.com/vocab/",
-            "@base": "http://example.com/",
-        },
+    context: SkipJsonSchema[BaseContext] = Field(
+        default=BaseContext(),
         alias="@context",
         title="@context",
-        description="JSON-LD context (alias: @context)",
+        description="JSON-LD context",
     )
 
     graph: List = Field(
         default=[],
         alias="@graph",
         title="@graph",
-        description="Default graph containing Entity instances, or subclasses thereof (alias: @graph)",
+        description="Default graph",
     )
 
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
@@ -211,35 +228,66 @@ class JSONLDGraph(BaseModel):
 
 class Pydontology:
     def __init__(self, ontology: UnionType):
-        entities = get_args(ontology)
-        for cls in entities:
+        self.entities = get_args(ontology)
+        for cls in self.entities:
             if not issubclass(cls, Entity):
                 raise TypeError(
-                    f"Expected subclass of Entity, got {cls} with type {type(cls)}"
+                    f"Expected subclass of 'Entity', got {cls} with type '{type(cls)}'"
                 )
         self.db = dict()
-        for e in entities:
-            # Set 'description' to docstring.
-            # Set 'fields' to Pydantic model fields that are in class annotations
-            # Set 'parent' to first non-Entity superclass in the MRO
-            model_fields = e.model_fields
-            annotations = get_annotations(e)
-            self.db[e.__name__] = {
-                "description": e.__doc__.strip() if e.__doc__ else None,
-                "fields": {
-                    k: v for k, v in e.model_fields.items() if k in get_annotations(e)
-                },
-                "all_fields": {k: v for k, v in e.model_fields.items()},
-                "parent": e.__mro__[1].__name__ if e.__mro__[1] != Entity else None,
+
+    def _init_db(self):
+        """Construct a dict with entity names as keys
+        and dict of field metadata as values."""
+
+        for e in self.entities:
+            class_name = e.__name__
+            description = e.__doc__.strip() if e.__doc__ else None
+            parent = e.__mro__[1].__name__ if e.__mro__[1] != Entity else None
+            self.db[class_name] = {
+                "description": description,
+                "parent": parent,
+                "fields": dict(),
             }
+            local_annotations = get_annotations(e)
+            for field_name, field_info in e.model_fields.items():
+                is_local = field_name in local_annotations
+                is_required = field_info.is_required()
+                is_relation = "Relation" in str(field_info.annotation)
+                description = field_info.description
+
+                if is_required:
+                    field_type = field_info.annotation.__name__
+                else:
+                    field_type = get_args(field_info.annotation)[0].__name__
+
+                if field_info.metadata:
+                    metadata = field_info.metadata
+                else:
+                    metadata = []
+
+                field_dict = {
+                    "is_local": is_local,
+                    "is_required": is_required,
+                    "field_type": field_type,
+                    "is_relation": is_relation,
+                    "description": description,
+                    "metadata": metadata,
+                }
+
+                self.db[class_name]["fields"][field_name] = field_dict
 
     def ontology_graph(self):
         """Generate ontology graph"""
+
+        if not self.db:
+            self._init_db()
+
         ontology_classes = []
         ontology_props = set()
 
         for class_name, class_info in self.db.items():
-            # Build class definitions
+            # Build Ontology class definitions
             class_def = _OntologyClass(
                 id=class_name,
                 label=class_name,
@@ -252,108 +300,102 @@ class Pydontology:
 
             # Build property definitions
             for field_name, field_info in class_info["fields"].items():
+                if not field_info["is_local"]:
+                    continue
                 if field_name in ontology_props:
                     # TODO:
                     # Compare props and ensure that only 'description' differs
                     # If identical, skip
                     continue  # Skip for now...
                 ontology_props.add(field_name)
-                is_relation = "Relation" in str(field_info.annotation)
+
                 prop_def = _OntologyProperty(
-                    id=field_name,  # pyright: ignore
-                    type="owl:ObjectProperty"  # pyright: ignore
-                    if is_relation
+                    id=field_name,
+                    type="owl:ObjectProperty"
+                    if field_info["is_relation"]
                     else "owl:DatatypeProperty",
                     label=field_name,
                     domain=Relation(id=class_name),
-                    comment=field_info.description,
+                    comment=field_info["description"],
                     range=None,
                 )  # pyright: ignore
-                ontology_classes.append(prop_def)
-                # Add RDFSAnnotation if present
-                if field_info.metadata:
-                    for annotation in field_info.metadata:
-                        if isinstance(annotation, RDFSAnnotation.DOMAIN):
-                            prop_def.domain = Relation(id=annotation.value)
-                        if isinstance(annotation, RDFSAnnotation.RANGE):
-                            prop_def.range = Relation(id=annotation.value)
 
-        # Build context
-        vocab = "http://example.com/vocab/"
-        ontology_context = {
-            "@vocab": vocab,
-            "@base": vocab,
-            "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
-            "owl": "http://www.w3.org/2002/07/owl#",
-        }
-        return JSONLDGraph(context=ontology_context, graph=ontology_classes)
+                for meta in field_info["metadata"]:
+                    if isinstance(meta, RDFSAnnotation.RANGE):
+                        prop_def.range = Relation(id=meta.value)
+                    elif isinstance(meta, RDFSAnnotation.DOMAIN):
+                        prop_def.domain = Relation(id=meta.value)
+
+                ontology_classes.append(prop_def)
+
+        return JSONLDGraph(context=BaseContext(), graph=ontology_classes)
 
     def shacl_graph(self):
         """Generate SHACL graph"""
+
+        if not self.db:
+            self._init_db()
+
         shacl_shapes = []
-        datatype_map = {
+        type_map = {
             "str": "xsd:string",
             "int": "xsd:integer",
             "float": "xsd:decimal",
             "bool": "xsd:boolean",
         }
+
         for class_name, class_info in self.db.items():
             property_shapes = []
+
             for field_name, field_info in class_info["fields"].items():
+                # Skip id and type special fields
+                if field_name in ["id", "type"]:
+                    continue
                 prop_shape = _PropertyShape(
                     id=f"{class_name}Shape_{field_name}",
                     path=Relation(id=field_name),
                     name=field_name,
-                    description=field_info.description,
-                )
-                # Check if field is a Relation type
-                annotation_str = str(field_info.annotation)
-                if "Relation" in annotation_str:
+                    description=field_info["description"],
+                )  # pyright: ignore
+
+                if field_info["is_relation"]:
                     prop_shape.nodeKind = Relation(id="sh:IRI")
                 else:
-                    # Map basic Python types to XSD datatypes
-                    type_name = (
-                        annotation_str.replace("typing.", "")
-                        .replace("Optional[", "")
-                        .replace("]", "")
+                    prop_shape.datatype = Relation(
+                        id=type_map[field_info["field_type"]]
                     )
-                    if type_name in datatype_map:
-                        prop_shape.datatype = Relation(id=datatype_map[type_name])
 
                 # Required/Optional
-                if field_info.is_required:
+                if field_info["is_required"]:
                     prop_shape.minCount = 1
                 else:
                     prop_shape.minCount = None
 
-                # SHACLAnnotation if present
-                if field_info.metadata:
-                    for annotation in field_info.metadata:
-                        if isinstance(annotation, SHACLAnnotation.DATATYPE):
-                            prop_shape.datatype = Relation(id=annotation.value)
-                        elif isinstance(annotation, SHACLAnnotation.MAX_COUNT):
-                            prop_shape.maxCount = annotation.value
-                        elif isinstance(annotation, SHACLAnnotation.MIN_COUNT):
-                            prop_shape.minCount = annotation.value
-                        elif isinstance(annotation, SHACLAnnotation.PATTERN):
-                            prop_shape.pattern = annotation.value
-                        elif isinstance(annotation, SHACLAnnotation.MIN_LENGTH):
-                            prop_shape.minLength = annotation.value
-                        elif isinstance(annotation, SHACLAnnotation.MAX_LENGTH):
-                            prop_shape.maxLength = annotation.value
-                        elif isinstance(annotation, SHACLAnnotation.MIN_INCLUSIVE):
-                            prop_shape.minInclusive = annotation.value
-                        elif isinstance(annotation, SHACLAnnotation.MAX_INCLUSIVE):
-                            prop_shape.maxInclusive = annotation.value
-                        elif isinstance(annotation, SHACLAnnotation.MIN_EXCLUSIVE):
-                            prop_shape.minExclusive = annotation.value
-                        elif isinstance(annotation, SHACLAnnotation.MAX_EXCLUSIVE):
-                            prop_shape.maxExclusive = annotation.value
-                        elif isinstance(annotation, SHACLAnnotation.NODE_KIND):
-                            prop_shape.nodeKind = Relation(id=annotation.value)
-                        elif isinstance(annotation, SHACLAnnotation.CLASS):
-                            prop_shape.shclass = Relation(id=annotation.value)
-
+                for meta in field_info["metadata"]:
+                    if isinstance(meta, SHACLAnnotation.DATATYPE):
+                        prop_shape.datatype = Relation(id=meta.value)
+                    elif isinstance(meta, SHACLAnnotation.MAX_COUNT):
+                        prop_shape.maxCount = meta.value
+                    elif isinstance(meta, SHACLAnnotation.MIN_COUNT):
+                        prop_shape.minCount = meta.value
+                    elif isinstance(meta, SHACLAnnotation.PATTERN):
+                        prop_shape.pattern = meta.value
+                    elif isinstance(meta, SHACLAnnotation.MIN_LENGTH):
+                        prop_shape.minLength = meta.value
+                    elif isinstance(meta, SHACLAnnotation.MAX_LENGTH):
+                        prop_shape.maxLength = meta.value
+                    elif isinstance(meta, SHACLAnnotation.MIN_INCLUSIVE):
+                        prop_shape.minInclusive = meta.value
+                    elif isinstance(meta, SHACLAnnotation.MAX_INCLUSIVE):
+                        prop_shape.maxInclusive = meta.value
+                    elif isinstance(meta, SHACLAnnotation.MIN_EXCLUSIVE):
+                        prop_shape.minExclusive = meta.value
+                    elif isinstance(meta, SHACLAnnotation.MAX_EXCLUSIVE):
+                        prop_shape.maxExclusive = meta.value
+                    elif isinstance(meta, SHACLAnnotation.NODE_KIND):
+                        prop_shape.nodeKind = Relation(id=meta.value)
+                    elif isinstance(meta, SHACLAnnotation.CLASS):
+                        prop_shape.shclass = Relation(id=meta.value)
                 property_shapes.append(prop_shape)
 
             node_shape = _NodeShape(
@@ -363,11 +405,7 @@ class Pydontology:
             )
             shacl_shapes.append(node_shape)
 
-        vocab = "http://example.com/vocab/"
-        shacl_context = {
-            "@vocab": vocab,
-            "@base": vocab,
-            "sh": "http://www.w3.org/ns/shacl#",
-            "xsd": "http://www.w3.org/2001/XMLSchema#",
-        }
-        return JSONLDGraph(context=shacl_context, graph=shacl_shapes)
+        return JSONLDGraph(context=BaseContext(), graph=shacl_shapes)
+
+    def jsonld_graph(self, context: BaseContext = BaseContext(), graph=[]):
+        return JSONLDGraph(context=context, graph=graph)

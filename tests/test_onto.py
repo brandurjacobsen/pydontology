@@ -27,7 +27,7 @@ def rdf_graph(onto_graph_json):
 
 
 @pytest.fixture
-def vocab_namespaces():  # vocab namespace
+def vocab_namespace():
     """Fixture providing the vocabulary namespace"""
     return Namespace(BaseContext().vocab)
 
@@ -45,6 +45,11 @@ def test_rdflib_can_parse_rdf_graph(rdf_graph):
 def test_ontology_classes_present(rdf_graph, vocab_namespace):
     """Test that all expected classes are present in ontology graph"""
     VOCAB = vocab_namespace
+
+    print(f"vocab_namespace: {vocab_namespace}")
+    print("Triples:")
+    for s, p, o in rdf_graph:
+        print(s, p, p)
 
     # Verify all classes exist as rdfs:Class
     assert (VOCAB.Person, RDF.type, RDFS.Class) in rdf_graph

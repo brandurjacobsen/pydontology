@@ -12,8 +12,17 @@ from .shacl import SHACLAnnotation
 class BaseContext(BaseModel):
     """Default context"""
 
-    vocab: str = Field(alias="@vocab", default="http://example.com/vocab/")
-    base: str = Field(alias="@base", default="http://example.com/")
+    version: float = Field(alias="@version", default=1.1)
+    vocab: str = Field(
+        alias="@vocab",
+        default="http://example.com/vocab/",
+        description="Base of properties, values of @type, and values of terms that are relative.",
+    )
+    base: str = Field(
+        alias="@base",
+        default="http://example.com/vocab/",
+        description="Base of relative IRIs.",
+    )
     sh: Literal["http://www.w3.org/ns/shacl#"] = Field(
         default="http://www.w3.org/ns/shacl#"
     )
@@ -50,18 +59,14 @@ class Entity(BaseModel):
 
 
 class _OntologyClass(BaseModel):
-    """Represents an RDFS/OWL class in an ontology.
-
-    Args:
-        id (str): The IRI identifier for the class (mapped to @id in JSON-LD)
-        type (Literal["rdfs:Class"]): The RDF type, always "rdfs:Class" (mapped to @type)
-        label (str): Human-readable label for the class (mapped to rdfs:label)
-        comment (Optional[str]): Optional description/comment for the class (mapped to rdfs:comment)
-        subClassOf (Optional[Relation]): Optional parent class relationship (mapped to rdfs:subClassOf)
-    """
+    """Represents an RDFS/OWL class in an ontology graph"""
 
     id: str = Field(alias="@id", description="Class IRI")
-    type: Literal["rdfs:Class"] = Field(default="rdfs:Class", alias="@type")
+    type: Literal["rdfs:Class"] = Field(
+        default="rdfs:Class",
+        alias="@type",
+        description="The RDF type. Always 'rdfs:Class'",
+    )
     label: str = Field(alias="rdfs:label", description="Human-readable label")
     comment: Optional[str] = Field(
         default=None, alias="rdfs:comment", description="Class description"
@@ -74,16 +79,7 @@ class _OntologyClass(BaseModel):
 
 
 class _OntologyProperty(BaseModel):
-    """Represents an OWL property in an ontology.
-
-    Args:
-        id (str): The IRI identifier for the property (mapped to @id in JSON-LD)
-        type (Literal["owl:ObjectProperty", "owl:DatatypeProperty"]): The property type (mapped to @type)
-        label (str): Human-readable label for the property (mapped to rdfs:label)
-        domain (Relation): Domain class IRI (mapped to rdfs:domain)
-        range (Optional[Relation]): Optional range class or datatype IRI (mapped to rdfs:range)
-        comment (Optional[str]): Optional property description (mapped to rdfs:comment)
-    """
+    """Represents an OWL property in an ontology graph."""
 
     id: str = Field(alias="@id", description="Property IRI")
     type: Literal["owl:ObjectProperty", "owl:DatatypeProperty"] = Field(alias="@type")
@@ -100,27 +96,7 @@ class _OntologyProperty(BaseModel):
 
 
 class _PropertyShape(BaseModel):
-    """Represents a SHACL property shape.
-
-    Args:
-        id (str): The IRI identifier for the property shape (mapped to @id in JSON-LD)
-        type (Literal["sh:PropertyShape"]): The shape type, always "sh:PropertyShape" (mapped to @type)
-        path (Relation): Property path (mapped to sh:path)
-        datatype (Optional[Relation]): Expected datatype (mapped to sh:datatype)
-        shclass (Optional[Relation]): Expected class (mapped to sh:class)
-        nodeKind (Optional[Relation]): Node kind constraint (mapped to sh:nodeKind)
-        minCount (Optional[int]): Minimum cardinality (mapped to sh:minCount)
-        maxCount (Optional[int]): Maximum cardinality (mapped to sh:maxCount)
-        pattern (Optional[str]): Pattern constraint (mapped to sh:pattern)
-        minLength (Optional[int]): Minimum length (mapped to sh:minLength)
-        maxLength (Optional[int]): Maximum length (mapped to sh:maxLength)
-        minInclusive (Optional[float]): Minimum inclusive value (mapped to sh:minInclusive)
-        maxInclusive (Optional[float]): Maximum inclusive value (mapped to sh:maxInclusive)
-        minExclusive (Optional[float]): Minimum exclusive value (mapped to sh:minExclusive)
-        maxExclusive (Optional[float]): Maximum exclusive value (mapped to sh:maxExclusive)
-        name (Optional[str]): Human-readable name (mapped to sh:name)
-        description (Optional[str]): Property description (mapped to sh:description)
-    """
+    """Represents a SHACL property shape in a SHACL graph."""
 
     id: str = Field(alias="@id", description="Property shape IRI")
     type: Literal["sh:PropertyShape"] = Field(default="sh:PropertyShape", alias="@type")
@@ -172,16 +148,7 @@ class _PropertyShape(BaseModel):
 
 
 class _NodeShape(BaseModel):
-    """Represents a SHACL node shape.
-
-    Args:
-        id (str): The IRI identifier for the node shape (mapped to @id in JSON-LD)
-        type (Literal["sh:NodeShape"]): The shape type, always "sh:NodeShape" (mapped to @type)
-        targetClass (Relation): Target class (mapped to sh:targetClass)
-        property (List[_PropertyShape]): List of property shapes (mapped to sh:property)
-        closed (Optional[bool]): Whether shape is closed (mapped to sh:closed)
-        ignoredProperties (Optional[List[Relation]]): Properties to ignore when closed (mapped to sh:ignoredProperties)
-    """
+    """Represents a SHACL node shape in a SHACL graph."""
 
     id: str = Field(alias="@id", description="Node shape IRI")
     type: Literal["sh:NodeShape"] = Field(default="sh:NodeShape", alias="@type")
@@ -204,8 +171,7 @@ class _NodeShape(BaseModel):
 class JSONLDGraph(BaseModel):
     """Class that encapsulates a JSON-LD document/graph.
 
-    This is the return type of the make_model() function, and
-    ontology_graph(), shacl_graph() class methods.
+    This is the return type of the Pydontology jsonld_graph(), ontology_graph(), shacl_graph() class methods.
     This class serializes as a JSON-LD document/graph.
     """
 
@@ -295,7 +261,7 @@ class Pydontology:
                 subClassOf=Relation(id=class_info["parent"])
                 if class_info["parent"]
                 else None,
-            )  # pyright: ignore
+            )
             ontology_classes.append(class_def)
 
             # Build property definitions
@@ -318,7 +284,7 @@ class Pydontology:
                     domain=Relation(id=class_name),
                     comment=field_info["description"],
                     range=None,
-                )  # pyright: ignore
+                )
 
                 for meta in field_info["metadata"]:
                     if isinstance(meta, RDFSAnnotation.RANGE):
@@ -342,6 +308,7 @@ class Pydontology:
             "int": "xsd:integer",
             "float": "xsd:decimal",
             "bool": "xsd:boolean",
+            "datetime": "xsd:dateTimeStamp",
         }
 
         for class_name, class_info in self.db.items():
@@ -356,7 +323,7 @@ class Pydontology:
                     path=Relation(id=field_name),
                     name=field_name,
                     description=field_info["description"],
-                )  # pyright: ignore
+                )
 
                 if field_info["is_relation"]:
                     prop_shape.nodeKind = Relation(id="sh:IRI")

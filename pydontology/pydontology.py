@@ -16,12 +16,12 @@ class BaseContext(BaseModel):
     vocab: str = Field(
         alias="@vocab",
         default="http://example.com/vocab/",
-        description="Base of properties, values of @type, and values of terms that are relative.",
+        description="Prefix of properties, values of @type, and values of terms that are relative.",
     )
     base: str = Field(
         alias="@base",
         default="http://example.com/vocab/",
-        description="Base of relative IRIs.",
+        description="Prefix of relative IRIs.",
     )
     sh: Literal["http://www.w3.org/ns/shacl#"] = Field(
         default="http://www.w3.org/ns/shacl#"
@@ -202,7 +202,6 @@ class Pydontology:
                 )
         self.db = dict()
 
-    def _init_db(self):
         """Construct a dict with entity names as keys
         and dict of field metadata as values."""
 
@@ -245,9 +244,6 @@ class Pydontology:
 
     def ontology_graph(self):
         """Generate ontology graph"""
-
-        if not self.db:
-            self._init_db()
 
         ontology_classes = []
         ontology_props = set()
@@ -299,10 +295,9 @@ class Pydontology:
     def shacl_graph(self):
         """Generate SHACL graph"""
 
-        if not self.db:
-            self._init_db()
-
         shacl_shapes = []
+
+        # Map Python types to xml schema types
         type_map = {
             "str": "xsd:string",
             "int": "xsd:integer",

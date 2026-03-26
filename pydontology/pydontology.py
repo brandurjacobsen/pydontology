@@ -194,26 +194,33 @@ class JSONLDGraph(BaseModel):
 
 class Pydontology:
     def __init__(self, ontology: UnionType):
-        self.entities = get_args(ontology)
-        for cls in self.entities:
+        # Check that the classes given in the UnionType inherit from Entity class
+        self._entities = get_args(ontology)
+        for cls in self._entities:
             if not issubclass(cls, Entity):
                 raise TypeError(
                     f"Expected subclass of 'Entity', got {cls} with type '{type(cls)}'"
                 )
-        self.db = dict()
+        
+        # Construct a dict that maps Entity class names to class metadata
+        # and a 'fields' dict, that maps field names to field metadata.
+        self._edb = dict()
+        
+        # Also construct a dict that maps field names (properties) that are 
+        # defined in an Entity class (not inherited) to Entity class names
+        self._pdb = dict()
 
-        """Construct a dict with entity names as keys
-        and dict of field metadata as values."""
-
-        for e in self.entities:
+        for e in self._entities:
             class_name = e.__name__
             description = e.__doc__.strip() if e.__doc__ else None
             parent = e.__mro__[1].__name__ if e.__mro__[1] != Entity else None
-            self.db[class_name] = {
+
+            self._edb[class_name] = {
                 "description": description,
                 "parent": parent,
                 "fields": dict(),
             }
+
             local_annotations = get_annotations(e)
             for field_name, field_info in e.model_fields.items():
                 is_local = field_name in local_annotations
@@ -240,7 +247,7 @@ class Pydontology:
                     "metadata": metadata,
                 }
 
-                self.db[class_name]["fields"][field_name] = field_dict
+                self._edb[class_name]["fields"][field_name] = field_dict
 
     def ontology_graph(self):
         """Generate ontology graph"""
@@ -248,7 +255,7 @@ class Pydontology:
         ontology_classes = []
         ontology_props = set()
 
-        for class_name, class_info in self.db.items():
+        for class_name, class_info in self._edb.items():
             # Build Ontology class definitions
             class_def = _OntologyClass(
                 id=class_name,
@@ -266,7 +273,8 @@ class Pydontology:
                     continue
                 if field_name in ontology_props:
                     # TODO:
-                    # Compare props and ensure that only 'description' differs
+                    # Compare props and ensure that, at most,
+                    # only description or default value differ
                     # If identical, skip
                     continue  # Skip for now...
                 ontology_props.add(field_name)
@@ -306,7 +314,7 @@ class Pydontology:
             "datetime": "xsd:dateTimeStamp",
         }
 
-        for class_name, class_info in self.db.items():
+        for class_name, class_info in self._edb.items():
             property_shapes = []
 
             for field_name, field_info in class_info["fields"].items():

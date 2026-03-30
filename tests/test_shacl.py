@@ -267,7 +267,7 @@ def test_property_shape_has_description(rdf_graph, vocab_namespace):
         if path == VOCAB.name:
             description = rdf_graph.value(prop_shape, SH.description)
             assert description is not None
-            assert str(description) == "Person's name"
+            assert str(description) == "Person's name | Department's name"
             break
 
 

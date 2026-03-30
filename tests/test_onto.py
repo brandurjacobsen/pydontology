@@ -66,19 +66,17 @@ def test_ontology_inheritance(rdf_graph, vocab_namespace):
     """Test that inheritance relationships are correctly represented"""
     VOCAB = vocab_namespace
 
-    # Employee should inherit from Person
+    # Employee should be subclass of Person
     assert (VOCAB.Employee, RDFS.subClassOf, VOCAB.Person) in rdf_graph
 
-    # Manager should inherit from Employee
+    # Manager should be subclass of Employee
     assert (VOCAB.Manager, RDFS.subClassOf, VOCAB.Employee) in rdf_graph
 
-    # Person should not have subClassOf
-    person_subclasses = list(rdf_graph.objects(VOCAB.Person, RDFS.subClassOf))
-    assert len(person_subclasses) == 0
+    # Person should be subclass of owl:Thing (Entity)
+    assert (VOCAB.Person, RDFS.subClassOf, OWL.Thing) in rdf_graph
 
-    # Department should not have subClassOf
-    department_subclasses = list(rdf_graph.objects(VOCAB.Department, RDFS.subClassOf))
-    assert len(department_subclasses) == 0
+    # Department should be subclass of owl:Thing (Entity)
+    assert (VOCAB.Department, RDFS.subClassOf, OWL.Thing) in rdf_graph
 
 
 def test_ontology_properties_present(rdf_graph, vocab_namespace):
@@ -149,11 +147,10 @@ def test_ontology_property_descriptions(rdf_graph, vocab_namespace):
     assert len(manager_comments) == 1
     assert str(manager_comments[0]) == "Link to manager"
 
-    # TODO: Align with fix for https://github.com/brandurjacobsen/pydontology/issues/8#issue-3698657336
     # Check name property comment (appears in both Person and Department)
     name_comments = list(rdf_graph.objects(VOCAB.name, RDFS.comment))
     assert len(name_comments) == 1
-    assert str(name_comments[0]) in ["Person's name", "Department name"]
+    assert str(name_comments[0]) in ["Person's name | Department's name"]
 
     # Check age property comment
     age_comments = list(rdf_graph.objects(VOCAB.age, RDFS.comment))
@@ -170,11 +167,14 @@ def test_ontology_property_domains(rdf_graph, vocab_namespace):
     """Test that properties have correct domain assignments"""
     VOCAB = vocab_namespace
 
-    # TODO: Align with fix for https://github.com/brandurjacobsen/pydontology/issues/8#issue-3698657336
-    # Check name property domain (could be Person or Department)
+    # Check name property domain is not set
     name_domains = list(rdf_graph.objects(VOCAB.name, RDFS.domain))
-    assert len(name_domains) == 1
-    assert name_domains[0] in [VOCAB.Person, VOCAB.Department]
+    assert len(name_domains) == 0
+
+    # Check age property domain
+    age_domains = list(rdf_graph.objects(VOCAB.age, RDFS.domain))
+    assert len(age_domains) == 1
+    assert age_domains[0] == VOCAB.Person
 
     # Check employee_id property domain
     employee_id_domains = list(rdf_graph.objects(VOCAB.employee_id, RDFS.domain))
@@ -230,19 +230,23 @@ def test_property_uniqueness(rdf_graph, vocab_namespace):
     name_comments = list(rdf_graph.objects(VOCAB.name, RDFS.comment))
     assert len(name_comments) == 1
 
-    # It should only have one rdfs:domain
+    # It should only have no rdfs:domain
+    # (rdfs:domain needs to be set explicitly for properties defined multiple times
     name_domains = list(rdf_graph.objects(VOCAB.name, RDFS.domain))
-    assert len(name_domains) == 1
+    assert len(name_domains) == 0
 
 
-def test_no_orphaned_properties(rdf_graph):
-    """Test that all properties have at least a domain"""
+def test_no_orphaned_properties(rdf_graph, vocab_namespace):
+    """Test that all properties that are not defined multiple times have at least a domain"""
+    VOCAB = vocab_namespace
     datatype_properties = list(rdf_graph.subjects(RDF.type, OWL.DatatypeProperty))
     object_properties = list(rdf_graph.subjects(RDF.type, OWL.ObjectProperty))
     all_properties = datatype_properties + object_properties
 
     for prop in all_properties:
         domains = list(rdf_graph.objects(prop, RDFS.domain))
+        if prop == VOCAB.name:  # Name is defined multiple times
+            continue
         assert len(domains) >= 1, f"Property {prop} has no domain"
 
 

@@ -1,8 +1,9 @@
+import warnings
 from inspect import get_annotations
 from types import UnionType
 from typing import List, Literal, Optional, get_args
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, computed_field
 from pydantic.json_schema import SkipJsonSchema
 
 from .rdfs import RDFSAnnotation
@@ -83,8 +84,10 @@ class _OntologyProperty(BaseModel):
 
     id: str = Field(alias="@id", description="Property IRI")
     type: Literal["owl:ObjectProperty", "owl:DatatypeProperty"] = Field(alias="@type")
-    label: str = Field(alias="rdfs:label", description="Human-readable label")
-    domain: Relation = Field(alias="rdfs:domain", description="Domain class IRI")
+    label: Optional[str] = Field(alias="rdfs:label", description="Human-readable label")
+    domain: Optional[Relation] = Field(
+        default=None, alias="rdfs:domain", description="Domain class IRI"
+    )
     range: Optional[Relation] = Field(
         default=None, alias="rdfs:range", description="Range class or datatype IRI"
     )
@@ -193,6 +196,15 @@ class JSONLDGraph(BaseModel):
 
 
 class Pydontology:
+    # Map Python types to xml schema types
+    type_map = {
+        "str": "xsd:string",
+        "int": "xsd:integer",
+        "float": "xsd:decimal",
+        "bool": "xsd:boolean",
+        "datetime": "xsd:dateTimeStamp",
+    }
+
     def __init__(self, ontology: UnionType):
         # Check that the classes given in the UnionType inherit from Entity class
         self._entities = get_args(ontology)
@@ -201,13 +213,11 @@ class Pydontology:
                 raise TypeError(
                     f"Expected subclass of 'Entity', got {cls} with type '{type(cls)}'"
                 )
-        
+
         # Construct a dict that maps Entity class names to class metadata
-        # and a 'fields' dict, that maps field names to field metadata.
         self._edb = dict()
-        
-        # Also construct a dict that maps field names (properties) that are 
-        # defined in an Entity class (not inherited) to Entity class names
+
+        # Construct a dict that maps field names to field metadata
         self._pdb = dict()
 
         for e in self._entities:
@@ -215,124 +225,157 @@ class Pydontology:
             description = e.__doc__.strip() if e.__doc__ else None
             parent = e.__mro__[1].__name__ if e.__mro__[1] != Entity else None
 
+            local_fields = get_annotations(e).keys()
+            all_fields = e.model_fields.keys()
+
             self._edb[class_name] = {
                 "description": description,
                 "parent": parent,
-                "fields": dict(),
+                "local_fields": local_fields,
+                "all_fields": all_fields,
             }
 
-            local_annotations = get_annotations(e)
             for field_name, field_info in e.model_fields.items():
-                is_local = field_name in local_annotations
+                if field_name not in local_fields:
+                    continue
+
                 is_required = field_info.is_required()
-                is_relation = "Relation" in str(field_info.annotation)
-                description = field_info.description
 
                 if is_required:
                     field_type = field_info.annotation.__name__
                 else:
                     field_type = get_args(field_info.annotation)[0].__name__
 
-                if field_info.metadata:
-                    metadata = field_info.metadata
+                # In case the same field name is used several times in ontology
+                if field_name in self._pdb:
+                    defined_in = self._pdb[field_name]["defined_in"]
+                    if field_info.alias != self._pdb[field_name]["alias"]:
+                        raise Exception(
+                            (
+                                f"Field name '{field_name}' defined in '{class_name}'",
+                                f"must have same alias as '{field_name}' defined in '{defined_in}'",
+                            )
+                        )
+                    elif field_type != self._pdb[field_name]["field_type"]:
+                        raise Exception(
+                            (
+                                f"Field name '{field_name}' defined in '{class_name}'",
+                                f"must have same type as '{field_name}' defined in '{defined_in}'",
+                            )
+                        )
+                    elif sorted(field_info.metadata, key=lambda x: str(x)) != sorted(
+                        self._pdb[field_name]["metadata"], key=lambda x: str(x)
+                    ):
+                        raise Exception(
+                            (
+                                f"Field name '{field_name}' defined in '{class_name}'",
+                                f"must have same metadata as '{field_name}' defined in '{defined_in}'",
+                            )
+                        )
+
+                    # Set 'is_duplicate' to True in _pdb dict
+                    self._pdb[field_name]["is_duplicate"] = True
+
+                    # Concatenate field descriptions if descriptions are not identical
+                    if self._pdb[field_name]["description"] == field_info.description:
+                        continue
+
+                    warnings.warn(
+                        f"""Field name '{field_name}' defined in '{class_name}'",
+                        has different description than '{field_name}' defined in '{defined_in}'.
+                        Descriptions will be concatenated using '|' as separator."""
+                    )
+
+                    self._pdb[field_name]["description"] = (
+                        self._pdb[field_name]["description"]
+                        + " | "
+                        + field_info.description
+                    )
+
                 else:
-                    metadata = []
+                    field_map = {
+                        "defined_in": class_name,
+                        "is_required": is_required,
+                        "is_relation": field_type == "Relation",
+                        "is_duplicate": False,
+                        "field_type": field_type,
+                        "description": field_info.description,
+                        "alias": field_info.alias,
+                        "metadata": field_info.metadata,
+                    }
+                    self._pdb[field_name] = field_map
 
-                field_dict = {
-                    "is_local": is_local,
-                    "is_required": is_required,
-                    "field_type": field_type,
-                    "is_relation": is_relation,
-                    "description": description,
-                    "metadata": metadata,
-                }
-
-                self._edb[class_name]["fields"][field_name] = field_dict
-
-    def ontology_graph(self):
+    def ontology_graph(self, context: BaseContext = BaseContext()):
         """Generate ontology graph"""
 
         ontology_classes = []
-        ontology_props = set()
 
+        # Build ontology class definitions
         for class_name, class_info in self._edb.items():
-            # Build Ontology class definitions
-            class_def = _OntologyClass(
-                id=class_name,
-                label=class_name,
-                comment=class_info["description"],
-                subClassOf=Relation(id=class_info["parent"])
-                if class_info["parent"]
-                else None,
-            )
+            class_fields = dict()
+            class_fields["id"] = class_name
+            class_fields["label"] = class_name
+            class_fields["comment"] = class_info["description"]
+            if class_info["parent"] != None:
+                class_fields["subClassOf"] = Relation(id=class_info["parent"])
+            else:
+                class_fields["subClassOf"] = Relation(id="owl:Thing")
+            class_def = _OntologyClass.model_validate(class_fields)
             ontology_classes.append(class_def)
 
-            # Build property definitions
-            for field_name, field_info in class_info["fields"].items():
-                if not field_info["is_local"]:
-                    continue
-                if field_name in ontology_props:
-                    # TODO:
-                    # Compare props and ensure that, at most,
-                    # only description or default value differ
-                    # If identical, skip
-                    continue  # Skip for now...
-                ontology_props.add(field_name)
+        # Build ontology property definitions
+        for field_name, field_info in self._pdb.items():
+            prop_fields = dict()
+            if field_info["is_relation"]:
+                prop_fields["type"] = "owl:ObjectProperty"
+            else:
+                prop_fields["type"] = "owl:DatatypeProperty"
+            if field_info["is_duplicate"]:
+                prop_fields["domain"] = None
+            else:
+                prop_fields["domain"] = Relation(id=field_info["defined_in"])
+            prop_fields["id"] = field_name
+            prop_fields["label"] = field_name
+            prop_fields["comment"] = field_info["description"]
+            prop_fields["range"] = None
 
-                prop_def = _OntologyProperty(
-                    id=field_name,
-                    type="owl:ObjectProperty"
-                    if field_info["is_relation"]
-                    else "owl:DatatypeProperty",
-                    label=field_name,
-                    domain=Relation(id=class_name),
-                    comment=field_info["description"],
-                    range=None,
-                )
+            prop_def = _OntologyProperty.model_validate(prop_fields)
 
-                for meta in field_info["metadata"]:
-                    if isinstance(meta, RDFSAnnotation.RANGE):
-                        prop_def.range = Relation(id=meta.value)
-                    elif isinstance(meta, RDFSAnnotation.DOMAIN):
-                        prop_def.domain = Relation(id=meta.value)
+            for meta in field_info["metadata"]:
+                if isinstance(meta, RDFSAnnotation.RANGE):
+                    prop_def.range = Relation(id=meta.value)
+                elif isinstance(meta, RDFSAnnotation.DOMAIN):
+                    prop_def.domain = Relation(id=meta.value)
+            ontology_classes.append(prop_def)
 
-                ontology_classes.append(prop_def)
-
-        return JSONLDGraph(context=BaseContext(), graph=ontology_classes)
+        return JSONLDGraph(context=context, graph=ontology_classes)
 
     def shacl_graph(self):
         """Generate SHACL graph"""
 
         shacl_shapes = []
 
-        # Map Python types to xml schema types
-        type_map = {
-            "str": "xsd:string",
-            "int": "xsd:integer",
-            "float": "xsd:decimal",
-            "bool": "xsd:boolean",
-            "datetime": "xsd:dateTimeStamp",
-        }
-
         for class_name, class_info in self._edb.items():
             property_shapes = []
 
-            for field_name, field_info in class_info["fields"].items():
-                # Skip id and type special fields
-                if field_name in ["id", "type"]:
+            for field_name, field_info in self._pdb.items():
+                if field_name not in class_info["all_fields"]:
                     continue
-                prop_shape = _PropertyShape(
-                    id=f"{class_name}Shape_{field_name}",
-                    path=Relation(id=field_name),
-                    name=field_name,
-                    description=field_info["description"],
-                )
+
+                shape_fields = {
+                    "id": f"{class_name}Shape_{field_name}",
+                    "path": Relation(id=field_name),
+                    "name": field_name,
+                    "description": field_info["description"],
+                }
+
+                prop_shape = _PropertyShape.model_validate(shape_fields)
 
                 if field_info["is_relation"]:
                     prop_shape.nodeKind = Relation(id="sh:IRI")
                 else:
                     prop_shape.datatype = Relation(
-                        id=type_map[field_info["field_type"]]
+                        id=self.type_map[field_info["field_type"]]
                     )
 
                 # Required/Optional
@@ -368,11 +411,13 @@ class Pydontology:
                         prop_shape.shclass = Relation(id=meta.value)
                 property_shapes.append(prop_shape)
 
-            node_shape = _NodeShape(
-                id=f"{class_name}Shape",
-                targetClass=Relation(id=class_name),
-                property=property_shapes,
-            )
+            node_fields = {
+                "id": f"{class_name}Shape",
+                "targetClass": Relation(id=class_name),
+                "property": property_shapes,
+            }
+
+            node_shape = _NodeShape.model_validate(node_fields)
             shacl_shapes.append(node_shape)
 
         return JSONLDGraph(context=BaseContext(), graph=shacl_shapes)

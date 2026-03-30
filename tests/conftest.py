@@ -52,7 +52,9 @@ def TestModel():
     class Department(Entity):
         """A department, inherits from Entity"""
 
-        name: str = Field(description="Department name")
+        name: Annotated[
+            str, SHACLAnnotation.minLength(1), SHACLAnnotation.maxLength(100)
+        ] = Field(description="Department's name")
 
     onto = Pydontology(ontology=Person | Employee | Manager | Department)
     return onto

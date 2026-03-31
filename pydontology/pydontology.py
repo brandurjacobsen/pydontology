@@ -3,10 +3,12 @@ from inspect import get_annotations
 from types import UnionType
 from typing import List, Literal, Optional, get_args
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 from pydantic.json_schema import SkipJsonSchema
 
+from .owl import OWLAnnotation
 from .rdfs import RDFSAnnotation
+from .settings import Settings
 from .shacl import SHACLAnnotation
 
 
@@ -75,6 +77,16 @@ class _OntologyClass(BaseModel):
     subClassOf: Optional[Relation] = Field(
         default=None, alias="rdfs:subClassOf", description="Parent class IRI"
     )
+    sameAs: Optional[Relation] = Field(
+        default=None,
+        alias="owl:sameAs",
+        description="All statements about this class hold for the other.",
+    )
+    equivalentClass: Optional[Relation] = Field(
+        default=None,
+        alias="owl:equivalentClass",
+        description="Members of this class are also members of the other",
+    )
 
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
@@ -83,7 +95,18 @@ class _OntologyProperty(BaseModel):
     """Represents an OWL property in an ontology graph."""
 
     id: str = Field(alias="@id", description="Property IRI")
-    type: Literal["owl:ObjectProperty", "owl:DatatypeProperty"] = Field(alias="@type")
+    # type: Literal["owl:ObjectProperty", "owl:DatatypeProperty"] = Field(alias="@type")
+    type: List[
+        Literal[
+            "owl:ObjectProperty",
+            "owl:DatatypeProperty",
+            "owl:TransitiveProperty",
+            "owl:SymmetricProperty",
+            "owl:FunctionalProperty",
+            "owl:InverseFunctionalProperty",
+            "owl:InverseProperty",
+        ]
+    ] = Field(alias="@type")
     label: Optional[str] = Field(alias="rdfs:label", description="Human-readable label")
     domain: Optional[Relation] = Field(
         default=None, alias="rdfs:domain", description="Domain class IRI"
@@ -93,6 +116,9 @@ class _OntologyProperty(BaseModel):
     )
     comment: Optional[str] = Field(
         default=None, alias="rdfs:comment", description="Property description"
+    )
+    subPropertyOf: Optional[Relation] = Field(
+        default=None, alias="rdfs:subPropertyOf", description="IRI of superproperty"
     )
 
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
@@ -205,7 +231,10 @@ class Pydontology:
         "datetime": "xsd:dateTimeStamp",
     }
 
+    cfg = Settings()
+
     def __init__(self, ontology: UnionType):
+        print(self.cfg)
         # Check that the classes given in the UnionType inherit from Entity class
         self._entities = get_args(ontology)
         for cls in self._entities:
@@ -280,17 +309,25 @@ class Pydontology:
                     if self._pdb[field_name]["description"] == field_info.description:
                         continue
 
-                    warnings.warn(
-                        f"""Field name '{field_name}' defined in '{class_name}'",
-                        has different description than '{field_name}' defined in '{defined_in}'.
-                        Descriptions will be concatenated using '|' as separator."""
-                    )
+                    if self.cfg.DESCRIPTION_AS_COMMENT and self.cfg.CONCAT_COMMENTS:
+                        warnings.warn(
+                            f"""Field name '{field_name}' defined in '{class_name}',
+                            has different description than '{field_name}' defined in '{defined_in}'.
+                            Descriptions will be concatenated using '|' as separator."""
+                        )
 
-                    self._pdb[field_name]["description"] = (
-                        self._pdb[field_name]["description"]
-                        + " | "
-                        + field_info.description
-                    )
+                        self._pdb[field_name]["description"] = (
+                            self._pdb[field_name]["description"]
+                            + " | "
+                            + field_info.description
+                        )
+                    elif self.cfg.DESCRIPTION_AS_COMMENT:
+                        warnings.warn(
+                            f"""Field name '{field_name}' defined in '{class_name}',
+                            has different description than '{field_name}' defined in '{defined_in}'.
+                            Last seen description will be used."""
+                        )
+                        self._pdb[field_name]["description"] = field_info.description
 
                 else:
                     field_map = {
@@ -327,9 +364,9 @@ class Pydontology:
         for field_name, field_info in self._pdb.items():
             prop_fields = dict()
             if field_info["is_relation"]:
-                prop_fields["type"] = "owl:ObjectProperty"
+                prop_fields["type"] = ["owl:ObjectProperty"]
             else:
-                prop_fields["type"] = "owl:DatatypeProperty"
+                prop_fields["type"] = ["owl:DatatypeProperty"]
             if field_info["is_duplicate"]:
                 prop_fields["domain"] = None
             else:
@@ -346,6 +383,11 @@ class Pydontology:
                     prop_def.range = Relation(id=meta.value)
                 elif isinstance(meta, RDFSAnnotation.DOMAIN):
                     prop_def.domain = Relation(id=meta.value)
+                elif isinstance(meta, RDFSAnnotation.SUB_PROPERTY_OF):
+                    prop_def.subPropertyOf = Relation(id=meta.value)
+                elif isinstance(meta, OWLAnnotation.FUNCTIONAL_PROPERTY):
+                    prop_def.type.append("owl:FunctionalProperty")
+                # Fill in the remaining annotations fit for @type AI!
             ontology_classes.append(prop_def)
 
         return JSONLDGraph(context=context, graph=ontology_classes)

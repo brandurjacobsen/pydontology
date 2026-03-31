@@ -386,8 +386,17 @@ class Pydontology:
                 elif isinstance(meta, RDFSAnnotation.SUB_PROPERTY_OF):
                     prop_def.subPropertyOf = Relation(id=meta.value)
                 elif isinstance(meta, OWLAnnotation.FUNCTIONAL_PROPERTY):
-                    prop_def.type.append("owl:FunctionalProperty")
-                # Fill in the remaining annotations fit for @type AI!
+                    if meta.value:
+                        prop_def.type.append("owl:FunctionalProperty")
+                elif isinstance(meta, OWLAnnotation.INVERSE_FUNCTIONAL_PROPERTY):
+                    if meta.value:
+                        prop_def.type.append("owl:InverseFunctionalProperty")
+                elif isinstance(meta, OWLAnnotation.TRANSITIVE_PROPERTY):
+                    if meta.value:
+                        prop_def.type.append("owl:TransitiveProperty")
+                elif isinstance(meta, OWLAnnotation.SYMMETRIC_PROPERTY):
+                    if meta.value:
+                        prop_def.type.append("owl:SymmetricProperty")
             ontology_classes.append(prop_def)
 
         return JSONLDGraph(context=context, graph=ontology_classes)

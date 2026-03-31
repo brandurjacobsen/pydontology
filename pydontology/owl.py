@@ -43,6 +43,18 @@ class OWLAnnotation:
 
         value: bool = False
 
+    @dataclass
+    class OBJECT_PROPERTY:
+        """Dataclass that holds owl:ObjectProperty annotation for a property."""
+
+        value: bool = True
+
+    @dataclass
+    class DATATYPE_PROPERTY:
+        """Dataclass that holds owl:DatatypeProperty annotation for a property."""
+
+        value: bool = True
+
     @staticmethod
     def inverseOf(value: str) -> INVERSE_OF:
         """
@@ -109,3 +121,27 @@ class OWLAnnotation:
             OWLAnnotation.INVERSE_FUNCTIONAL_PROPERTY (dataclass)
         """
         return OWLAnnotation.INVERSE_FUNCTIONAL_PROPERTY(value=value)
+
+    @staticmethod
+    def objectProperty() -> OBJECT_PROPERTY:
+        """
+        OWL ObjectProperty annotation.
+
+        owl:ObjectProperty is used to state that a property relates individuals to individuals.
+
+        Returns:
+            OWLAnnotation.OBJECT_PROPERTY (dataclass)
+        """
+        return OWLAnnotation.OBJECT_PROPERTY()
+
+    @staticmethod
+    def datatypeProperty() -> DATATYPE_PROPERTY:
+        """
+        OWL DatatypeProperty annotation.
+
+        owl:DatatypeProperty is used to state that a property relates individuals to data values.
+
+        Returns:
+            OWLAnnotation.DATATYPE_PROPERTY (dataclass)
+        """
+        return OWLAnnotation.DATATYPE_PROPERTY()

@@ -118,7 +118,12 @@ class _OntologyProperty(BaseModel):
         default=None, alias="rdfs:comment", description="Property description"
     )
     subPropertyOf: Optional[Relation] = Field(
-        default=None, alias="rdfs:subPropertyOf", description="IRI of superproperty"
+        default=None, alias="rdfs:subPropertyOf", description="IRI of super-property"
+    )
+    inverseOf: Optional[Relation] = Field(
+        default=None,
+        alias="owl:inverseOf",
+        description="Property is the inverse of another property",
     )
 
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
@@ -342,12 +347,10 @@ class Pydontology:
                     }
                     self._pdb[field_name] = field_map
 
-    def ontology_graph(self, context: BaseContext = BaseContext()):
-        """Generate ontology graph"""
+    def _create_ontology_classes(self) -> List[_OntologyClass]:
+        """Create ontology classes using _OntologyClass class"""
 
         ontology_classes = []
-
-        # Build ontology class definitions
         for class_name, class_info in self._edb.items():
             class_fields = dict()
             class_fields["id"] = class_name
@@ -359,8 +362,38 @@ class Pydontology:
                 class_fields["subClassOf"] = Relation(id="owl:Thing")
             class_def = _OntologyClass.model_validate(class_fields)
             ontology_classes.append(class_def)
+        return ontology_classes
 
-        # Build ontology property definitions
+    def _add_property_annotations(
+        self, prop_def: _OntologyProperty, annotations: List
+    ) -> _OntologyProperty:
+        """Add property annotations to ontology property"""
+        for meta in annotations:
+            if isinstance(meta, RDFSAnnotation.RANGE):
+                prop_def.range = Relation(id=meta.value)
+            elif isinstance(meta, RDFSAnnotation.DOMAIN):
+                prop_def.domain = Relation(id=meta.value)
+            elif isinstance(meta, RDFSAnnotation.SUB_PROPERTY_OF):
+                prop_def.subPropertyOf = Relation(id=meta.value)
+            elif isinstance(meta, OWLAnnotation.INVERSE_OF):
+                prop_def.inverseOf = Relation(id=meta.value)
+            elif isinstance(meta, OWLAnnotation.FUNCTIONAL_PROPERTY):
+                if meta.value:
+                    prop_def.type.append("owl:FunctionalProperty")
+            elif isinstance(meta, OWLAnnotation.INVERSE_FUNCTIONAL_PROPERTY):
+                if meta.value:
+                    prop_def.type.append("owl:InverseFunctionalProperty")
+            elif isinstance(meta, OWLAnnotation.TRANSITIVE_PROPERTY):
+                if meta.value:
+                    prop_def.type.append("owl:TransitiveProperty")
+            elif isinstance(meta, OWLAnnotation.SYMMETRIC_PROPERTY):
+                if meta.value:
+                    prop_def.type.append("owl:SymmetricProperty")
+        return prop_def
+
+    def _create_ontology_properties(self) -> List[_OntologyProperty]:
+        """Create ontology properties using _OntologyProperty class"""
+        ontology_props = []
         for field_name, field_info in self._pdb.items():
             prop_fields = dict()
             if field_info["is_relation"]:
@@ -377,91 +410,85 @@ class Pydontology:
             prop_fields["range"] = None
 
             prop_def = _OntologyProperty.model_validate(prop_fields)
+            prop_def = self._add_property_annotations(prop_def, field_info["metadata"])
+            ontology_props.append(prop_def)
+        return ontology_props
 
-            for meta in field_info["metadata"]:
-                if isinstance(meta, RDFSAnnotation.RANGE):
-                    prop_def.range = Relation(id=meta.value)
-                elif isinstance(meta, RDFSAnnotation.DOMAIN):
-                    prop_def.domain = Relation(id=meta.value)
-                elif isinstance(meta, RDFSAnnotation.SUB_PROPERTY_OF):
-                    prop_def.subPropertyOf = Relation(id=meta.value)
-                elif isinstance(meta, OWLAnnotation.FUNCTIONAL_PROPERTY):
-                    if meta.value:
-                        prop_def.type.append("owl:FunctionalProperty")
-                elif isinstance(meta, OWLAnnotation.INVERSE_FUNCTIONAL_PROPERTY):
-                    if meta.value:
-                        prop_def.type.append("owl:InverseFunctionalProperty")
-                elif isinstance(meta, OWLAnnotation.TRANSITIVE_PROPERTY):
-                    if meta.value:
-                        prop_def.type.append("owl:TransitiveProperty")
-                elif isinstance(meta, OWLAnnotation.SYMMETRIC_PROPERTY):
-                    if meta.value:
-                        prop_def.type.append("owl:SymmetricProperty")
-            ontology_classes.append(prop_def)
+    def ontology_graph(self, context: BaseContext = BaseContext()):
+        """Generate ontology graph"""
+        onto_classes = self._create_ontology_classes()
+        onto_props = self._create_ontology_properties()
+        return JSONLDGraph(context=context, graph=[*onto_classes, *onto_props])
 
-        return JSONLDGraph(context=context, graph=ontology_classes)
+    def _add_shacl_annotations(
+        self, prop_shape: _PropertyShape, annotations: List
+    ) -> _PropertyShape:
+        for meta in annotations:
+            if isinstance(meta, SHACLAnnotation.DATATYPE):
+                prop_shape.datatype = Relation(id=meta.value)
+            elif isinstance(meta, SHACLAnnotation.MAX_COUNT):
+                prop_shape.maxCount = meta.value
+            elif isinstance(meta, SHACLAnnotation.MIN_COUNT):
+                prop_shape.minCount = meta.value
+            elif isinstance(meta, SHACLAnnotation.PATTERN):
+                prop_shape.pattern = meta.value
+            elif isinstance(meta, SHACLAnnotation.MIN_LENGTH):
+                prop_shape.minLength = meta.value
+            elif isinstance(meta, SHACLAnnotation.MAX_LENGTH):
+                prop_shape.maxLength = meta.value
+            elif isinstance(meta, SHACLAnnotation.MIN_INCLUSIVE):
+                prop_shape.minInclusive = meta.value
+            elif isinstance(meta, SHACLAnnotation.MAX_INCLUSIVE):
+                prop_shape.maxInclusive = meta.value
+            elif isinstance(meta, SHACLAnnotation.MIN_EXCLUSIVE):
+                prop_shape.minExclusive = meta.value
+            elif isinstance(meta, SHACLAnnotation.MAX_EXCLUSIVE):
+                prop_shape.maxExclusive = meta.value
+            elif isinstance(meta, SHACLAnnotation.NODE_KIND):
+                prop_shape.nodeKind = Relation(id=meta.value)
+            elif isinstance(meta, SHACLAnnotation.CLASS):
+                prop_shape.shclass = Relation(id=meta.value)
+        return prop_shape
 
-    def shacl_graph(self):
-        """Generate SHACL graph"""
+    def _create_property_shapes(self, class_name: str) -> List[_PropertyShape]:
+        """Create SHACL property shapes using _PropertyShape class"""
 
-        shacl_shapes = []
+        prop_shapes = []
+        for field_name, field_info in self._pdb.items():
+            if field_name not in self._edb[class_name]["all_fields"]:
+                continue
 
+            shape_fields = {
+                "id": f"{class_name}Shape_{field_name}",
+                "path": Relation(id=field_name),
+                "name": field_name,
+                "description": field_info["description"],
+            }
+
+            prop_shape = _PropertyShape.model_validate(shape_fields)
+
+            if field_info["is_relation"]:
+                prop_shape.nodeKind = Relation(id="sh:IRI")
+            else:
+                prop_shape.datatype = Relation(
+                    id=self.type_map[field_info["field_type"]]
+                )
+
+            # Required/Optional. TODO: Use settings.py
+            if field_info["is_required"]:
+                prop_shape.minCount = 1
+            else:
+                prop_shape.minCount = None
+
+            prop_shape = self._add_shacl_annotations(prop_shape, field_info["metadata"])
+            prop_shapes.append(prop_shape)
+
+        return prop_shapes
+
+    def _create_node_shapes(self) -> List[_NodeShape]:
+        node_shapes = []
         for class_name, class_info in self._edb.items():
-            property_shapes = []
-
-            for field_name, field_info in self._pdb.items():
-                if field_name not in class_info["all_fields"]:
-                    continue
-
-                shape_fields = {
-                    "id": f"{class_name}Shape_{field_name}",
-                    "path": Relation(id=field_name),
-                    "name": field_name,
-                    "description": field_info["description"],
-                }
-
-                prop_shape = _PropertyShape.model_validate(shape_fields)
-
-                if field_info["is_relation"]:
-                    prop_shape.nodeKind = Relation(id="sh:IRI")
-                else:
-                    prop_shape.datatype = Relation(
-                        id=self.type_map[field_info["field_type"]]
-                    )
-
-                # Required/Optional
-                if field_info["is_required"]:
-                    prop_shape.minCount = 1
-                else:
-                    prop_shape.minCount = None
-
-                for meta in field_info["metadata"]:
-                    if isinstance(meta, SHACLAnnotation.DATATYPE):
-                        prop_shape.datatype = Relation(id=meta.value)
-                    elif isinstance(meta, SHACLAnnotation.MAX_COUNT):
-                        prop_shape.maxCount = meta.value
-                    elif isinstance(meta, SHACLAnnotation.MIN_COUNT):
-                        prop_shape.minCount = meta.value
-                    elif isinstance(meta, SHACLAnnotation.PATTERN):
-                        prop_shape.pattern = meta.value
-                    elif isinstance(meta, SHACLAnnotation.MIN_LENGTH):
-                        prop_shape.minLength = meta.value
-                    elif isinstance(meta, SHACLAnnotation.MAX_LENGTH):
-                        prop_shape.maxLength = meta.value
-                    elif isinstance(meta, SHACLAnnotation.MIN_INCLUSIVE):
-                        prop_shape.minInclusive = meta.value
-                    elif isinstance(meta, SHACLAnnotation.MAX_INCLUSIVE):
-                        prop_shape.maxInclusive = meta.value
-                    elif isinstance(meta, SHACLAnnotation.MIN_EXCLUSIVE):
-                        prop_shape.minExclusive = meta.value
-                    elif isinstance(meta, SHACLAnnotation.MAX_EXCLUSIVE):
-                        prop_shape.maxExclusive = meta.value
-                    elif isinstance(meta, SHACLAnnotation.NODE_KIND):
-                        prop_shape.nodeKind = Relation(id=meta.value)
-                    elif isinstance(meta, SHACLAnnotation.CLASS):
-                        prop_shape.shclass = Relation(id=meta.value)
-                property_shapes.append(prop_shape)
-
+            property_shapes = self._create_property_shapes(class_name)
             node_fields = {
                 "id": f"{class_name}Shape",
                 "targetClass": Relation(id=class_name),
@@ -469,8 +496,13 @@ class Pydontology:
             }
 
             node_shape = _NodeShape.model_validate(node_fields)
-            shacl_shapes.append(node_shape)
+            node_shapes.append(node_shape)
+        return node_shapes
 
+    def shacl_graph(self):
+        """Generate SHACL graph"""
+
+        shacl_shapes = self._create_node_shapes()
         return JSONLDGraph(context=BaseContext(), graph=shacl_shapes)
 
     def jsonld_graph(self, context: BaseContext = BaseContext(), graph=[]):

@@ -25,6 +25,12 @@ class RDFSAnnotation:
 
         value: Annotated[str, AfterValidator(val_no_whitespace)]
 
+    @dataclass
+    class SUB_PROPERTY_OF:
+        """Dataclass that holds rdfs:subPropertyOf annotation for a property"""
+
+        value: Annotated[str, AfterValidator(val_no_whitespace)]
+
     @staticmethod
     def domain(value: str) -> DOMAIN:
         """
@@ -56,3 +62,18 @@ class RDFSAnnotation:
             RDFSAnnotation.RANGE (dataclass)
         """
         return RDFSAnnotation.RANGE(value=value)
+
+    @staticmethod
+    def subPropertyOf(value: str) -> SUB_PROPERTY_OF:
+        """
+        RDFS subPropertyOf annotation.
+
+        Relations described by subproperty also hold for superproperty.
+
+        Args:
+            value (str): Name of property
+
+        Returns:
+            RDFSAnnotation.SUB_PROPERTY_OF (dataclass)
+        """
+        return RDFSAnnotation.SUB_PROPERTY_OF(value=value)

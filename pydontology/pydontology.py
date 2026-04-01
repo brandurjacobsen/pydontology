@@ -1,7 +1,7 @@
 import warnings
-from inspect import get_annotations
+from inspect import get_annotations, isclass
 from types import UnionType
-from typing import List, Literal, Optional, get_args
+from typing import Annotated, Any, List, Literal, Optional, Tuple, get_args, get_origin
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 from pydantic.json_schema import SkipJsonSchema
@@ -239,14 +239,6 @@ class Pydontology:
     cfg = Settings()
 
     def __init__(self, ontology: UnionType):
-        print(self.cfg)
-        # Check that the classes given in the UnionType inherit from Entity class
-        self._entities = get_args(ontology)
-        for cls in self._entities:
-            if not issubclass(cls, Entity):
-                raise TypeError(
-                    f"Expected subclass of 'Entity', got {cls} with type '{type(cls)}'"
-                )
 
         # Construct a dict that maps Entity class names to class metadata
         self._edb = dict()
@@ -254,22 +246,24 @@ class Pydontology:
         # Construct a dict that maps field names to field metadata
         self._pdb = dict()
 
-        for e in self._entities:
-            class_name = e.__name__
-            description = e.__doc__.strip() if e.__doc__ else None
-            parent = e.__mro__[1].__name__ if e.__mro__[1] != Entity else None
+        for arg in get_args(ontology):
+            cls, metadata = self._get_class_and_metadata(arg)
+            class_name = cls.__name__
+            description = cls.__doc__.strip() if cls.__doc__ else None
+            parent = cls.__mro__[1].__name__ if cls.__mro__[1] != Entity else None
 
-            local_fields = get_annotations(e).keys()
-            all_fields = e.model_fields.keys()
+            local_fields = get_annotations(cls).keys()
+            all_fields = cls.model_fields.keys()
 
             self._edb[class_name] = {
                 "description": description,
                 "parent": parent,
                 "local_fields": local_fields,
                 "all_fields": all_fields,
+                "metadata": metadata,
             }
 
-            for field_name, field_info in e.model_fields.items():
+            for field_name, field_info in cls.model_fields.items():
                 if field_name not in local_fields:
                     continue
 
@@ -280,60 +274,16 @@ class Pydontology:
                 else:
                     field_type = get_args(field_info.annotation)[0].__name__
 
-                # In case the same field name is used several times in ontology
+                # Ensure field names defined multiple times have different Pydantic Field alias
                 if field_name in self._pdb:
                     defined_in = self._pdb[field_name]["defined_in"]
-                    if field_info.alias != self._pdb[field_name]["alias"]:
+                    if field_info.alias == self._pdb[field_name]["alias"]:
                         raise Exception(
                             (
                                 f"Field name '{field_name}' defined in '{class_name}'",
-                                f"must have same alias as '{field_name}' defined in '{defined_in}'",
+                                f"must have different alias than '{field_name}' defined in '{defined_in}'",
                             )
                         )
-                    elif field_type != self._pdb[field_name]["field_type"]:
-                        raise Exception(
-                            (
-                                f"Field name '{field_name}' defined in '{class_name}'",
-                                f"must have same type as '{field_name}' defined in '{defined_in}'",
-                            )
-                        )
-                    elif sorted(field_info.metadata, key=lambda x: str(x)) != sorted(
-                        self._pdb[field_name]["metadata"], key=lambda x: str(x)
-                    ):
-                        raise Exception(
-                            (
-                                f"Field name '{field_name}' defined in '{class_name}'",
-                                f"must have same metadata as '{field_name}' defined in '{defined_in}'",
-                            )
-                        )
-
-                    # Set 'is_duplicate' to True in _pdb dict
-                    self._pdb[field_name]["is_duplicate"] = True
-
-                    # Concatenate field descriptions if descriptions are not identical
-                    if self._pdb[field_name]["description"] == field_info.description:
-                        continue
-
-                    if self.cfg.DESCRIPTION_AS_COMMENT and self.cfg.CONCAT_COMMENTS:
-                        warnings.warn(
-                            f"""Field name '{field_name}' defined in '{class_name}',
-                            has different description than '{field_name}' defined in '{defined_in}'.
-                            Descriptions will be concatenated using '|' as separator."""
-                        )
-
-                        self._pdb[field_name]["description"] = (
-                            self._pdb[field_name]["description"]
-                            + " | "
-                            + field_info.description
-                        )
-                    elif self.cfg.DESCRIPTION_AS_COMMENT:
-                        warnings.warn(
-                            f"""Field name '{field_name}' defined in '{class_name}',
-                            has different description than '{field_name}' defined in '{defined_in}'.
-                            Last seen description will be used."""
-                        )
-                        self._pdb[field_name]["description"] = field_info.description
-
                 else:
                     field_map = {
                         "defined_in": class_name,
@@ -346,6 +296,23 @@ class Pydontology:
                         "metadata": field_info.metadata,
                     }
                     self._pdb[field_name] = field_map
+
+    def _get_class_and_metadata(self, component):
+        origin = get_origin(component)
+        if origin is None:
+            if not isclass(component) or not issubclass(component, Entity):
+                raise TypeError(
+                    f"Expected class type. Got {component} with type {type(component)}"
+                )
+            return (component, None)
+
+        elif origin is Annotated:
+            arg = get_args(component)[0]
+            if not isclass(arg) or not issubclass(arg, Entity):
+                raise TypeError(f"Expected class type. Got {arg} with type {type(arg)}")
+            return (arg, component.__metadata__)
+        else:
+            raise TypeError(f"Unexpected type {origin} in ontology")
 
     def _create_ontology_classes(self) -> List[_OntologyClass]:
         """Create ontology classes using _OntologyClass class"""
@@ -361,8 +328,19 @@ class Pydontology:
             else:
                 class_fields["subClassOf"] = Relation(id="owl:Thing")
             class_def = _OntologyClass.model_validate(class_fields)
+            if class_info["metadata"] is not None:
+                class_def = _add_class_annotations(class_def)
             ontology_classes.append(class_def)
         return ontology_classes
+
+    def _add_class_annotations(
+        self, class_def: _OntologyClass, annotations: List
+    ) -> _OntologyClass:
+        """Add class annotations to ontology class"""
+        for meta in annotations:
+            if isinstance(meta, OWLAnnotation.EQUIVALENT_CLASS):
+                class_def.equivalentClass = Relation(id=meta.value)
+        return class_def
 
     def _add_property_annotations(
         self, prop_def: _OntologyProperty, annotations: List

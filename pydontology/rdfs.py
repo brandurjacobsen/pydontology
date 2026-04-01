@@ -25,7 +25,7 @@ class RDFSAnnotation:
 
         value: Annotated[str, AfterValidator(val_no_whitespace)]
 
-    @dataclass
+    @dataclass(unsafe_hash=True)
     class SUB_PROPERTY_OF:
         """Dataclass that holds rdfs:subPropertyOf annotation for a property"""
 

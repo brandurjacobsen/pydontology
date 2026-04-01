@@ -14,6 +14,12 @@ class OWLAnnotation:
     """
 
     @dataclass
+    class EQUIVALENT_CLASS:
+        """Dataclass that holds owl:equivalentClass annotation for a class"""
+
+        value: Annotated[str, AfterValidator(val_no_whitespace)]
+
+    @dataclass
     class INVERSE_OF:
         """Dataclass that holds owl:inverseOf annotation for a property."""
 
@@ -54,6 +60,10 @@ class OWLAnnotation:
         """Dataclass that holds owl:DatatypeProperty annotation for a property."""
 
         value: bool = True
+
+    @staticmethod
+    def equivalentClass(value: str) -> EQUIVALENT_CLASS:
+        return OWLAnnotation.EQUIVALENT_CLASS(value=value)
 
     @staticmethod
     def inverseOf(value: str) -> INVERSE_OF:

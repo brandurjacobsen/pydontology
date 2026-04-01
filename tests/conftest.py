@@ -52,7 +52,7 @@ def TestModel():
     class Department(Entity):
         """A department, inherits from Entity"""
 
-        name: Annotated[
+        dept_name: Annotated[
             str, SHACLAnnotation.minLength(1), SHACLAnnotation.maxLength(100)
         ] = Field(description="Department's name")
 

@@ -20,6 +20,12 @@ class OWLAnnotation:
         value: Annotated[str, AfterValidator(val_no_whitespace)]
 
     @dataclass(frozen=True)
+    class EQUIVALENT_PROPERTY:
+        """Dataclass that holds owl:equivalentProperty annotation for a property."""
+
+        value: Annotated[str, AfterValidator(val_no_whitespace)]
+
+    @dataclass(frozen=True)
     class INVERSE_OF:
         """Dataclass that holds owl:inverseOf annotation for a property."""
 
@@ -64,6 +70,21 @@ class OWLAnnotation:
     @staticmethod
     def equivalentClass(value: str) -> EQUIVALENT_CLASS:
         return OWLAnnotation.EQUIVALENT_CLASS(value=value)
+
+    @staticmethod
+    def equivalentProperty(value: str) -> EQUIVALENT_PROPERTY:
+        """
+        OWL equivalentProperty annotation.
+
+        owl:equivalentProperty is used to state that two properties have the same property extension.
+
+        Args:
+            value (str): Name of the equivalent property
+
+        Returns:
+            OWLAnnotation.EQUIVALENT_PROPERTY (dataclass)
+        """
+        return OWLAnnotation.EQUIVALENT_PROPERTY(value=value)
 
     @staticmethod
     def inverseOf(value: str) -> INVERSE_OF:

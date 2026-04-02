@@ -361,6 +361,8 @@ class Pydontology:
                 prop_def.domain = Relation(id=meta.value)
             elif isinstance(meta, RDFSAnnotation.SUB_PROPERTY_OF):
                 prop_def.subPropertyOf = Relation(id=meta.value)
+            elif isinstance(meta, OWLAnnotation.EQUIVALENT_PROPERTY):
+                prop_def.equivalentProperty = Relation(id=meta.value)
             elif isinstance(meta, OWLAnnotation.INVERSE_OF):
                 prop_def.inverseOf = Relation(id=meta.value)
             elif isinstance(meta, OWLAnnotation.FUNCTIONAL_PROPERTY):

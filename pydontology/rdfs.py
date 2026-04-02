@@ -13,19 +13,19 @@ class RDFSAnnotation:
     These annotations are used in the construction of the ontology graph.
     """
 
-    @dataclass
+    @dataclass(frozen=True)
     class DOMAIN:
         """Dataclass that holds rdfs:domain annotation for a property."""
 
         value: Annotated[str, AfterValidator(val_no_whitespace)]
 
-    @dataclass
+    @dataclass(frozen=True)
     class RANGE:
         """Dataclass that holds rdfs:range annotation for a property."""
 
         value: Annotated[str, AfterValidator(val_no_whitespace)]
 
-    @dataclass(unsafe_hash=True)
+    @dataclass(frozen=True)
     class SUB_PROPERTY_OF:
         """Dataclass that holds rdfs:subPropertyOf annotation for a property"""
 

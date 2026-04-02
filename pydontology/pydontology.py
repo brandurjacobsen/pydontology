@@ -324,8 +324,13 @@ class Pydontology:
     ) -> _OntologyClass:
         """Add class annotations to ontology class"""
         for meta in annotations:
-            if isinstance(meta,RDFSAnnotation.)
-            if isinstance(meta, OWLAnnotation.EQUIVALENT_CLASS):
+            if isinstance(meta, RDFSAnnotation.COMMENT):
+                class_def.comment = meta.value
+            elif isinstance(meta, RDFSAnnotation.LABEL):
+                class_def.label = meta.value
+            elif isinstance(meta, RDFSAnnotation.SUB_CLASS_OF):
+                class_def.subClassOf = Relation(id=meta.value)
+            elif isinstance(meta, OWLAnnotation.EQUIVALENT_CLASS):
                 class_def.equivalentClass = Relation(id=meta.value)
         return class_def
 

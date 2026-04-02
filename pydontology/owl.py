@@ -69,7 +69,17 @@ class OWLAnnotation:
 
     @staticmethod
     def equivalentClass(value: str) -> EQUIVALENT_CLASS:
-        # Add docstring similar to methods below AI!
+        """
+        OWL equivalentClass annotation.
+
+        owl:equivalentClass is used to state that two classes have the same class extension.
+
+        Args:
+            value (str): Name of the equivalent class
+
+        Returns:
+            OWLAnnotation.EQUIVALENT_CLASS (dataclass)
+        """
         return OWLAnnotation.EQUIVALENT_CLASS(value=value)
 
     @staticmethod

@@ -65,10 +65,10 @@ class _OntologyClass(BaseModel):
     """Represents an RDFS/OWL class in an ontology graph"""
 
     id: str = Field(alias="@id", description="Class IRI")
-    type: Literal["rdfs:Class"] = Field(
+    type: Literal["rdfs:Class", "owl:Class"] = Field(
         default="rdfs:Class",
         alias="@type",
-        description="The RDF type. Always 'rdfs:Class'",
+        description="The RDF type.",
     )
     label: str = Field(alias="rdfs:label", description="Human-readable label")
     comment: Optional[str] = Field(
@@ -80,7 +80,7 @@ class _OntologyClass(BaseModel):
     sameAs: Optional[Relation] = Field(
         default=None,
         alias="owl:sameAs",
-        description="All statements about this class hold for the other.",
+        description="All statements about this class/individual hold for the other.",
     )
     equivalentClass: Optional[Relation] = Field(
         default=None,
@@ -119,6 +119,11 @@ class _OntologyProperty(BaseModel):
     )
     subPropertyOf: Optional[Relation] = Field(
         default=None, alias="rdfs:subPropertyOf", description="IRI of super-property"
+    )
+    equivalentProperty: Optional[Relation] = Field(
+        default=None,
+        alias="owl:equivalentProperty",
+        description="IRI of equivalent property",
     )
     inverseOf: Optional[Relation] = Field(
         default=None,
@@ -175,7 +180,7 @@ class _PropertyShape(BaseModel):
         default=None, alias="sh:name", description="Human-readable name"
     )
     description: Optional[str] = Field(
-        default=None, alias="sh:description", description="Property description"
+        default=None, alias="sh:description", description="Property shape description"
     )
 
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
@@ -312,7 +317,17 @@ class Pydontology:
                 raise TypeError(f"Expected class type. Got {arg} with type {type(arg)}")
             return (arg, component.__metadata__)
         else:
-            raise TypeError(f"Unexpected type {origin} in ontology")
+            raise TypeError(f"Unexpected type {type(origin)} in ontology")
+
+    def _add_class_annotations(
+        self, class_def: _OntologyClass, annotations: List
+    ) -> _OntologyClass:
+        """Add class annotations to ontology class"""
+        for meta in annotations:
+            if isinstance(meta,RDFSAnnotation.)
+            if isinstance(meta, OWLAnnotation.EQUIVALENT_CLASS):
+                class_def.equivalentClass = Relation(id=meta.value)
+        return class_def
 
     def _create_ontology_classes(self) -> List[_OntologyClass]:
         """Create ontology classes using _OntologyClass class"""
@@ -329,18 +344,11 @@ class Pydontology:
                 class_fields["subClassOf"] = Relation(id="owl:Thing")
             class_def = _OntologyClass.model_validate(class_fields)
             if class_info["metadata"] is not None:
-                class_def = _add_class_annotations(class_def)
+                class_def = self._add_class_annotations(
+                    class_def, class_info["metadata"]
+                )
             ontology_classes.append(class_def)
         return ontology_classes
-
-    def _add_class_annotations(
-        self, class_def: _OntologyClass, annotations: List
-    ) -> _OntologyClass:
-        """Add class annotations to ontology class"""
-        for meta in annotations:
-            if isinstance(meta, OWLAnnotation.EQUIVALENT_CLASS):
-                class_def.equivalentClass = Relation(id=meta.value)
-        return class_def
 
     def _add_property_annotations(
         self, prop_def: _OntologyProperty, annotations: List
@@ -452,11 +460,9 @@ class Pydontology:
                     id=self.type_map[field_info["field_type"]]
                 )
 
-            # Required/Optional. TODO: Use settings.py
-            if field_info["is_required"]:
+            # Required/Optional fields
+            if field_info["is_required"] and self.cfg.SH_MINLENGTH_FOR_REQUIRED:
                 prop_shape.minCount = 1
-            else:
-                prop_shape.minCount = None
 
             prop_shape = self._add_shacl_annotations(prop_shape, field_info["metadata"])
             prop_shapes.append(prop_shape)

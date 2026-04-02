@@ -13,49 +13,49 @@ class OWLAnnotation:
     These annotations are used in the construction of the ontology graph.
     """
 
-    @dataclass
+    @dataclass(frozen=True)
     class EQUIVALENT_CLASS:
         """Dataclass that holds owl:equivalentClass annotation for a class"""
 
         value: Annotated[str, AfterValidator(val_no_whitespace)]
 
-    @dataclass
+    @dataclass(frozen=True)
     class INVERSE_OF:
         """Dataclass that holds owl:inverseOf annotation for a property."""
 
         value: Annotated[str, AfterValidator(val_no_whitespace)]
 
-    @dataclass
+    @dataclass(frozen=True)
     class TRANSITIVE_PROPERTY:
         """Dataclass that holds owl:TransitiveProperty annotation for a property."""
 
         value: bool = False
 
-    @dataclass
+    @dataclass(frozen=True)
     class SYMMETRIC_PROPERTY:
         """Dataclass that holds owl:SymmetricProperty annotation for a property."""
 
         value: bool = False
 
-    @dataclass
+    @dataclass(frozen=True)
     class FUNCTIONAL_PROPERTY:
         """Dataclass that holds owl:FunctionalProperty annotation for a property."""
 
         value: bool = False
 
-    @dataclass
+    @dataclass(frozen=True)
     class INVERSE_FUNCTIONAL_PROPERTY:
         """Dataclass that holds owl:InverseFunctionalProperty annotation for a property."""
 
         value: bool = False
 
-    @dataclass
+    @dataclass(frozen=True)
     class OBJECT_PROPERTY:
         """Dataclass that holds owl:ObjectProperty annotation for a property."""
 
         value: bool = True
 
-    @dataclass
+    @dataclass(frozen=True)
     class DATATYPE_PROPERTY:
         """Dataclass that holds owl:DatatypeProperty annotation for a property."""
 

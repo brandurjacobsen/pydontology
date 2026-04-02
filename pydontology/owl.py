@@ -69,6 +69,7 @@ class OWLAnnotation:
 
     @staticmethod
     def equivalentClass(value: str) -> EQUIVALENT_CLASS:
+        # Add docstring similar to methods below AI!
         return OWLAnnotation.EQUIVALENT_CLASS(value=value)
 
     @staticmethod
@@ -76,7 +77,7 @@ class OWLAnnotation:
         """
         OWL equivalentProperty annotation.
 
-        owl:equivalentProperty is used to state that two properties have the same property extension.
+        owl:equivalentProperty is used to state that two properties are equivalent.
 
         Args:
             value (str): Name of the equivalent property

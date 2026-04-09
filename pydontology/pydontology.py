@@ -1,4 +1,3 @@
-import warnings
 from inspect import get_annotations, isclass
 from types import UnionType
 from typing import Annotated, Any, List, Literal, Optional, Tuple, get_args, get_origin
@@ -10,6 +9,10 @@ from .owl import OWLAnnotation
 from .rdfs import RDFSAnnotation
 from .settings import Settings
 from .shacl import SHACLAnnotation
+
+
+class DuplicatePropertyError(Exception):
+    """Raised when fields/properties are redefined erroneously"""
 
 
 class BaseContext(BaseModel):
@@ -241,9 +244,9 @@ class Pydontology:
         "datetime": "xsd:dateTimeStamp",
     }
 
-    cfg = Settings()
-
     def __init__(self, ontology: UnionType):
+        # Get settings for ontology_graph and shacl_graph methods
+        self.cfg = Settings()
 
         # Construct a dict that maps Entity class names to class metadata
         self._edb = dict()
@@ -257,50 +260,74 @@ class Pydontology:
             description = cls.__doc__.strip() if cls.__doc__ else None
             parent = cls.__mro__[1].__name__ if cls.__mro__[1] != Entity else None
 
-            local_fields = get_annotations(cls).keys()
-            all_fields = cls.model_fields.keys()
+            # Track fields by alias if present else name
+            aliased_fields = [
+                f
+                for f in cls.model_fields.keys()
+                if cls.model_fields[f].alias is not None
+            ]
+            unaliased_fields = [
+                f for f in cls.model_fields.keys() if cls.model_fields[f].alias is None
+            ]
+            all_field_ids = set([*aliased_fields, *unaliased_fields])
 
             self._edb[class_name] = {
                 "description": description,
                 "parent": parent,
-                "local_fields": local_fields,
-                "all_fields": all_fields,
+                "all_field_ids": all_field_ids,
                 "metadata": metadata,
             }
 
-            for field_name, field_info in cls.model_fields.items():
-                if field_name not in local_fields:
-                    continue
+            # We use 'get_annotations' and not 'model_fields' because we only
+            # want to process fields defined in the current class, not inherited fields
+            for field_name in get_annotations(cls).keys():
+                field_info = cls.model_fields[field_name]
 
-                is_required = field_info.is_required()
-
-                if is_required:
+                if field_info.is_required():
+                    assert field_info.annotation is not None
                     field_type = field_info.annotation.__name__
                 else:
                     field_type = get_args(field_info.annotation)[0].__name__
 
-                # Ensure field names defined multiple times have different Pydantic Field alias
-                if field_name in self._pdb:
-                    defined_in = self._pdb[field_name]["defined_in"]
-                    if field_info.alias == self._pdb[field_name]["alias"]:
-                        raise Exception(
-                            (
-                                f"Field name '{field_name}' defined in '{class_name}'",
-                                f"must have different alias than '{field_name}' defined in '{defined_in}'",
-                            )
-                        )
+                # Fields are identified by alias (if present), otherwise by name in the self._pdb dict.
+                # If an ontology class redefines a previously identified property (according to the above),
+                # then the Python type needs to be identical, while e.g. default, description, title,
+                # examples and SHACL annotation can vary. RDFS/OWL annotations are ignored in redefinitions.
+
+                if field_info.alias is not None and field_info.alias in self._pdb:
+                    field_map = self._handle_duplicate_fields(
+                        class_name, field_info.alias, field_type, field_info
+                    )
+                elif field_name in self._pdb:
+                    field_map = self._handle_duplicate_fields(
+                        class_name, field_name, field_type, field_info
+                    )
                 else:
                     field_map = {
-                        "defined_in": class_name,
-                        "is_required": is_required,
-                        "is_relation": field_type == "Relation",
-                        "is_duplicate": False,
+                        "defined_in": [class_name],
                         "field_type": field_type,
-                        "description": field_info.description,
-                        "alias": field_info.alias,
-                        "metadata": field_info.metadata,
+                        "description": [field_info.description],
+                        "metadata": [field_info.metadata],
                     }
-                    self._pdb[field_name] = field_map
+                    if field_info.alias is not None:
+                        self._pdb[field_info.alias] = field_map
+                    else:
+                        self._pdb[field_name] = field_map
+
+    def _handle_duplicate_fields(self, class_name, field_id, field_type, field_info):
+        if field_type != self._pdb[field_id]["field_type"]:
+            raise DuplicatePropertyError(
+                f"Field {field_id} can not be defined again with different Python type"
+            )
+        return {
+            "defined_in": [class_name, *self._pdb[field_id]["defined_in"]],
+            "description": [
+                field_info.description,
+                *self._pdb[field_id]["description"],
+            ],
+            "metadata": [field_info.metadata, *self._pdb[field_id]["metadata"]],
+            "field_type": field_type,
+        }
 
     def _get_class_and_metadata(self, component):
         origin = get_origin(component)
@@ -329,9 +356,9 @@ class Pydontology:
             elif isinstance(meta, RDFSAnnotation.LABEL):
                 class_def.label = meta.value
             elif isinstance(meta, RDFSAnnotation.SUB_CLASS_OF):
-                class_def.subClassOf = Relation(id=meta.value)
+                class_def.subClassOf = Relation(id=meta.value)  # pyright: ignore
             elif isinstance(meta, OWLAnnotation.EQUIVALENT_CLASS):
-                class_def.equivalentClass = Relation(id=meta.value)
+                class_def.equivalentClass = Relation(id=meta.value)  # pyright: ignore
         return class_def
 
     def _create_ontology_classes(self) -> List[_OntologyClass]:
@@ -341,13 +368,20 @@ class Pydontology:
         for class_name, class_info in self._edb.items():
             class_fields = dict()
             class_fields["id"] = class_name
-            class_fields["label"] = class_name
-            class_fields["comment"] = class_info["description"]
-            if class_info["parent"] != None:
-                class_fields["subClassOf"] = Relation(id=class_info["parent"])
+            if self.cfg.CLASS_NAME_AS_LABEL:
+                class_fields["label"] = class_name
+            if self.cfg.DOCSTRING_AS_COMMENT:
+                class_fields["comment"] = class_info["description"]
+            if class_info["parent"] is not None:
+                class_fields["subClassOf"] = Relation(id=class_info["parent"])  # pyright: ignore
             else:
-                class_fields["subClassOf"] = Relation(id="owl:Thing")
+                if self.cfg.DEFAULT_SUBCLASS_OF is not None:
+                    class_fields["subClassOf"] = Relation(
+                        id=self.cfg.DEFAULT_SUBCLASS_OF
+                    )  # pyright: ignore
+
             class_def = _OntologyClass.model_validate(class_fields)
+
             if class_info["metadata"] is not None:
                 class_def = self._add_class_annotations(
                     class_def, class_info["metadata"]
@@ -361,15 +395,15 @@ class Pydontology:
         """Add property annotations to ontology property"""
         for meta in annotations:
             if isinstance(meta, RDFSAnnotation.RANGE):
-                prop_def.range = Relation(id=meta.value)
+                prop_def.range = Relation(id=meta.value)  # pyright: ignore
             elif isinstance(meta, RDFSAnnotation.DOMAIN):
-                prop_def.domain = Relation(id=meta.value)
+                prop_def.domain = Relation(id=meta.value)  # pyright: ignore
             elif isinstance(meta, RDFSAnnotation.SUB_PROPERTY_OF):
-                prop_def.subPropertyOf = Relation(id=meta.value)
+                prop_def.subPropertyOf = Relation(id=meta.value)  # pyright: ignore
             elif isinstance(meta, OWLAnnotation.EQUIVALENT_PROPERTY):
-                prop_def.equivalentProperty = Relation(id=meta.value)
+                prop_def.equivalentProperty = Relation(id=meta.value)  # pyright: ignore
             elif isinstance(meta, OWLAnnotation.INVERSE_OF):
-                prop_def.inverseOf = Relation(id=meta.value)
+                prop_def.inverseOf = Relation(id=meta.value)  # pyright: ignore
             elif isinstance(meta, OWLAnnotation.FUNCTIONAL_PROPERTY):
                 if meta.value:
                     prop_def.type.append("owl:FunctionalProperty")
@@ -389,36 +423,48 @@ class Pydontology:
         ontology_props = []
         for field_name, field_info in self._pdb.items():
             prop_fields = dict()
-            if field_info["is_relation"]:
+            prop_fields["id"] = field_name
+            if field_info["field_type"] == "Relation":
                 prop_fields["type"] = ["owl:ObjectProperty"]
             else:
                 prop_fields["type"] = ["owl:DatatypeProperty"]
-            if field_info["is_duplicate"]:
-                prop_fields["domain"] = None
-            else:
-                prop_fields["domain"] = Relation(id=field_info["defined_in"])
-            prop_fields["id"] = field_name
-            prop_fields["label"] = field_name
-            prop_fields["comment"] = field_info["description"]
-            prop_fields["range"] = None
+            if self.cfg.ORIGIN_AS_DOMAIN:
+                if len(field_info["defined_in"]) > 1:
+                    raise DuplicatePropertyError(
+                        "The 'ORIGIN_AS_DOMAIN setting can not be used if identical properties are defined in multiple classes"
+                    )
+                prop_fields["domain"] = Relation(id=field_info["defined_in"][0])  # pyright: ignore
+            if self.cfg.DESCRIPTION_AS_COMMENT:
+                if len(field_info["description"]) > 1:
+                    raise DuplicatePropertyError(
+                        "The 'DESCRIPTION_AS_COMMENT setting can not be used if identical properties are defined in multiple classes"
+                    )
+                prop_fields["comment"] = field_info["description"][0]
+            if self.cfg.FIELD_NAME_AS_LABEL:
+                prop_fields["label"] = field_name
 
             prop_def = _OntologyProperty.model_validate(prop_fields)
-            prop_def = self._add_property_annotations(prop_def, field_info["metadata"])
+            # Use first seen metadata, and ignore the rest
+            self._add_property_annotations(prop_def, field_info["metadata"][0])
             ontology_props.append(prop_def)
         return ontology_props
 
-    def ontology_graph(self, context: BaseContext = BaseContext()):
+    def ontology_graph(
+        self, context: BaseContext = BaseContext(), settings: Settings | None = None
+    ):
         """Generate ontology graph"""
+        if settings is not None:
+            self.cfg = settings
         onto_classes = self._create_ontology_classes()
         onto_props = self._create_ontology_properties()
-        return JSONLDGraph(context=context, graph=[*onto_classes, *onto_props])
+        return JSONLDGraph(context=context, graph=[*onto_classes, *onto_props])  # pyright: ignore
 
     def _add_shacl_annotations(
         self, prop_shape: _PropertyShape, annotations: List
     ) -> _PropertyShape:
         for meta in annotations:
             if isinstance(meta, SHACLAnnotation.DATATYPE):
-                prop_shape.datatype = Relation(id=meta.value)
+                prop_shape.datatype = Relation(id=meta.value)  # pyright: ignore
             elif isinstance(meta, SHACLAnnotation.MAX_COUNT):
                 prop_shape.maxCount = meta.value
             elif isinstance(meta, SHACLAnnotation.MIN_COUNT):
@@ -438,9 +484,9 @@ class Pydontology:
             elif isinstance(meta, SHACLAnnotation.MAX_EXCLUSIVE):
                 prop_shape.maxExclusive = meta.value
             elif isinstance(meta, SHACLAnnotation.NODE_KIND):
-                prop_shape.nodeKind = Relation(id=meta.value)
+                prop_shape.nodeKind = Relation(id=meta.value)  # pyright: ignore
             elif isinstance(meta, SHACLAnnotation.CLASS):
-                prop_shape.shclass = Relation(id=meta.value)
+                prop_shape.shclass = Relation(id=meta.value)  # pyright: ignore
         return prop_shape
 
     def _create_property_shapes(self, class_name: str) -> List[_PropertyShape]:
@@ -448,30 +494,32 @@ class Pydontology:
 
         prop_shapes = []
         for field_name, field_info in self._pdb.items():
-            if field_name not in self._edb[class_name]["all_fields"]:
+            if field_name not in self._edb[class_name]["all_field_ids"]:
                 continue
+            if class_name in field_info["defined_in"]:
+                idx = field_info["defined_in"].index(class_name)
+            else:
+                idx = 0
 
             shape_fields = {
                 "id": f"{class_name}Shape_{field_name}",
-                "path": Relation(id=field_name),
+                "path": Relation(id=field_name),  # pyright: ignore
                 "name": field_name,
-                "description": field_info["description"],
+                "description": field_info["description"][idx],
             }
 
             prop_shape = _PropertyShape.model_validate(shape_fields)
 
-            if field_info["is_relation"]:
-                prop_shape.nodeKind = Relation(id="sh:IRI")
+            if field_info["field_type"] == "Relation":
+                prop_shape.nodeKind = Relation(id="sh:IRI")  # pyright: ignore
             else:
                 prop_shape.datatype = Relation(
                     id=self.type_map[field_info["field_type"]]
-                )
+                )  # pyright: ignore
 
-            # Required/Optional fields
-            if field_info["is_required"] and self.cfg.SH_MINLENGTH_FOR_REQUIRED:
-                prop_shape.minCount = 1
-
-            prop_shape = self._add_shacl_annotations(prop_shape, field_info["metadata"])
+            prop_shape = self._add_shacl_annotations(
+                prop_shape, field_info["metadata"][idx]
+            )
             prop_shapes.append(prop_shape)
 
         return prop_shapes
@@ -482,7 +530,7 @@ class Pydontology:
             property_shapes = self._create_property_shapes(class_name)
             node_fields = {
                 "id": f"{class_name}Shape",
-                "targetClass": Relation(id=class_name),
+                "targetClass": Relation(id=class_name),  # pyright: ignore
                 "property": property_shapes,
             }
 
@@ -494,7 +542,7 @@ class Pydontology:
         """Generate SHACL graph"""
 
         shacl_shapes = self._create_node_shapes()
-        return JSONLDGraph(context=BaseContext(), graph=shacl_shapes)
+        return JSONLDGraph(context=BaseContext(), graph=shacl_shapes)  # pyright: ignore
 
     def jsonld_graph(self, context: BaseContext = BaseContext(), graph=[]):
-        return JSONLDGraph(context=context, graph=graph)
+        return JSONLDGraph(context=context, graph=graph)  # pyright: ignore

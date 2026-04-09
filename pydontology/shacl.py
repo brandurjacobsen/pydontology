@@ -19,73 +19,73 @@ class SHACLAnnotation:
     These annotations are used in the construction of the SHACL graph.
     """
 
-    @dataclass
+    @dataclass(frozen=True)
     class DATATYPE:
         """Dataclass that holds sh:datatype annotation for a property."""
 
         value: Annotated[str, AfterValidator(val_datatype)]
 
-    @dataclass
+    @dataclass(frozen=True)
     class MAX_COUNT:
         """Dataclass that holds sh:maxCount annotation for a property."""
 
         value: Annotated[int, AfterValidator(val_non_negative_int)]
 
-    @dataclass
+    @dataclass(frozen=True)
     class MIN_COUNT:
         """Dataclass that holds sh:minCount annotation for a property."""
 
         value: Annotated[int, AfterValidator(val_non_negative_int)]
 
-    @dataclass
+    @dataclass(frozen=True)
     class PATTERN:
         """Dataclass that holds sh:pattern annotation for a property."""
 
         value: Annotated[str, AfterValidator(val_regex_pattern)]
 
-    @dataclass
+    @dataclass(frozen=True)
     class MIN_LENGTH:
         """Dataclass that holds sh:minLength annotation for a property."""
 
         value: Annotated[int, AfterValidator(val_non_negative_int)]
 
-    @dataclass
+    @dataclass(frozen=True)
     class MAX_LENGTH:
         """Dataclass that holds sh:maxLength annotation for a property."""
 
         value: Annotated[int, AfterValidator(val_non_negative_int)]
 
-    @dataclass
+    @dataclass(frozen=True)
     class MIN_INCLUSIVE:
         """Dataclass that holds sh:minInclusive annotation for a property."""
 
         value: int | float
 
-    @dataclass
+    @dataclass(frozen=True)
     class MAX_INCLUSIVE:
         """Dataclass that holds sh:maxInclusive annotation for a property."""
 
         value: int | float
 
-    @dataclass
+    @dataclass(frozen=True)
     class MIN_EXCLUSIVE:
         """Dataclass that holds sh:minExclusive annotation for a property."""
 
         value: int | float
 
-    @dataclass
+    @dataclass(frozen=True)
     class MAX_EXCLUSIVE:
         """Dataclass that holds sh:maxExclusive annotation for a property."""
 
         value: int | float
 
-    @dataclass
+    @dataclass(frozen=True)
     class NODE_KIND:
         """Dataclass that holds sh:nodeKind annotation for a property."""
 
         value: Annotated[str, AfterValidator(val_node_kind)]
 
-    @dataclass
+    @dataclass(frozen=True)
     class CLASS:
         """Dataclass that holds sh:class annotation for a property."""
 

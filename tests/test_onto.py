@@ -2,12 +2,13 @@ import pytest
 from rdflib import OWL, RDF, RDFS, Graph, Namespace
 
 from pydontology.pydontology import BaseContext, JSONLDGraph
+from pydontology.settings import Settings
 
 # See conftest.py for TestModel definition
 
 
 @pytest.fixture
-def onto_graph(TestModel):
+def onto_graph(TestModel, request):
     """Fixture providing the generated ontology graph"""
     return TestModel.ontology_graph()
 
@@ -32,7 +33,7 @@ def vocab_namespace():
     return Namespace(BaseContext().vocab)
 
 
-def test_returns_jsonld_graph(onto_graph):
+def test_returns_jsonld_graph(onto_graph, request):
     """Test that onto_graph returns a JSONLDGraph instance"""
     assert isinstance(onto_graph, JSONLDGraph)
 
@@ -150,7 +151,7 @@ def test_ontology_property_descriptions(rdf_graph, vocab_namespace):
     # Check name property comment (appears in both Person and Department)
     name_comments = list(rdf_graph.objects(VOCAB.name, RDFS.comment))
     assert len(name_comments) == 1
-    assert str(name_comments[0]) in ["Person's name | Department's name"]
+    assert str(name_comments[0]) in ["Person's name"]
 
     # Check age property comment
     age_comments = list(rdf_graph.objects(VOCAB.age, RDFS.comment))

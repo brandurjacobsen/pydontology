@@ -6,7 +6,14 @@ app = marimo.App(width="full")
 
 @app.cell
 def _():
-    from typing import Annotated, List, Optional
+    import marimo as mo
+
+    return (mo,)
+
+
+@app.cell
+def _():
+    from typing import Annotated, List, Optional, get_origin
 
     from pydantic import Field
 
@@ -14,14 +21,18 @@ def _():
         Entity,
         Pydontology,
         RDFSAnnotation,
+        OWLAnnotation,
         Relation,
         SHACLAnnotation,
+        BaseContext
     )
 
     return (
         Annotated,
+        BaseContext,
         Entity,
         Field,
+        OWLAnnotation,
         Optional,
         Pydontology,
         RDFSAnnotation,
@@ -29,11 +40,20 @@ def _():
     )
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("""
+    First we create an ontology using the Entity and Relation classes, and create an instance of the Pydontology class (Model) passing a union of the ontology classes an argument.
+    """)
+    return
+
+
 @app.cell
 def _(
     Annotated,
     Entity,
     Field,
+    OWLAnnotation,
     Optional,
     Pydontology,
     RDFSAnnotation,
@@ -48,81 +68,68 @@ def _(
     class Employee(Person):
         """An employee entity, inherits from Person"""
 
-        employee_id: str = Field(description="Employee ID")
+        employee_id: Annotated[str, OWLAnnotation.functionalProperty(True)] = Field(description="Employee ID")
         has_manager: Annotated[
             Optional[Relation],
             RDFSAnnotation.range("Manager"),
         ] = Field(default=None, description="Link to manager")
 
+    class Worker(Person):
+        pass
+
     class Manager(Employee):
         """A manager entity, inherits from Employee"""
 
-        department: str = Field(description="Department name")
+        department: Annotated[Relation, RDFSAnnotation.range("Department")] = Field(description="Link to department")
 
-    ontology = Person | Employee | Manager
+    class Department(Entity):
+        """Department entity, inherits Relation"""
+        dept_name: str = Field(description="Department name")
+
+    ontology = Person | Annotated[Employee, OWLAnnotation.equivalentClass("Worker")] | Worker | Manager | Department
     Model = Pydontology(ontology)
-    print(Model.ontology_graph().model_dump_json(indent=2, exclude_none=True))
     return Employee, Manager, Model, Person
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Create the json-ld ontology graph using `Model.ontology_graph` and serialize it as json
+    """)
+    return
+
+
 @app.cell
-def _(Employee, Manager, Model, Person, Relation):
-    p1 = Person(id="/person/p1", name="Joe", age=24)
-    m1 = Manager(id="/manager/m1", name="Rex", employee_id="2", department="Sales")
-    e1 = Employee(
-        id="/employe/e1",
-        name="Esmerelda",
-        employee_id="1",
-        has_manager=Relation(id="/manager/m1"),
-    )
-
-    dg = Model.jsonld_graph(
-        context={
-            "@vocab": "http://example.com/vocab/",
-            "@base": "http://example.com/",
-            "sh": "http://www.w3.org/ns/shacl#",
-            "xsd": "http://www.w3.org/2001/XMLSchema#",
-        },
-        graph=[p1, e1, m1],
-    )
-    dgj = dg.model_dump_json(indent=2, exclude_none=True)
-
+def _(Model):
     ogj = Model.ontology_graph().model_dump_json(indent=2, exclude_none=True)
-
-    sgj = Model.shacl_graph().model_dump_json(indent=2, exclude_none=True)
-
-    print("Data graph JSON-LD:")
-    print(dgj)
 
     print("Ontology graph JSON-LD:")
     print(ogj)
 
+    sgj = Model.shacl_graph().model_dump_json(indent=2, exclude_none=True)
     print("SHACL graph JSON-LD:")
     print(sgj)
-    return dgj, ogj, sgj
+    return (ogj,)
 
 
 @app.cell(hide_code=True)
-def _(dgj, ogj, sgj):
+def _(mo):
+    mo.md(r"""
+    Parse the ontology graph in json-ld format using rdflib
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(ogj):
     from rdflib import Graph
 
-    data_graph = Graph()
     ontology_graph = Graph()
-    shacl_graph = Graph()
 
-    data_graph.parse(data=dgj, format="json-ld")
     ontology_graph.parse(data=ogj, format="json-ld")
-    shacl_graph.parse(data=sgj, format="json-ld")
-
-    print("Data graph in turtle format:")
-    print(data_graph.serialize(format="turtle"))
-
-    print("Ontology graph in turtle format")
+    print("Ontology graph in Turtle format")
     print(ontology_graph.serialize(format="turtle"))
-
-    print("SHACL graph in turtle format")
-    print(shacl_graph.serialize(format="turtle"))
-    return data_graph, ontology_graph, shacl_graph
+    return (ontology_graph,)
 
 
 @app.cell
@@ -150,17 +157,22 @@ def _(data_graph, ontology_graph, shacl_graph):
 
 
 @app.cell
-def _():
-    import marimo as mo
+def _(BaseContext, Employee, Manager, Model, Person, Relation):
+    p1 = Person(id="/person/p1", name="Joe", age=24)
+    m1 = Manager(id="/manager/m1", name="Rex", employee_id="2", department="Sales")
+    e1 = Employee(
+        id="/employe/e1",
+        name="Esmerelda",
+        employee_id="1",
+        has_manager=Relation(id="/manager/m1"),
+    )
 
-    return (mo,)
+    dg = Model.jsonld_graph(
+        context=BaseContext(vocab = "http://example.com/vocab/", base = "http://example.com/vocab"),
+        graph=[p1, e1, m1],
+    )
 
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
- 
-    """)
+    print(dg.model_dump_json(indent=2))
     return
 
 

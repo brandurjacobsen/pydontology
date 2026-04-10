@@ -8,7 +8,7 @@ from pydontology.settings import Settings
 
 
 @pytest.fixture
-def onto_graph(TestModel, request):
+def onto_graph(TestModel):
     """Fixture providing the generated ontology graph"""
     return TestModel.ontology_graph()
 
@@ -33,7 +33,7 @@ def vocab_namespace():
     return Namespace(BaseContext().vocab)
 
 
-def test_returns_jsonld_graph(onto_graph, request):
+def test_returns_jsonld_graph(onto_graph):
     """Test that onto_graph returns a JSONLDGraph instance"""
     assert isinstance(onto_graph, JSONLDGraph)
 

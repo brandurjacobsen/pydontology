@@ -31,3 +31,6 @@ tests = ["pytest", "rdflib", "pyshacl"]
 [tool.setuptools]
 packages = ["pydontology"]
 py-modules = ["__init__"]
+
+[tool.pytest.ini_options]
+markers = ["settings"]

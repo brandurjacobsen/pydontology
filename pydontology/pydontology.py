@@ -1,6 +1,7 @@
+import warnings
 from inspect import get_annotations, isclass
 from types import UnionType
-from typing import Annotated, Any, List, Literal, Optional, Tuple, get_args, get_origin
+from typing import Annotated, List, Literal, Optional, get_args, get_origin
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 from pydantic.json_schema import SkipJsonSchema
@@ -245,7 +246,7 @@ class Pydontology:
     }
 
     def __init__(self, ontology: UnionType):
-        # Get settings for ontology_graph and shacl_graph methods
+        # Get default settings for ontology_graph and shacl_graph methods
         self.cfg = Settings()
 
         # Construct a dict that maps Entity class names to class metadata
@@ -372,12 +373,12 @@ class Pydontology:
                 class_fields["label"] = class_name
             if self.cfg.DOCSTRING_AS_COMMENT:
                 class_fields["comment"] = class_info["description"]
-            if class_info["parent"] is not None:
+            if class_info["parent"] is not None and self.cfg.SUBCLASS_OF_PARENT:
                 class_fields["subClassOf"] = Relation(id=class_info["parent"])  # pyright: ignore
             else:
-                if self.cfg.DEFAULT_SUBCLASS_OF is not None:
+                if self.cfg.SUBCLASS_OF_DEFAULT is not None:
                     class_fields["subClassOf"] = Relation(
-                        id=self.cfg.DEFAULT_SUBCLASS_OF
+                        id=self.cfg.SUBCLASS_OF_DEFAULT
                     )  # pyright: ignore
 
             class_def = _OntologyClass.model_validate(class_fields)
@@ -428,23 +429,29 @@ class Pydontology:
                 prop_fields["type"] = ["owl:ObjectProperty"]
             else:
                 prop_fields["type"] = ["owl:DatatypeProperty"]
-            if self.cfg.ORIGIN_AS_DOMAIN:
-                if len(field_info["defined_in"]) > 1:
-                    raise DuplicatePropertyError(
-                        "The 'ORIGIN_AS_DOMAIN setting can not be used if identical properties are defined in multiple classes"
-                    )
-                prop_fields["domain"] = Relation(id=field_info["defined_in"][0])  # pyright: ignore
-            if self.cfg.DESCRIPTION_AS_COMMENT:
-                if len(field_info["description"]) > 1:
-                    raise DuplicatePropertyError(
-                        "The 'DESCRIPTION_AS_COMMENT setting can not be used if identical properties are defined in multiple classes"
-                    )
-                prop_fields["comment"] = field_info["description"][0]
             if self.cfg.FIELD_NAME_AS_LABEL:
                 prop_fields["label"] = field_name
 
+            if self.cfg.ORIGIN_AS_DOMAIN:
+                if len(field_info["defined_in"]) > 1 and self.cfg.SHOW_WARNINGS:
+                    warnings.warn(
+                        f"The 'ORIGIN_AS_DOMAIN' setting was ignored for '{field_name}' property since it is defined in multiple classes"
+                    )
+                else:
+                    prop_fields["domain"] = Relation(id=field_info["defined_in"][0])  # pyright: ignore
+            if self.cfg.DESCRIPTION_AS_COMMENT:
+                if len(field_info["description"]) > 1 and self.cfg.SHOW_WARNINGS:
+                    warnings.warn(
+                        f"The 'DESCRIPTION_AS_COMMENT' setting was ignored for '{field_name}' property since it is defined in multiple classes"
+                    )
+                else:
+                    prop_fields["comment"] = field_info["description"][0]
+
             prop_def = _OntologyProperty.model_validate(prop_fields)
-            # Use first seen metadata, and ignore the rest
+            if len(field_info["metadata"]) > 1 and self.cfg.SHOW_WARNINGS:
+                warnings.warn(
+                    f"Only first seen annotation data will be used for {field_name} property since it is defined in multiple classes"
+                )
             self._add_property_annotations(prop_def, field_info["metadata"][0])
             ontology_props.append(prop_def)
         return ontology_props
@@ -538,8 +545,10 @@ class Pydontology:
             node_shapes.append(node_shape)
         return node_shapes
 
-    def shacl_graph(self):
+    def shacl_graph(self, settings: Settings | None = None):
         """Generate SHACL graph"""
+        if settings is not None:
+            self.cfg = settings
 
         shacl_shapes = self._create_node_shapes()
         return JSONLDGraph(context=BaseContext(), graph=shacl_shapes)  # pyright: ignore

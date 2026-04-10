@@ -12,6 +12,10 @@ from pydontology.pydontology import (
 )
 
 
+def pytest_configure(config):
+    config.addinivalue_line("markers", "settings: Test Pydontology settings")
+
+
 # Define ontology_model fixture to be used across test files
 @pytest.fixture
 def TestModel():
@@ -52,7 +56,7 @@ def TestModel():
     class Department(Entity):
         """A department, inherits from Entity"""
 
-        dept_name: Annotated[
+        name: Annotated[
             str, SHACLAnnotation.minLength(1), SHACLAnnotation.maxLength(100)
         ] = Field(description="Department's name")
 

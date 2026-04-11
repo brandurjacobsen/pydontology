@@ -37,6 +37,7 @@ def _():
         Pydontology,
         RDFSAnnotation,
         Relation,
+        SHACLAnnotation,
     )
 
 
@@ -58,12 +59,17 @@ def _(
     Pydontology,
     RDFSAnnotation,
     Relation,
+    SHACLAnnotation,
 ):
     class Person(Entity):
         """A person entity"""
 
         name: str = Field(description="Person's name")
-        age: Optional[int] = Field(default=None, description="Person's age")
+        age: Annotated[
+                Optional[int],
+                SHACLAnnotation.minInclusive(0),
+                SHACLAnnotation.maxInclusive(150),
+                SHACLAnnotation.severity("sh:Warning")] = Field(default=None, description="Person's age")
 
     class Employee(Person):
         """An employee entity, inherits from Person"""

@@ -180,6 +180,11 @@ class _PropertyShape(BaseModel):
     maxExclusive: Optional[float] = Field(
         default=None, alias="sh:maxExclusive", description="Maximum exclusive value"
     )
+    severity: Optional[Relation] = Field(
+        default=None,
+        alias="sh:severity",
+        description="Severity of constraint violation",
+    )
     name: Optional[str] = Field(
         default=None, alias="sh:name", description="Human-readable name"
     )
@@ -494,6 +499,8 @@ class Pydontology:
                 prop_shape.nodeKind = Relation(id=meta.value)  # pyright: ignore
             elif isinstance(meta, SHACLAnnotation.CLASS):
                 prop_shape.shclass = Relation(id=meta.value)  # pyright: ignore
+            elif isinstance(meta, SHACLAnnotation.SEVERITY):
+                prop_shape.severity = Relation(id=meta.value)
         return prop_shape
 
     def _create_property_shapes(self, class_name: str) -> List[_PropertyShape]:

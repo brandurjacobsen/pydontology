@@ -9,6 +9,7 @@ from .validators import (
     val_node_kind,
     val_non_negative_int,
     val_regex_pattern,
+    val_severity_cls,
 )
 
 
@@ -90,6 +91,12 @@ class SHACLAnnotation:
         """Dataclass that holds sh:class annotation for a property."""
 
         value: Annotated[str, AfterValidator(val_no_whitespace)]
+
+    @dataclass(frozen=True)
+    class SEVERITY:
+        """Dataclass that holds sh:severity annotation for a property"""
+
+        value: Annotated[str, AfterValidator(val_severity_cls)]
 
     @staticmethod
     def datatype(value: str) -> DATATYPE:
@@ -277,3 +284,18 @@ class SHACLAnnotation:
             SHACLAnnotation.CLASS (dataclass)
         """
         return SHACLAnnotation.CLASS(value)
+
+    @staticmethod
+    def severity(value: str) -> SEVERITY:
+        """SHACL serverity annotation.
+
+        States the severity of the constraint violation as one of:
+            sh:Info, sh:Warning, sh:Violation
+
+        Args:
+            value (str): IRI of severity
+
+        Returns:
+            SHACLAnnotation.CLASS (dataclass)
+        """
+        return SHACLAnnotation.SEVERITY(value)

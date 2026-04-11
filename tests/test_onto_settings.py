@@ -7,6 +7,10 @@ from pydontology.settings import Settings
 # See conftest.py for TestModel definition
 
 
+def pytest_configure(config):
+    config.addinivalue_line("markers", "settings: Test Pydontology settings")
+
+
 @pytest.fixture(
     params=[
         # Use class docstrings as rdfs:comment for ontology classes

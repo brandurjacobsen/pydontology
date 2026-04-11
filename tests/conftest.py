@@ -5,15 +5,12 @@ from pydantic import Field
 
 from pydontology.pydontology import (
     Entity,
+    OWLAnnotation,
     Pydontology,
     RDFSAnnotation,
     Relation,
     SHACLAnnotation,
 )
-
-
-def pytest_configure(config):
-    config.addinivalue_line("markers", "settings: Test Pydontology settings")
 
 
 # Define ontology_model fixture to be used across test files
@@ -29,14 +26,18 @@ def TestModel():
             Optional[int],
             SHACLAnnotation.minInclusive(0),
             SHACLAnnotation.maxInclusive(150),
+            SHACLAnnotation.severity("sh:Warning"),
         ] = Field(default=None, description="Person's age in years")
 
     class Employee(Person):
         """An employee, inherits from Person"""
 
-        employee_id: Annotated[str, SHACLAnnotation.pattern(r"^E\d{3}$")] = Field(
-            description="Employee ID"
-        )
+        employee_id: Annotated[
+            str,
+            OWLAnnotation.functionalProperty(True),
+            SHACLAnnotation.pattern(r"^E\d{3}$"),
+        ] = Field(description="Employee ID")
+
         manager: Annotated[
             Optional[Relation],
             RDFSAnnotation.range("Manager"),
@@ -57,7 +58,7 @@ def TestModel():
         """A department, inherits from Entity"""
 
         name: Annotated[
-            str, SHACLAnnotation.minLength(1), SHACLAnnotation.maxLength(100)
+            str, SHACLAnnotation.minLength(1), SHACLAnnotation.maxLength(50)
         ] = Field(description="Department's name")
 
     onto = Pydontology(ontology=Person | Employee | Manager | Department)

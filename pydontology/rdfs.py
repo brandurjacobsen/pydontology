@@ -157,7 +157,7 @@ class RDFSAnnotation:
         return RDFSAnnotation.SUB_CLASS_OF(value=value)
 
     @staticmethod
-    def seeAlso(value: str) -> SEE_ALSO:
+    def seeAlso(value: HttpUrl) -> SEE_ALSO:
         """
         RDFS seeAlso annotation.
 
@@ -173,7 +173,7 @@ class RDFSAnnotation:
         return RDFSAnnotation.SEE_ALSO(value=value)
 
     @staticmethod
-    def isDefinedBy(value: str) -> IS_DEFINED_BY:
+    def isDefinedBy(value: HttpUrl) -> IS_DEFINED_BY:
         """
         RDFS isDefinedBy annotation.
 

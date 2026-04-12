@@ -156,4 +156,34 @@ class RDFSAnnotation:
         """
         return RDFSAnnotation.SUB_CLASS_OF(value=value)
 
-    # add methods for rdfs:seeAlso and rdfs:isDefinedBy constructs AI!
+    @staticmethod
+    def seeAlso(value: str) -> SEE_ALSO:
+        """
+        RDFS seeAlso annotation.
+
+        rdfs:seeAlso is an instance of rdf:Property that is used to indicate
+        a resource that might provide additional information about the subject resource.
+
+        Args:
+            value (str): URL of related resource
+
+        Returns:
+            RDFSAnnotation.SEE_ALSO (dataclass)
+        """
+        return RDFSAnnotation.SEE_ALSO(value=value)
+
+    @staticmethod
+    def isDefinedBy(value: str) -> IS_DEFINED_BY:
+        """
+        RDFS isDefinedBy annotation.
+
+        rdfs:isDefinedBy is an instance of rdf:Property that is used to indicate
+        a resource defining the subject resource.
+
+        Args:
+            value (str): URL of defining resource
+
+        Returns:
+            RDFSAnnotation.IS_DEFINED_BY (dataclass)
+        """
+        return RDFSAnnotation.IS_DEFINED_BY(value=value)

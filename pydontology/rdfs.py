@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from pydantic import AfterValidator
+from pydantic import AfterValidator, HttpUrl
 from pydantic.dataclasses import dataclass
 
 from .validators import val_no_whitespace
@@ -48,6 +48,18 @@ class RDFSAnnotation:
         """Dataclass that holds rdfs:subClassOf annotation for a class."""
 
         value: Annotated[str, AfterValidator(val_no_whitespace)]
+
+    @dataclass(frozen=True)
+    class SEE_ALSO:
+        """Dataclass that holds rdfs:seeAlso annotation for a class or property"""
+
+        value: HttpUrl
+
+    @dataclass(frozen=True)
+    class IS_DEFINED_BY:
+        """Dataclass that holds rdfs:isDefinedBy annotation for a class or property"""
+
+        value: HttpUrl
 
     @staticmethod
     def domain(value: str) -> DOMAIN:
@@ -143,3 +155,5 @@ class RDFSAnnotation:
             RDFSAnnotation.SUB_CLASS_OF (dataclass)
         """
         return RDFSAnnotation.SUB_CLASS_OF(value=value)
+
+    # add methods for rdfs:seeAlso and rdfs:isDefinedBy constructs AI!

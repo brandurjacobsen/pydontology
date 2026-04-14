@@ -144,30 +144,25 @@ class _PropertyShape(BaseModel):
     id: str = Field(alias="@id", description="Property shape IRI")
     type: Literal["sh:PropertyShape"] = Field(default="sh:PropertyShape", alias="@type")
     path: Relation = Field(alias="sh:path", description="Property path")
-    datatype: Optional[Relation] = Field(
-        default=None, alias="sh:datatype", description="Expected datatype"
-    )
+
+    # Value Type Constraint Components
     shclass: Optional[Relation] = Field(
         default=None, alias="sh:class", description="Expected class"
+    )
+    datatype: Optional[Relation] = Field(
+        default=None, alias="sh:datatype", description="Expected datatype"
     )
     nodeKind: Optional[Relation] = Field(
         default=None, alias="sh:nodeKind", description="Node kind constraint"
     )
+    # Cardinality Constraint Components
     minCount: Optional[int] = Field(
         default=None, alias="sh:minCount", description="Minimum cardinality"
     )
     maxCount: Optional[int] = Field(
         default=None, alias="sh:maxCount", description="Maximum cardinality"
     )
-    pattern: Optional[str] = Field(
-        default=None, alias="sh:pattern", description="Pattern constraint"
-    )
-    minLength: Optional[int] = Field(
-        default=None, alias="sh:minLength", description="Minimum length"
-    )
-    maxLength: Optional[int] = Field(
-        default=None, alias="sh:maxLength", description="Maximum length"
-    )
+    # Value Range Constraint Components
     minInclusive: Optional[float] = Field(
         default=None, alias="sh:minInclusive", description="Minimum inclusive value"
     )
@@ -180,11 +175,67 @@ class _PropertyShape(BaseModel):
     maxExclusive: Optional[float] = Field(
         default=None, alias="sh:maxExclusive", description="Maximum exclusive value"
     )
+    # String-based Constraint Components
+    pattern: Optional[str] = Field(
+        default=None, alias="sh:pattern", description="Pattern constraint"
+    )
+    minLength: Optional[int] = Field(
+        default=None, alias="sh:minLength", description="Minimum length"
+    )
+    maxLength: Optional[int] = Field(
+        default=None, alias="sh:maxLength", description="Maximum length"
+    )
+    languageIn: Optional[List[str]] = Field(
+        default=None, alias="sh:languageIn", description="List of allowed language tags"
+    )
+    uniqueLang: Optional[bool] = Field(
+        default=None,
+        alias="sh:uniqueLang",
+        description="Whether language tags must be unique",
+    )
+    # Property Pair Constraint Components
+    equals: Optional[Relation] = Field(
+        default=None, alias="sh:equals", description="Property path with equal values"
+    )
+    disjoint: Optional[Relation] = Field(
+        default=None,
+        alias="sh:disjoint",
+        description="Property path with disjoint values",
+    )
+    lessThan: Optional[Relation] = Field(
+        default=None,
+        alias="sh:lessThan",
+        description="Property path with greater values",
+    )
+    lessThanOrEquals: Optional[Relation] = Field(
+        default=None,
+        alias="sh:lessThanOrEquals",
+        description="Property path with greater or equal values",
+    )
+    # Other Constraint Components
+    closed: Optional[bool] = Field(
+        default=None, alias="sh:closed", description="Whether shape is closed"
+    )
+    ignoredProperties: Optional[List[Relation]] = Field(
+        default=None,
+        alias="sh:ignoredProperties",
+        description="Properties to ignore when closed",
+    )
+    hasValue: Optional[str | int | float | bool] = Field(
+        default=None, alias="sh:hasValue", description="Required value"
+    )
+    shIn: Optional[List[str | int | float | bool]] = Field(
+        default=None, alias="sh:in", description="List of allowed values"
+    )
+
+    # Validation parameter constructs
     severity: Optional[Relation] = Field(
         default=None,
         alias="sh:severity",
         description="Severity of constraint violation",
     )
+
+    # Non validating constructs
     name: Optional[str] = Field(
         default=None, alias="sh:name", description="Human-readable name"
     )
@@ -383,8 +434,8 @@ class Pydontology:
             else:
                 if self.cfg.SUBCLASS_OF_DEFAULT is not None:
                     class_fields["subClassOf"] = Relation(
-                        id=self.cfg.SUBCLASS_OF_DEFAULT
-                    )  # pyright: ignore
+                        id=self.cfg.SUBCLASS_OF_DEFAULT  # pyright: ignore
+                    )
 
             class_def = _OntologyClass.model_validate(class_fields)
 
@@ -500,7 +551,30 @@ class Pydontology:
             elif isinstance(meta, SHACLAnnotation.CLASS):
                 prop_shape.shclass = Relation(id=meta.value)  # pyright: ignore
             elif isinstance(meta, SHACLAnnotation.SEVERITY):
-                prop_shape.severity = Relation(id=meta.value)
+                prop_shape.severity = Relation(id=meta.value)  # pyright: ignore
+            elif isinstance(meta, SHACLAnnotation.LANGUAGE_IN):
+                prop_shape.languageIn = meta.value
+            elif isinstance(meta, SHACLAnnotation.UNIQUE_LANG):
+                prop_shape.uniqueLang = meta.value
+            elif isinstance(meta, SHACLAnnotation.EQUALS):
+                prop_shape.equals = Relation(id=meta.value)  # pyright: ignore
+            elif isinstance(meta, SHACLAnnotation.DISJOINT):
+                prop_shape.disjoint = Relation(id=meta.value)  # pyright: ignore
+            elif isinstance(meta, SHACLAnnotation.LESS_THAN):
+                prop_shape.lessThan = Relation(id=meta.value)  # pyright: ignore
+            elif isinstance(meta, SHACLAnnotation.LESS_THAN_OR_EQUALS):
+                prop_shape.lessThanOrEquals = Relation(id=meta.value)  # pyright: ignore
+            elif isinstance(meta, SHACLAnnotation.CLOSED):
+                prop_shape.closed = meta.value
+            elif isinstance(meta, SHACLAnnotation.IGNORED_PROPERTIES):
+                prop_shape.ignoredProperties = [
+                    Relation(id=prop)
+                    for prop in meta.value  # pyright: ignore
+                ]
+            elif isinstance(meta, SHACLAnnotation.HAS_VALUE):
+                prop_shape.hasValue = meta.value
+            elif isinstance(meta, SHACLAnnotation.IN):
+                prop_shape.shIn = meta.value
         return prop_shape
 
     def _create_property_shapes(self, class_name: str) -> List[_PropertyShape]:
@@ -528,8 +602,8 @@ class Pydontology:
                 prop_shape.nodeKind = Relation(id="sh:IRI")  # pyright: ignore
             else:
                 prop_shape.datatype = Relation(
-                    id=self.type_map[field_info["field_type"]]
-                )  # pyright: ignore
+                    id=self.type_map[field_info["field_type"]]  # pyright: ignore
+                )
 
             prop_shape = self._add_shacl_annotations(
                 prop_shape, field_info["metadata"][idx]

@@ -3,6 +3,7 @@ from typing import Annotated, List
 from pydantic.dataclasses import dataclass
 from pydantic.functional_validators import AfterValidator
 
+# from .pydontology import Relation
 from .validators import (
     val_datatype,
     val_no_whitespace,
@@ -164,6 +165,19 @@ class SHACLAnnotation:
         """Dataclass that holds sh:severity annotation for a property"""
 
         value: Annotated[str, AfterValidator(val_severity_cls)]
+
+    # Non validating constructs
+    @dataclass(frozen=True)
+    class NAME:
+        """Dataclass that holds sh:name annotation for a property."""
+
+        value: str
+
+    @dataclass(frozen=True)
+    class DESCRIPTION:
+        """Dataclass that holds sh:description annotation for a property."""
+
+        value: str
 
     # METHODS:
     # Value Type Constraint Components
@@ -506,14 +520,14 @@ class SHACLAnnotation:
 
     @staticmethod
     def shIn(value: List[str | int | float | bool]) -> IN:
-        """SHACL in annotation.
+        """SHACL sh:in annotation.
 
         Specifies that each value node is a member of a provided SHACL list.
         The values of sh:in in a shape are SHACL lists.
         A shape has at most one value for sh:in.
 
         Args:
-            value (List[str | int | float | bool]): List of allowed values
+            value (List[Relation | str | int | float | bool]): List of allowed values
 
         Returns:
             SHACLAnnotation.IN (dataclass)
@@ -535,3 +549,36 @@ class SHACLAnnotation:
             SHACLAnnotation.CLASS (dataclass)
         """
         return SHACLAnnotation.SEVERITY(value)
+
+    # Non validating constructs
+    @staticmethod
+    def name(value: str) -> NAME:
+        """SHACL name annotation.
+
+        Provides a human-readable name for a property shape.
+        The values of sh:name in a shape are literals.
+        A shape has at most one value for sh:name.
+
+        Args:
+            value (str): Human-readable name
+
+        Returns:
+            SHACLAnnotation.NAME (dataclass)
+        """
+        return SHACLAnnotation.NAME(value)
+
+    @staticmethod
+    def description(value: str) -> DESCRIPTION:
+        """SHACL description annotation.
+
+        Provides a human-readable description for a property shape.
+        The values of sh:description in a shape are literals.
+        A shape has at most one value for sh:description.
+
+        Args:
+            value (str): Human-readable description
+
+        Returns:
+            SHACLAnnotation.DESCRIPTION (dataclass)
+        """
+        return SHACLAnnotation.DESCRIPTION(value)

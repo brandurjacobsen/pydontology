@@ -3,7 +3,7 @@ from inspect import get_annotations, isclass
 from types import UnionType
 from typing import Annotated, List, Literal, Optional, get_args, get_origin
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, computed_field
 from pydantic.json_schema import SkipJsonSchema
 
 from .owl import OWLAnnotation
@@ -74,12 +74,20 @@ class _OntologyClass(BaseModel):
         alias="@type",
         description="The RDF type.",
     )
-    label: str = Field(alias="rdfs:label", description="Human-readable label")
+    label: Optional[str] = Field(
+        alias="rdfs:label", default=None, description="Human-readable label"
+    )
     comment: Optional[str] = Field(
         default=None, alias="rdfs:comment", description="Class description"
     )
     subClassOf: Optional[Relation] = Field(
         default=None, alias="rdfs:subClassOf", description="Parent class IRI"
+    )
+    seeAlso: Optional[HttpUrl] = Field(
+        default=None, alias="rdfs:seeAlso", description="Link to additional information"
+    )
+    isDefinedBy: Optional[HttpUrl] = Field(
+        default=None, alias="rdfs:isDefinedBy", description="Link to definition"
     )
     sameAs: Optional[Relation] = Field(
         default=None,
@@ -123,6 +131,12 @@ class _OntologyProperty(BaseModel):
     )
     subPropertyOf: Optional[Relation] = Field(
         default=None, alias="rdfs:subPropertyOf", description="IRI of super-property"
+    )
+    seeAlso: Optional[HttpUrl] = Field(
+        default=None, alias="rdfs:seeAlso", description="Link to additional information"
+    )
+    isDefinedBy: Optional[HttpUrl] = Field(
+        default=None, alias="rdfs:isDefinedBy", description="Link to definition"
     )
     equivalentProperty: Optional[Relation] = Field(
         default=None,
@@ -414,6 +428,10 @@ class Pydontology:
                 class_def.label = meta.value
             elif isinstance(meta, RDFSAnnotation.SUB_CLASS_OF):
                 class_def.subClassOf = Relation(id=meta.value)  # pyright: ignore
+            elif isinstance(meta, RDFSAnnotation.SEE_ALSO):
+                class_def.seeAlso = meta.value
+            elif isinstance(meta, RDFSAnnotation.IS_DEFINED_BY):
+                class_def.isDefinedBy = meta.value
             elif isinstance(meta, OWLAnnotation.EQUIVALENT_CLASS):
                 class_def.equivalentClass = Relation(id=meta.value)  # pyright: ignore
         return class_def
@@ -457,6 +475,10 @@ class Pydontology:
                 prop_def.domain = Relation(id=meta.value)  # pyright: ignore
             elif isinstance(meta, RDFSAnnotation.SUB_PROPERTY_OF):
                 prop_def.subPropertyOf = Relation(id=meta.value)  # pyright: ignore
+            elif isinstance(meta, RDFSAnnotation.SEE_ALSO):
+                prop_def.seeAlso = meta.value
+            elif isinstance(meta, RDFSAnnotation.IS_DEFINED_BY):
+                prop_def.isDefinedBy = meta.value
             elif isinstance(meta, OWLAnnotation.EQUIVALENT_PROPERTY):
                 prop_def.equivalentProperty = Relation(id=meta.value)  # pyright: ignore
             elif isinstance(meta, OWLAnnotation.INVERSE_OF):
@@ -506,7 +528,7 @@ class Pydontology:
             prop_def = _OntologyProperty.model_validate(prop_fields)
             if len(field_info["metadata"]) > 1 and self.cfg.SHOW_WARNINGS:
                 warnings.warn(
-                    f"Only first seen annotation data will be used for {field_name} property since it is defined in multiple classes"
+                    f"Only first seen OWL/RDFS annotation data will be used for {field_name} property since it is defined in multiple classes"
                 )
             self._add_property_annotations(prop_def, field_info["metadata"][0])
             ontology_props.append(prop_def)
@@ -526,18 +548,21 @@ class Pydontology:
         self, prop_shape: _PropertyShape, annotations: List
     ) -> _PropertyShape:
         for meta in annotations:
+            # Value Type Constraint Components
             if isinstance(meta, SHACLAnnotation.DATATYPE):
                 prop_shape.datatype = Relation(id=meta.value)  # pyright: ignore
+            elif isinstance(meta, SHACLAnnotation.CLASS):
+                prop_shape.shclass = Relation(id=meta.value)  # pyright: ignore
+            elif isinstance(meta, SHACLAnnotation.NODE_KIND):
+                prop_shape.nodeKind = Relation(id=meta.value)  # pyright: ignore
+
+            # Cardinality Constraint Components
             elif isinstance(meta, SHACLAnnotation.MAX_COUNT):
                 prop_shape.maxCount = meta.value
             elif isinstance(meta, SHACLAnnotation.MIN_COUNT):
                 prop_shape.minCount = meta.value
-            elif isinstance(meta, SHACLAnnotation.PATTERN):
-                prop_shape.pattern = meta.value
-            elif isinstance(meta, SHACLAnnotation.MIN_LENGTH):
-                prop_shape.minLength = meta.value
-            elif isinstance(meta, SHACLAnnotation.MAX_LENGTH):
-                prop_shape.maxLength = meta.value
+
+            # Value Range Constraint Components
             elif isinstance(meta, SHACLAnnotation.MIN_INCLUSIVE):
                 prop_shape.minInclusive = meta.value
             elif isinstance(meta, SHACLAnnotation.MAX_INCLUSIVE):
@@ -546,16 +571,20 @@ class Pydontology:
                 prop_shape.minExclusive = meta.value
             elif isinstance(meta, SHACLAnnotation.MAX_EXCLUSIVE):
                 prop_shape.maxExclusive = meta.value
-            elif isinstance(meta, SHACLAnnotation.NODE_KIND):
-                prop_shape.nodeKind = Relation(id=meta.value)  # pyright: ignore
-            elif isinstance(meta, SHACLAnnotation.CLASS):
-                prop_shape.shclass = Relation(id=meta.value)  # pyright: ignore
-            elif isinstance(meta, SHACLAnnotation.SEVERITY):
-                prop_shape.severity = Relation(id=meta.value)  # pyright: ignore
+
+            # String-based Constraint Components
+            elif isinstance(meta, SHACLAnnotation.PATTERN):
+                prop_shape.pattern = meta.value
+            elif isinstance(meta, SHACLAnnotation.MIN_LENGTH):
+                prop_shape.minLength = meta.value
+            elif isinstance(meta, SHACLAnnotation.MAX_LENGTH):
+                prop_shape.maxLength = meta.value
             elif isinstance(meta, SHACLAnnotation.LANGUAGE_IN):
                 prop_shape.languageIn = meta.value
             elif isinstance(meta, SHACLAnnotation.UNIQUE_LANG):
                 prop_shape.uniqueLang = meta.value
+
+            # Property Pair Constraint Components
             elif isinstance(meta, SHACLAnnotation.EQUALS):
                 prop_shape.equals = Relation(id=meta.value)  # pyright: ignore
             elif isinstance(meta, SHACLAnnotation.DISJOINT):
@@ -564,17 +593,29 @@ class Pydontology:
                 prop_shape.lessThan = Relation(id=meta.value)  # pyright: ignore
             elif isinstance(meta, SHACLAnnotation.LESS_THAN_OR_EQUALS):
                 prop_shape.lessThanOrEquals = Relation(id=meta.value)  # pyright: ignore
+
+            # Other Constraint Components
             elif isinstance(meta, SHACLAnnotation.CLOSED):
                 prop_shape.closed = meta.value
             elif isinstance(meta, SHACLAnnotation.IGNORED_PROPERTIES):
                 prop_shape.ignoredProperties = [
-                    Relation(id=prop)
-                    for prop in meta.value  # pyright: ignore
+                    Relation(id=prop)  # pyright: ignore
+                    for prop in meta.value
                 ]
             elif isinstance(meta, SHACLAnnotation.HAS_VALUE):
                 prop_shape.hasValue = meta.value
             elif isinstance(meta, SHACLAnnotation.IN):
                 prop_shape.shIn = meta.value
+
+            # Validation parameter constructs
+            elif isinstance(meta, SHACLAnnotation.SEVERITY):
+                prop_shape.severity = Relation(id=meta.value)  # pyright: ignore
+
+            # Non validating constructs
+            elif isinstance(meta, SHACLAnnotation.NAME):
+                prop_shape.name = meta.value
+            elif isinstance(meta, SHACLAnnotation.DESCRIPTION):
+                prop_shape.description = meta.value
         return prop_shape
 
     def _create_property_shapes(self, class_name: str) -> List[_PropertyShape]:

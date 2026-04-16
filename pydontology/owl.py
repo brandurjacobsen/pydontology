@@ -20,6 +20,12 @@ class OWLAnnotation:
         value: Annotated[str, AfterValidator(val_no_whitespace)]
 
     @dataclass(frozen=True)
+    class SAME_AS:
+        """Dataclass that holds owl:sameAs annotation for a class or instance of class"""
+
+        value: Annotated[str, AfterValidator(val_no_whitespace)]
+
+    @dataclass(frozen=True)
     class EQUIVALENT_PROPERTY:
         """Dataclass that holds owl:equivalentProperty annotation for a property."""
 
@@ -81,6 +87,21 @@ class OWLAnnotation:
             OWLAnnotation.EQUIVALENT_CLASS (dataclass)
         """
         return OWLAnnotation.EQUIVALENT_CLASS(value=value)
+
+    @staticmethod
+    def sameAs(value: str) -> SAME_AS:
+        """
+        OWL sameAs annotation.
+
+        owl:sameAs is used to state that two URI references refer to the same individual.
+
+        Args:
+            value (str): Name of the same individual
+
+        Returns:
+            OWLAnnotation.SAME_AS (dataclass)
+        """
+        return OWLAnnotation.SAME_AS(value=value)
 
     @staticmethod
     def equivalentProperty(value: str) -> EQUIVALENT_PROPERTY:

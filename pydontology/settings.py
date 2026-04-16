@@ -31,3 +31,15 @@ class Settings(BaseSettings):
 
     # Set rdfs:subClassOf to parent class (Recommended)
     SUBCLASS_OF_PARENT: bool = True
+
+    # Use field name as sh:name for property shapes
+    FIELD_NAME_AS_SH_NAME: bool = True
+
+    # Use field description as sh:description for property shapes
+    DESCRIPTION_AS_SH_DESCRIPTION: bool = True
+
+    # Set sh:nodeKind to IRI for property shapes of relations
+    RELATION_AS_NODEKIND_IRI: bool = True
+
+    # Use internal typemap of Python type to xsd type to set sh:datatype for property shapes
+    TYPEMAP_AS_DATATYPE: bool = True

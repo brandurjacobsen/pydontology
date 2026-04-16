@@ -90,7 +90,7 @@ def _(
 
     class Department(Entity):
         """Department entity, inherits Relation"""
-        dept_name: str = Field(description="Department name")
+        name: str = Field(description="Department name")
 
     ontology = Person | Annotated[Employee, OWLAnnotation.equivalentClass("Worker")] | Worker | Manager | Department
     Model = Pydontology(ontology)

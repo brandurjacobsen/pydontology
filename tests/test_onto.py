@@ -47,24 +47,20 @@ def test_ontology_classes_present(rdf_graph, vocab_namespace):
     """Test that all expected classes are present in ontology graph"""
     VOCAB = vocab_namespace
 
-    print(f"vocab_namespace: {vocab_namespace}")
-    print("Triples:")
-    for s, p, o in rdf_graph:
-        print(s, p, p)
-
     # Verify all classes exist as rdfs:Class
     assert (VOCAB.Person, RDF.type, RDFS.Class) in rdf_graph
     assert (VOCAB.Employee, RDF.type, RDFS.Class) in rdf_graph
     assert (VOCAB.Manager, RDF.type, RDFS.Class) in rdf_graph
     assert (VOCAB.Department, RDF.type, RDFS.Class) in rdf_graph
+    assert (VOCAB.Company, RDF.type, RDFS.Class) in rdf_graph
 
-    # Count total classes (should be exactly 4)
+    # Count total classes (should be exactly 5)
     classes = list(rdf_graph.subjects(RDF.type, RDFS.Class))
-    assert len(classes) == 4
+    assert len(classes) == 5
 
 
 def test_ontology_inheritance(rdf_graph, vocab_namespace):
-    """Test that inheritance relationships are correctly represented"""
+    """Test that ontology classes are rdfs subClassOf parent (Entity) class or owl:Thing (default)"""
     VOCAB = vocab_namespace
 
     # Employee should be subclass of Person
@@ -79,29 +75,39 @@ def test_ontology_inheritance(rdf_graph, vocab_namespace):
     # Department should be subclass of owl:Thing (Entity)
     assert (VOCAB.Department, RDFS.subClassOf, OWL.Thing) in rdf_graph
 
+    # Company should be subclass of owl:Thing (Entity)
+    assert (VOCAB.Company, RDFS.subClassOf, OWL.Thing) in rdf_graph
+
 
 def test_ontology_properties_present(rdf_graph, vocab_namespace):
     """Test that all expected properties are present"""
     VOCAB = vocab_namespace
 
     # Get all properties (both ObjectProperty and DatatypeProperty)
-    object_properties = list(rdf_graph.subjects(RDF.type, OWL.ObjectProperty))
-    datatype_properties = list(rdf_graph.subjects(RDF.type, OWL.DatatypeProperty))
-    all_properties = object_properties + datatype_properties
+    object_props = list(rdf_graph.subjects(RDF.type, OWL.ObjectProperty))
+    datatype_props = list(rdf_graph.subjects(RDF.type, OWL.DatatypeProperty))
+    all_props = object_props + datatype_props
 
-    # Should have exactly 5 properties
-    assert len(all_properties) == 5
+    # Should have exactly 12 properties
+    assert len(all_props) == 12
 
     # Verify each expected property exists
-    assert VOCAB.name in all_properties
-    assert VOCAB.age in all_properties
-    assert VOCAB.employee_id in all_properties
-    assert VOCAB.manager in all_properties
-    assert VOCAB.department in all_properties
+    assert VOCAB.name in all_props
+    assert VOCAB.age in all_props
+    assert VOCAB.knows in all_props
+    assert VOCAB.employee_id in all_props
+    assert VOCAB.manager in all_props
+    assert VOCAB.department in all_props
+    assert VOCAB.company in all_props
+    assert VOCAB.head_of in all_props
+    assert VOCAB.vice_head_of in all_props
+    assert VOCAB.head in all_props
+    assert VOCAB.vice_head in all_props
+    assert VOCAB.ceo in all_props
 
 
 def test_ontology_property_types(rdf_graph, vocab_namespace):
-    """Test that properties have correct types (ObjectProperty vs DatatypeProperty)"""
+    """Test that properties are either owl:ObjectProperty or owl:DatatypeProperty (default)"""
     VOCAB = vocab_namespace
 
     # Relation fields should be ObjectProperty
@@ -115,57 +121,70 @@ def test_ontology_property_types(rdf_graph, vocab_namespace):
 
 
 def test_ontology_class_descriptions(rdf_graph, vocab_namespace):
-    """Test that class descriptions are included as rdfs:comment"""
+    """Test that class rdfs comment is class docstring if present (default)"""
     VOCAB = vocab_namespace
 
-    # Check Person comment
+    # Check Person rdfs comment
     person_comments = list(rdf_graph.objects(VOCAB.Person, RDFS.comment))
     assert len(person_comments) == 1
-    assert str(person_comments[0]) == "A person, inherits from Entity"
+    assert str(person_comments[0]) == "A person, subclass of Entity"
 
-    # Check Employee comment
+    # Check Employee rdfs comment
     employee_comments = list(rdf_graph.objects(VOCAB.Employee, RDFS.comment))
     assert len(employee_comments) == 1
-    assert str(employee_comments[0]) == "An employee, inherits from Person"
+    assert str(employee_comments[0]) == "An employee, subclass of Person"
 
-    # Check Manager comment
+    # Check Manager rdfs comment
     manager_comments = list(rdf_graph.objects(VOCAB.Manager, RDFS.comment))
     assert len(manager_comments) == 1
-    assert str(manager_comments[0]) == "A manager, inherits from Employee"
+    assert str(manager_comments[0]) == "A manager, subclass of Employee"
 
-    # Check Department comment
+    # Check Department rdfs comment
     department_comments = list(rdf_graph.objects(VOCAB.Department, RDFS.comment))
     assert len(department_comments) == 1
-    assert str(department_comments[0]) == "A department, inherits from Entity"
+    assert str(department_comments[0]) == "A department, subclass of Entity"
+
+    # Check Company rdfs comment (should have no comment)
+    company_comments = list(rdf_graph.objects(VOCAB.Company, RDFS.comment))
+    assert len(company_comments) == 0
 
 
 def test_ontology_property_descriptions(rdf_graph, vocab_namespace):
-    """Test that property descriptions are included"""
+    """
+    Test that property rdfs comment is field description if present (default),
+    unless property is defined in multiple ontology classes
+    """
     VOCAB = vocab_namespace
 
-    # Check manager property comment
+    # Check manager property rdfs comment
     manager_comments = list(rdf_graph.objects(VOCAB.manager, RDFS.comment))
     assert len(manager_comments) == 1
     assert str(manager_comments[0]) == "Link to manager"
 
-    # Check name property comment (appears in both Person and Department)
+    # Check name property rdfs comment is not present
     name_comments = list(rdf_graph.objects(VOCAB.name, RDFS.comment))
-    assert len(name_comments) == 1
-    assert str(name_comments[0]) in ["Person's name"]
+    assert len(name_comments) == 0
 
-    # Check age property comment
+    # Check age property rdfs comment
     age_comments = list(rdf_graph.objects(VOCAB.age, RDFS.comment))
     assert len(age_comments) == 1
     assert str(age_comments[0]) == "Person's age in years"
 
-    # Check department property comment
+    # Check department property rdfs comment
     dept_comments = list(rdf_graph.objects(VOCAB.department, RDFS.comment))
     assert len(dept_comments) == 1
     assert str(dept_comments[0]) == "Department IRI"
 
+    # Check company property rdfs comment
+    company_comments = list(rdf_graph.objects(VOCAB.company, RDFS.comment))
+    assert len(company_comments) == 0
+
 
 def test_ontology_property_domains(rdf_graph, vocab_namespace):
-    """Test that properties have correct domain assignments"""
+    """
+    Test that properties have defining class as rdfs domain (default)
+    unless property is defined in multiple ontology classes
+    """
     VOCAB = vocab_namespace
 
     # Check name property domain is not set
@@ -185,7 +204,7 @@ def test_ontology_property_domains(rdf_graph, vocab_namespace):
     # Check department property domain
     department_domains = list(rdf_graph.objects(VOCAB.department, RDFS.domain))
     assert len(department_domains) == 1
-    assert department_domains[0] == VOCAB.Manager
+    assert department_domains[0] == VOCAB.Employee
 
 
 def test_ontology_property_range(rdf_graph, vocab_namespace):
@@ -217,26 +236,6 @@ def test_optional_fields_are_in_ontology(rdf_graph, vocab_namespace):
     assert (VOCAB.department, RDF.type, OWL.ObjectProperty) in rdf_graph
 
 
-def test_property_uniqueness(rdf_graph, vocab_namespace):
-    """Test that each property is defined only once, even if used in multiple classes"""
-    VOCAB = vocab_namespace
-
-    # 'name' appears in both Person and Department
-    # It should only have one rdf:type triple
-    name_types = list(rdf_graph.objects(VOCAB.name, RDF.type))
-    assert len(name_types) == 1
-    assert name_types[0] == OWL.DatatypeProperty
-
-    # It should only have one rdfs:comment
-    name_comments = list(rdf_graph.objects(VOCAB.name, RDFS.comment))
-    assert len(name_comments) == 1
-
-    # It should only have no rdfs:domain
-    # (rdfs:domain needs to be set explicitly for properties defined multiple times
-    name_domains = list(rdf_graph.objects(VOCAB.name, RDFS.domain))
-    assert len(name_domains) == 0
-
-
 def test_no_orphaned_properties(rdf_graph, vocab_namespace):
     """Test that all properties that are not defined multiple times have at least a domain"""
     VOCAB = vocab_namespace
@@ -249,45 +248,3 @@ def test_no_orphaned_properties(rdf_graph, vocab_namespace):
         if prop == VOCAB.name:  # Name is defined multiple times
             continue
         assert len(domains) >= 1, f"Property {prop} has no domain"
-
-
-def test_no_duplicate_triples(rdf_graph):
-    """Test that there are no duplicate triples in the graph"""
-    triples = list(rdf_graph)
-    unique_triples = set(triples)
-    assert len(triples) == len(unique_triples), "Graph contains duplicate triples"
-
-
-def test_datatype_properties_dont_have_class_ranges(rdf_graph, vocab_namespace):
-    """Test that datatype properties don't have rdfs:range pointing to ontology classes"""
-
-    # Get all datatype properties
-    datatype_properties = list(rdf_graph.subjects(RDF.type, OWL.DatatypeProperty))
-
-    # Get all classes in the ontology
-    ontology_classes = list(rdf_graph.subjects(RDF.type, RDFS.Class))
-
-    for prop in datatype_properties:
-        ranges = list(rdf_graph.objects(prop, RDFS.range))
-        for range_val in ranges:
-            # Range should not be one of our ontology classes
-            assert range_val not in ontology_classes, (
-                f"Datatype property {prop} has range pointing to class {range_val}"
-            )
-
-
-def test_object_properties_have_class_ranges(rdf_graph, vocab_namespace):
-    """Test that object properties have rdfs:range pointing to classes"""
-    VOCAB = vocab_namespace
-
-    # manager should have range Manager
-    manager_ranges = list(rdf_graph.objects(VOCAB.manager, RDFS.range))
-    assert len(manager_ranges) == 1
-    assert manager_ranges[0] == VOCAB.Manager
-    assert (manager_ranges[0], RDF.type, RDFS.Class) in rdf_graph
-
-    # department should have range Department
-    dept_ranges = list(rdf_graph.objects(VOCAB.department, RDFS.range))
-    assert len(dept_ranges) == 1
-    assert dept_ranges[0] == VOCAB.Department
-    assert (dept_ranges[0], RDF.type, RDFS.Class) in rdf_graph

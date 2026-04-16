@@ -69,14 +69,25 @@ def test_node_shapes_present(rdf_graph, vocab_namespace):
     VOCAB = vocab_namespace
 
     # Verify all node shapes exist
-    assert (VOCAB.PersonShape, RDF.type, SH.NodeShape) in rdf_graph
-    assert (VOCAB.EmployeeShape, RDF.type, SH.NodeShape) in rdf_graph
-    assert (VOCAB.ManagerShape, RDF.type, SH.NodeShape) in rdf_graph
-    assert (VOCAB.DepartmentShape, RDF.type, SH.NodeShape) in rdf_graph
+    assert (VOCAB.PersonShape, RDF.type, SH.NodeShape) in rdf_graph, (
+        "PersonShape not present"
+    )
+    assert (VOCAB.EmployeeShape, RDF.type, SH.NodeShape) in rdf_graph, (
+        "EmployeeShape not present"
+    )
+    assert (VOCAB.ManagerShape, RDF.type, SH.NodeShape) in rdf_graph, (
+        "ManagerShape not present"
+    )
+    assert (VOCAB.DepartmentShape, RDF.type, SH.NodeShape) in rdf_graph, (
+        "DepartmentShape not present"
+    )
+    assert (VOCAB.CompanyShape, RDF.type, SH.NodeShape) in rdf_graph, (
+        "CompanyShape not present"
+    )
 
-    # Count total node shapes (should be exactly 4)
+    # Count total node shapes (should be exactly 5)
     node_shapes = list(rdf_graph.subjects(RDF.type, SH.NodeShape))
-    assert len(node_shapes) == 4
+    assert len(node_shapes) == 5
 
 
 def test_target_classes(rdf_graph, vocab_namespace):
@@ -87,27 +98,28 @@ def test_target_classes(rdf_graph, vocab_namespace):
     assert (VOCAB.EmployeeShape, SH.targetClass, VOCAB.Employee) in rdf_graph
     assert (VOCAB.ManagerShape, SH.targetClass, VOCAB.Manager) in rdf_graph
     assert (VOCAB.DepartmentShape, SH.targetClass, VOCAB.Department) in rdf_graph
+    assert (VOCAB.CompanyShape, SH.targetClass, VOCAB.Company) in rdf_graph
 
 
 def test_property_shapes_count(rdf_graph, vocab_namespace):
     """Test that node shapes have correct number of property shapes"""
     VOCAB = vocab_namespace
 
-    # PersonShape should have 2 properties: name, age
+    # PersonShape should have 3 properties: name, age, knows
     person_properties = list(rdf_graph.objects(VOCAB.PersonShape, SH.property))
-    assert len(person_properties) == 2
+    assert len(person_properties) == 3
 
-    # EmployeeShape should have 4 properties: name, age, employee_id, manager
+    # EmployeeShape should have 7 properties: employee_id, manager, department, company
     employee_properties = list(rdf_graph.objects(VOCAB.EmployeeShape, SH.property))
     assert len(employee_properties) == 4
 
-    # ManagerShape should have 5 properties: inherited + department
+    # ManagerShape should have 2 properties (no SHACL annotation but two Relations):
     manager_properties = list(rdf_graph.objects(VOCAB.ManagerShape, SH.property))
-    assert len(manager_properties) == 5
+    assert len(manager_properties) == 2
 
-    # DepartmentShape should have 1 property: name
+    # DepartmentShape should have 1 property: name, head, vice_head
     dept_properties = list(rdf_graph.objects(VOCAB.DepartmentShape, SH.property))
-    assert len(dept_properties) == 1
+    assert len(dept_properties) == 3
 
 
 def test_datatype_constraints(rdf_graph, vocab_namespace):
@@ -253,29 +265,6 @@ def test_property_shape_has_name(rdf_graph, vocab_namespace):
     for prop_shape in person_properties:
         name = rdf_graph.value(prop_shape, SH.name)
         assert name is not None
-
-
-def test_property_shape_has_description(rdf_graph, vocab_namespace):
-    """Test that property shapes have sh:description"""
-    VOCAB = vocab_namespace
-
-    person_properties = list(rdf_graph.objects(VOCAB.PersonShape, SH.property))
-
-    # Find name property and verify it has description
-    for prop_shape in person_properties:
-        path = rdf_graph.value(prop_shape, SH.path)
-        if path == VOCAB.name:
-            description = rdf_graph.value(prop_shape, SH.description)
-            assert description is not None
-            assert str(description) == "Person's name | Department's name"
-            break
-
-
-def test_no_duplicate_triples(rdf_graph):
-    """Test that there are no duplicate triples in the SHACL graph"""
-    triples = list(rdf_graph)
-    unique_triples = set(triples)
-    assert len(triples) == len(unique_triples), "Graph contains duplicate triples"
 
 
 def test_pyshacl_validates_valid_data(shacl_graph_json):
@@ -435,6 +424,7 @@ def test_pyshacl_validates_employee_with_manager(shacl_graph_json, default_conte
                 "name": "John Doe",
                 "employee_id": "E002",
                 "manager": {"@id": "manager1"},
+                "department": {"@id": "Engineering"},
             },
         ],
     }

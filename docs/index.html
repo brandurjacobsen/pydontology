@@ -98,14 +98,10 @@
 
 <h1 id="pydontology">Pydontology<a class="headerlink" href="#pydontology" title="Permanent link">#</a></h1>
 <h2 id="ontologies-the-pydantic-way"><em>Ontologies the Pydantic way</em><a class="headerlink" href="#ontologies-the-pydantic-way" title="Permanent link">#</a></h2>
-<p>This is a work in progress.</p>
-<p>In my opinion, if you call yourself a 'Python developer', you either have some bulky (recent) personal Python projects under your belt, 
-or you write Python code for a living, which unfortunately means that I'm not a 'Python developer'; this is also a work in progress.</p>
-<p>I would appreciate feedback on this project, and help to develop it further. So, contributions (and issues) are welcome!</p>
-<p>That being said, this package will enable you to:</p>
+<p>This package will enable you to:</p>
 <ul>
 <li>Build an RDF ontology using the well-known Pydantic model classes</li>
-<li>Use typing.Annotated to add RDFS/OWL and SHACL metadata to your ontology class attributes</li>
+<li>Use typing.Annotated to add RDFS/OWL and SHACL metadata to your ontology class properties</li>
 <li>Generate a JSON-LD (JSON for Linked Data) ontology graph from your ontology and metadata</li>
 <li>Generate a JSON-LD SHACL (Shapes Constraint Language) graph from your ontology and metadata</li>
 <li>Generate a JSON schema from your ontology, which for example can be passed to LLMs to produce structured output</li>
@@ -113,10 +109,10 @@ or you write Python code for a living, which unfortunately means that I'm not a 
 </ul>
 <p>The package exposes, amongst others, the classes <a href="reference/#pydontology.pydontology.Entity">Entity</a> and <a href="reference/#pydontology.pydontology.Relation">Relation</a>, which inherit Pydantic's BaseModel.
 Entity serves as the base class for ontology classes.
-An attribute of an Entity class is considered to be an RDF literal, unless the attribute is of type Relation.</p>
-<p>Once the ontology classes are defined, a call to <a href="reference/#pydontology.pydontology.make_model">make_model</a> will return a <a href="reference/#pydontology.pydontology.JSONLDGraph">JSONLDGraph</a> class
-that, once instantiated and populated with ontology 'individuals', will serialize as a valid JSON-LD document, ready for parsing by e.g. rdflib.</p>
-<p>JSONLDGraph provides the class methods: <a href="reference/#pydontology.pydontology.JSONLDGraph.ontology_graph">ontology_graph</a> and <a href="reference/#pydontology.pydontology.JSONLDGraph.shacl_graph">shacl_graph</a> to generate the ontology graph and shacl graph respectively, as a (populated) JSONLDGraph instance.</p>
+An attribute of an Entity class is considered to be an RDF literal, unless the attribute is of type Relation, 
+in which case the value is interpreted as an IRI.</p>
+<p>Once the ontology classes are defined, an instance of the <a href="reference/#pydontology.pydontology.Pydontology">Pydontology</a> class can be instantiated with the union of ontology classes as an argument.</p>
+<p>Pydontology provides the methods: <a href="reference/#pydontology.pydontology.Pydontology.ontology_graph">ontology_graph</a> and <a href="reference/#pydontology.pydontology.Pydontology.shacl_graph">shacl_graph</a> to generate the ontology graph and shacl graph respectively, as a (populated) JSONLDGraph instance, ready for parsing by rdflib after serialization.</p>
 <h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">#</a></h2>
 <p>This package is currently distributed via <a href="https://test.pypi.org/project/pydontology/">TestPyPi</a>. </p>
 <p>To install in a Python virtual environment, run the following commands in a terminal, in a directory of your chosing: </p>
@@ -130,7 +126,14 @@ pip install -i https://test.pypi.org/simple/ pydontology
 <h2 id="example-1">Example 1<a class="headerlink" href="#example-1" title="Permanent link">#</a></h2>
 <pre><code>from pydantic import Field
 from typing import Optional, Annotated
-from pydontology import Entity, Relation, RDFSAnnotation
+from pydontology import (
+  Pydontology, 
+  Entity, 
+  Relation, 
+  RDFSAnnotation as RDFS, 
+  OWLAnnotation as OWL, 
+  SHACLAnnotation as SH
+)
 
 class Person(Entity):
     &quot;&quot;&quot;A person entity&quot;&quot;&quot;
@@ -140,8 +143,15 @@ class Person(Entity):
 
 class Employee(Person):
     &quot;&quot;&quot;An employee entity, inherits from Person&quot;&quot;&quot;
-    employee_id: str = Field(description=&quot;Employee ID&quot;)
-    has_manager: Annotated[Optional[Relation], RDFSAnnotation.range('Manager')] = Field(default=None, description=&quot;Link to manager&quot;)
+    employee_id: Annotated[
+      str,
+      OWL.functionalProperty(True),
+      OWL.inverseFunctionalProperty(True),
+      SH.minCount(1),
+      SH.maxCount(1)] = Field(description=&quot;Employee ID&quot;)
+    has_manager: Annotated[
+      Optional[Relation], 
+      RDFS.range('Manager')] = Field(default=None, description=&quot;Link to manager&quot;)
 
 
 class Manager(Employee):
@@ -149,13 +159,14 @@ class Manager(Employee):
     department: str = Field(description=&quot;Department name&quot;)
 </code></pre>
 <p>Note the use of typing.Annotated above to have the ontology graph include the triple: <code>ex:has_manager rdfs:range ex:Manager</code>,
-by using the <em>RDFSAnnotation.range</em> method.
-The RDFS domain is per default assumed to be the class wherein the attribute is defined.</p>
-<p>The model can then be created using the <em>make_model</em> function:</p>
-<pre><code>from pydontology import make_model
+by using the <a href="reference/#pydontology.rdfs.RDFSAnnotation.range">RDFSAnnotation.range</a> method.</p>
+<p>The RDFS domain is per default set to be the class wherein the property is defined, unless the property is defined in multiple ontology classes.
+This behaviour can be controlled via the <a href="reference/#pydontology.settings.Settings">Settings</a> class, which <a href="reference/#pydontology.pydontology.Pydontology.ontology_graph">ontology_graph</a> and <a href="reference/#pydontology.pydontology.Pydontology.shacl_graph">shacl_graph</a> accept as an optional parameter.</p>
+<p>The model can then be created by instantiating the <a href="reference/#pydontology.pydontology.Pydontology">Pydontology</a> class with the ontology:</p>
+<pre><code>from pydontology import Pydontology
 
 ontology = Person | Employee | Manager
-Model = make_model(ontology)
+Model = Pydontology(ontology)
 </code></pre>
 <p>View the JSON schema, and the ontology in JSON-LD format:</p>
 <pre><code>import json
@@ -222,5 +233,5 @@ print(Model.ontology_graph().model_dump_json(indent=2))
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2025-12-05 17:34:16.003631+00:00
+Build Date UTC : 2026-04-16 20:34:30.589767+00:00
 -->

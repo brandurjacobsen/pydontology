@@ -13,17 +13,17 @@ def _():
 
 @app.cell
 def _():
-    from typing import Annotated, List, Optional
+    from typing import Annotated, List, Optional, get_origin
 
     from pydantic import Field
 
     from pydontology.pydontology import (
         Entity,
         Pydontology,
-        RDFSAnnotation,
-        OWLAnnotation,
+        RDFSAnnotation as RDFS,
+        OWLAnnotation as OWL,
         Relation,
-        SHACLAnnotation,
+        SHACLAnnotation as SH,
         BaseContext
     )
 
@@ -32,12 +32,12 @@ def _():
         BaseContext,
         Entity,
         Field,
-        OWLAnnotation,
+        OWL,
         Optional,
         Pydontology,
-        RDFSAnnotation,
+        RDFS,
         Relation,
-        SHACLAnnotation,
+        SH,
     )
 
 
@@ -54,47 +54,39 @@ def _(
     Annotated,
     Entity,
     Field,
-    OWLAnnotation,
+    OWL,
     Optional,
     Pydontology,
-    RDFSAnnotation,
+    RDFS,
     Relation,
-    SHACLAnnotation,
+    SH,
 ):
     class Person(Entity):
         """A person entity"""
-
         name: str = Field(description="Person's name")
-        age: Annotated[
-                Optional[int],
-                SHACLAnnotation.minInclusive(0),
-                SHACLAnnotation.maxInclusive(150),
-                SHACLAnnotation.severity("sh:Warning")] = Field(default=None, description="Person's age")
+        age: Optional[int] = Field(default=None, description="Person's age")
+
 
     class Employee(Person):
         """An employee entity, inherits from Person"""
-
-        employee_id: Annotated[str, OWLAnnotation.functionalProperty(True)] = Field(description="Employee ID")
+        employee_id: Annotated[
+          str,
+          OWL.functionalProperty(True),
+          OWL.inverseFunctionalProperty(True),
+          SH.minCount(1),
+          SH.maxCount(1)] = Field(description="Employee ID")
         has_manager: Annotated[
-            Optional[Relation],
-            RDFSAnnotation.range("Manager"),
-        ] = Field(default=None, description="Link to manager")
+          Optional[Relation], 
+          RDFS.range('Manager')] = Field(default=None, description="Link to manager")
 
-    class Worker(Person):
-        pass
 
     class Manager(Employee):
         """A manager entity, inherits from Employee"""
+        department: str = Field(description="Department name")
 
-        department: Annotated[Relation, RDFSAnnotation.range("Department")] = Field(description="Link to department")
 
-    class Department(Entity):
-        """Department entity, inherits Relation"""
-        name: str = Field(description="Department name")
-
-    ontology = Person | Annotated[Employee, OWLAnnotation.equivalentClass("Worker")] | Worker | Manager | Department
-    Model = Pydontology(ontology)
-    return Employee, Manager, Model, Person
+    onto = Pydontology(Person | Employee | Manager)
+    return Employee, Manager, Person, onto
 
 
 @app.cell(hide_code=True)
@@ -106,16 +98,28 @@ def _(mo):
 
 
 @app.cell
-def _(Model):
-    ogj = Model.ontology_graph().model_dump_json(indent=2, exclude_none=True)
+def _(onto):
+    ogj = onto.ontology_graph().model_dump_json(indent=2, exclude_none=True)
 
     print("Ontology graph JSON-LD:")
     print(ogj)
+    return (ogj,)
 
-    sgj = Model.shacl_graph().model_dump_json(indent=2, exclude_none=True)
+
+@app.cell
+def _(onto):
+    sgj = onto.shacl_graph().model_dump_json(indent=2, exclude_none=True)
     print("SHACL graph JSON-LD:")
     print(sgj)
-    return (ogj,)
+    return
+
+
+@app.cell
+def _(onto):
+    import json
+    schema = onto.jsonld_schema()
+    print(json.dumps(schema.model_dump_json(), indent=2))
+    return
 
 
 @app.cell(hide_code=True)
@@ -135,30 +139,11 @@ def _(ogj):
     ontology_graph.parse(data=ogj, format="json-ld")
     print("Ontology graph in Turtle format")
     print(ontology_graph.serialize(format="turtle"))
-    return (ontology_graph,)
+    return
 
 
 @app.cell
-def _(data_graph, ontology_graph, shacl_graph):
-    from pyshacl import validate
-
-    r = validate(
-        data_graph,
-        shacl_graph=shacl_graph,
-        ont_graph=ontology_graph,
-        inference="rdfs",
-        abort_on_first=False,
-        allow_infos=False,
-        allow_warnings=False,
-        meta_shacl=False,
-        advanced=False,
-        js=False,
-        debug=False,
-    )
-    conforms, results_graph, results_text = r
-    print(conforms)
-    print(results_graph)
-    print(results_text)
+def _():
     return
 
 

@@ -3,7 +3,7 @@ from inspect import get_annotations, isclass
 from types import UnionType
 from typing import Annotated, List, Literal, Optional, get_args, get_origin
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, computed_field
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, TypeAdapter, computed_field
 from pydantic.json_schema import SkipJsonSchema
 
 from .owl import OWLAnnotation
@@ -285,11 +285,7 @@ class _NodeShape(BaseModel):
 
 
 class JSONLDGraph(BaseModel):
-    """Class that encapsulates a JSON-LD document/graph.
-
-    This is the return type of the Pydontology jsonld_graph(), ontology_graph(), shacl_graph() class methods.
-    This class serializes as a JSON-LD document/graph.
-    """
+    """Class that encapsulates a JSON-LD document/graph."""
 
     context: SkipJsonSchema[BaseContext] = Field(
         default=BaseContext(),
@@ -319,6 +315,7 @@ class Pydontology:
     }
 
     def __init__(self, ontology: UnionType):
+        self.ontology = ontology
         # Get default settings for ontology_graph and shacl_graph methods
         self.cfg = Settings()
 
@@ -502,9 +499,7 @@ class Pydontology:
                 prop_fields["label"] = field_name
 
             if self.cfg.ORIGIN_AS_DOMAIN:
-                print("Origin as domain: True")
                 if len(field_info["defined_in"]) > 1:
-                    print("Length of 'defined_in' > 1")
                     if self.cfg.SHOW_WARNINGS:
                         warnings.warn(
                             f"The 'ORIGIN_AS_DOMAIN' setting was ignored for '{field_name}' property since it is defined in multiple classes",
@@ -696,13 +691,16 @@ class Pydontology:
             node_shapes.append(node_shape)
         return node_shapes
 
-    def shacl_graph(self, settings: Settings | None = None):
+    def shacl_graph(
+        self, context: BaseContext = BaseContext(), settings: Settings | None = None
+    ):
         """Generate SHACL graph"""
         if settings is not None:
             self.cfg = settings
 
         shacl_shapes = self._create_node_shapes()
-        return JSONLDGraph(context=BaseContext(), graph=shacl_shapes)  # pyright: ignore
+        return JSONLDGraph(context=context, graph=shacl_shapes)  # pyright: ignore
 
-    def jsonld_graph(self, context: BaseContext = BaseContext(), graph=[]):
-        return JSONLDGraph(context=context, graph=graph)  # pyright: ignore
+    def jsonld_schema(self, context: BaseContext = BaseContext()):
+        adapter = TypeAdapter(self.ontology)
+        return JSONLDGraph(context=context, graph=[adapter])  # pyright: ignore

@@ -1,21 +1,20 @@
-# Core classes and methods
+## Core classes and methods
 ::: pydontology.pydontology.Entity
 ::: pydontology.pydontology.Relation
 ::: pydontology.pydontology.Pydontology
-::: pydontology.pydontology.Pydontology.ontology_graph
-::: pydontology.pydontology.Pydontology.shacl_graph
-::: pydontology.pydontology.Pydontology.jsonld_graph
 
-# Controlling behaviour
+## Controlling behaviour
 ::: pydontology.settings.Settings
 
-# Annotation classes
-These classes enable use of annotations to provide RDFS/OWL and SHACL metadata
-to attributes of the ontology classes, which is then used in the construction
+## Annotation classes
+These classes enable use of annotations to provide RDFS/OWL and SHACL construct metadata
+to properties of the ontology classes, which is then used in the construction
 of the ontology graph and SHACL graph.
 
+Not all constructs are supported currently, but we strive to add as many as possible within a reasonable timeframe.
+
 ## Supported RDFS constructs
-Pydontology supports the following RDFS constructs via annotations:
+Pydontology currently supports the following subset of RDFS constructs via annotations:
 
 - **Class Relationships**: `rdfs:subClassOf` - class inheritance relationships
 - **Property Relationships**: `rdfs:subPropertyOf` - property inheritance relationships  
@@ -36,7 +35,7 @@ Pydontology supports the following RDFS constructs via annotations:
         - "!SUB_PROPERTY_OF"
 
 ## Supported OWL constructs
-Pydontology supports the following OWL constructs via annotations:
+Pydontology currently supports the following subset of OWL Lite constructs via annotations:
 
 - **Class Equivalence**: `owl:equivalentClass` - class equivalence relationships
 - **Individual Equivalence**: `owl:sameAs` - individual equivalence relationships
@@ -60,7 +59,7 @@ Pydontology supports the following OWL constructs via annotations:
         - "!DATATYPE_PROPERTY"
 
 ## Supported SHACL constructs
-Pydontology supports the following SHACL constructs via annotations:
+Pydontology currently supports the following subset of SHACL (Core) constructs via annotations:
 
 - **Value Type Constraints**: `sh:datatype`, `sh:nodeKind`, `sh:class`
 - **Cardinality Constraints**: `sh:minCount`, `sh:maxCount`

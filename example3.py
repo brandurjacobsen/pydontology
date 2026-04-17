@@ -17,17 +17,18 @@ def _():
 
     from pydantic import Field
 
-    from pydontology.pydontology import (
+    from pydontology import (
         BaseContext,
         Entity,
         Relation,
+        Settings,
         Pydontology,
         RDFSAnnotation as RDFS,
         OWLAnnotation as OWL,
         SHACLAnnotation as SH,
 
     )
-    from pydontology.settings import Settings
+
 
     return (
         Annotated,
@@ -52,17 +53,7 @@ def _(mo):
 
 
 @app.cell
-def _(
-    Annotated,
-    Entity,
-    Field,
-    OWL,
-    Optional,
-    Pydontology,
-    RDFS,
-    Relation,
-    SH,
-):
+def _(Annotated, Entity, Field, OWL, Optional, RDFS, Relation, SH):
     class Person(Entity):
         """A person class"""
         name: str = Field(description="Person's name")
@@ -99,30 +90,28 @@ def _(
 
 
 
-    onto = Pydontology(Person | Annotated[Employee, OWL.equivalentClass("Worker")] | Manager | Department)
-    return Employee, Manager, Person, onto
+    ontology = Person | Annotated[Employee, OWL.equivalentClass("Worker")] | Manager | Department
+    return Employee, Manager, Person, ontology
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    Create the json-ld ontology graph using `Model.ontology_graph` and serialize it as json
-    """)
+@app.cell
+def _(Pydontology, ontology):
+    pydonto = Pydontology(ontology)
+    onto_graph = pydonto.ontology_graph()
+    sh_graph = pydonto.shacl_graph()
+    return onto_graph, sh_graph
+
+
+@app.cell
+def _(onto_graph):
+    print(onto_graph.model_dump_json(indent=2, exclude_none=True))
     return
 
 
 @app.cell
-def _(onto):
-    ogjson = onto.ontology_graph().model_dump_json(indent=2, exclude_none=True)
-    print(ogjson)
-    return
+def _(sh_graph):
+    print(sh_graph.model_dump_json(indent=2, exclude_none=True))
 
-
-@app.cell
-def _(onto):
-    sgjson = onto.shacl_graph().model_dump_json(indent=2, exclude_none=True)
-    print("SHACL graph JSON-LD:")
-    print(sgjson)
     return
 
 

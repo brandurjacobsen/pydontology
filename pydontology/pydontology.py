@@ -1,10 +1,20 @@
+import uuid
 import warnings
 from inspect import get_annotations, isclass
 from types import UnionType
-from typing import Annotated, List, Literal, Optional, get_args, get_origin
+from typing import Annotated, Any, List, Literal, Optional, get_args, get_origin
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, TypeAdapter, computed_field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    HttpUrl,
+    TypeAdapter,
+    computed_field,
+    create_model,
+)
 from pydantic.json_schema import SkipJsonSchema
+from pydantic.types import UUID4
 
 from .owl import OWLAnnotation
 from .rdfs import RDFSAnnotation
@@ -287,18 +297,18 @@ class _NodeShape(BaseModel):
 class JSONLDGraph(BaseModel):
     """Class that encapsulates a JSON-LD document/graph."""
 
-    context: SkipJsonSchema[BaseContext] = Field(
+    context: BaseContext = Field(
         default=BaseContext(),
         alias="@context",
         title="@context",
         description="JSON-LD context",
     )
 
-    graph: List = Field(
+    graph: List[Any] = Field(
         default=[],
         alias="@graph",
         title="@graph",
-        description="Default graph",
+        description="Default or named graph",
     )
 
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
@@ -379,12 +389,12 @@ class Pydontology:
                 f"Field {field_id} can not be defined again with different Python type"
             )
         return {
-            "defined_in": [class_name, *self._prop_db[field_id]["defined_in"]],
+            "defined_in": [*self._prop_db[field_id]["defined_in"], class_name],
             "description": [
-                field_info.description,
                 *self._prop_db[field_id]["description"],
+                field_info.description,
             ],
-            "metadata": [field_info.metadata, *self._prop_db[field_id]["metadata"]],
+            "metadata": [*self._prop_db[field_id]["metadata"], field_info.metadata],
             "field_type": field_type,
         }
 
@@ -457,6 +467,10 @@ class Pydontology:
     ) -> _OntologyProperty:
         """Add property annotations to ontology property"""
         for meta in annotations:
+            if isinstance(meta, RDFSAnnotation.COMMENT):
+                prop_def.comment = meta.value
+            if isinstance(meta, RDFSAnnotation.LABEL):
+                prop_def.label = meta.value
             if isinstance(meta, RDFSAnnotation.RANGE):
                 prop_def.range = Relation(id=meta.value)  # pyright: ignore
             elif isinstance(meta, RDFSAnnotation.DOMAIN):
@@ -521,19 +535,20 @@ class Pydontology:
             if len(field_info["metadata"]) > 1:
                 if self.cfg.SHOW_WARNINGS:
                     warnings.warn(
-                        f"Only first seen OWL/RDFS annotation data will be used for '{field_name}' property since it is defined in multiple classes",
+                        f"OWL/RDFS annotations will be concatenated for '{field_name}' property since it is defined in multiple classe",
                         UserWarning,
                     )
-            self._add_property_annotations(prop_def, field_info["metadata"][0])
+            self._add_property_annotations(
+                prop_def, [m for sublist in field_info["metadata"] for m in sublist]
+            )
             ontology_props.append(prop_def)
         return ontology_props
 
     def ontology_graph(
-        self, context: BaseContext = BaseContext(), settings: Settings | None = None
+        self, context: BaseContext = BaseContext(), settings: Settings = Settings()
     ):
         """Generate ontology graph"""
-        if settings is not None:
-            self.cfg = settings
+        self.cfg = settings
         onto_classes = self._create_ontology_classes()
         onto_props = self._create_ontology_properties()
         return JSONLDGraph(context=context, graph=[*onto_classes, *onto_props])  # pyright: ignore
@@ -652,12 +667,12 @@ class Pydontology:
                 create_prop_shape = True
 
             # If no shacl annotations are in metadata and no default settings
-            # imply a property shape is needed, then don't create property shap
+            # imply a property shape is needed, then don't create property shape
             if (
                 not any(
                     [
-                        type(a).__qualname__.startswith("SHACLAnnotation.")
-                        for a in field_info["metadata"][idx]
+                        type(sh).__qualname__.startswith("SHACLAnnotation.")
+                        for sh in field_info["metadata"][idx]
                     ]
                 )
                 and not create_prop_shape
@@ -692,15 +707,40 @@ class Pydontology:
         return node_shapes
 
     def shacl_graph(
-        self, context: BaseContext = BaseContext(), settings: Settings | None = None
+        self, context: BaseContext = BaseContext(), settings: Settings = Settings()
     ):
         """Generate SHACL graph"""
-        if settings is not None:
-            self.cfg = settings
 
+        self.cfg = settings
         shacl_shapes = self._create_node_shapes()
         return JSONLDGraph(context=context, graph=shacl_shapes)  # pyright: ignore
 
-    def jsonld_schema(self, context: BaseContext = BaseContext()):
-        adapter = TypeAdapter(self.ontology)
-        return JSONLDGraph(context=context, graph=[adapter])  # pyright: ignore
+    def schema_graph(self, context: BaseContext = BaseContext()) -> type[JSONLDGraph]:
+        """
+        Makes a JSONLDGraph class from the ontology for making JSON schemas
+        """
+        return create_model(
+            "PydontologyModel",
+            context=(
+                BaseContext,
+                Field(
+                    alias="@context",
+                    default=context,
+                    json_schema_extra={
+                        "name": "@context",
+                        "description": "JSON-LD context",
+                    },
+                ),
+            ),
+            graph=(
+                List[self.ontology],
+                Field(
+                    alias="@graph",
+                    json_schema_extra={
+                        "name": "@graph",
+                        "description": "Default json-ld graph",
+                    },
+                ),
+            ),
+            __base__=JSONLDGraph,
+        )

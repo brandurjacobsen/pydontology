@@ -42,6 +42,10 @@ pip install pydantic  # Required
 pip install -i https://test.pypi.org/simple/ pydontology
 ~~~
 
+## Documentation
+Documentation is built using mkdocs and hosted using Github Pages here: [https://brandurjacobsen.github.io/pydontology/](https://brandurjacobsen.github.io/pydontology/)
+
+
 ## Example
 
 ~~~
@@ -716,3 +720,7 @@ Output of `print(schemag_json)`:
 }
 
 ~~~
+
+These outputs can be parsed by rdflib into a graph and serialized into e.g. Turtle format.
+
+More on will be said on this here later.

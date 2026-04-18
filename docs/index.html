@@ -85,7 +85,7 @@
               <ul class="nav flex-column">
               </ul>
             </li>
-            <li class="nav-item" data-bs-level="2"><a href="#example-1" class="nav-link">Example 1</a>
+            <li class="nav-item" data-bs-level="2"><a href="#example" class="nav-link">Example</a>
               <ul class="nav flex-column">
               </ul>
             </li>
@@ -98,14 +98,10 @@
 
 <h1 id="pydontology">Pydontology<a class="headerlink" href="#pydontology" title="Permanent link">#</a></h1>
 <h2 id="ontologies-the-pydantic-way"><em>Ontologies the Pydantic way</em><a class="headerlink" href="#ontologies-the-pydantic-way" title="Permanent link">#</a></h2>
-<p>This is a work in progress.</p>
-<p>In my opinion, if you call yourself a 'Python developer', you either have some bulky (recent) personal Python projects under your belt, 
-or you write Python code for a living, which unfortunately means that I'm not a 'Python developer'; this is also a work in progress.</p>
-<p>I would appreciate feedback on this project, and help to develop it further. So, contributions (and issues) are welcome!</p>
-<p>That being said, this package will enable you to:</p>
+<p>This package will enable you to:</p>
 <ul>
 <li>Build an RDF ontology using the well-known Pydantic model classes</li>
-<li>Use typing.Annotated to add RDFS/OWL and SHACL metadata to your ontology class attributes</li>
+<li>Use typing.Annotated to add RDFS/OWL and SHACL metadata to your ontology class properties</li>
 <li>Generate a JSON-LD (JSON for Linked Data) ontology graph from your ontology and metadata</li>
 <li>Generate a JSON-LD SHACL (Shapes Constraint Language) graph from your ontology and metadata</li>
 <li>Generate a JSON schema from your ontology, which for example can be passed to LLMs to produce structured output</li>
@@ -113,10 +109,10 @@ or you write Python code for a living, which unfortunately means that I'm not a 
 </ul>
 <p>The package exposes, amongst others, the classes <a href="reference/#pydontology.pydontology.Entity">Entity</a> and <a href="reference/#pydontology.pydontology.Relation">Relation</a>, which inherit Pydantic's BaseModel.
 Entity serves as the base class for ontology classes.
-An attribute of an Entity class is considered to be an RDF literal, unless the attribute is of type Relation.</p>
-<p>Once the ontology classes are defined, a call to <a href="reference/#pydontology.pydontology.make_model">make_model</a> will return a <a href="reference/#pydontology.pydontology.JSONLDGraph">JSONLDGraph</a> class
-that, once instantiated and populated with ontology 'individuals', will serialize as a valid JSON-LD document, ready for parsing by e.g. rdflib.</p>
-<p>JSONLDGraph provides the class methods: <a href="reference/#pydontology.pydontology.JSONLDGraph.ontology_graph">ontology_graph</a> and <a href="reference/#pydontology.pydontology.JSONLDGraph.shacl_graph">shacl_graph</a> to generate the ontology graph and shacl graph respectively, as a (populated) JSONLDGraph instance.</p>
+A field of an Entity class is considered to be an RDF literal, unless the attribute is of type Relation, 
+in which case the value is interpreted as an IRI.</p>
+<p>Once the ontology classes are defined, an instance of the <a href="reference/#pydontology.pydontology.Pydontology">Pydontology</a> class can be instantiated with the union of ontology classes as an argument.</p>
+<p>Pydontology provides the methods: <a href="reference/#pydontology.pydontology.Pydontology.ontology_graph">ontology_graph</a> and <a href="reference/#pydontology.pydontology.Pydontology.shacl_graph">shacl_graph</a> to generate the ontology graph and shacl graph respectively, as a (populated) JSONLDGraph instance, ready for parsing by rdflib after serialization.</p>
 <h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">#</a></h2>
 <p>This package is currently distributed via <a href="https://test.pypi.org/project/pydontology/">TestPyPi</a>. </p>
 <p>To install in a Python virtual environment, run the following commands in a terminal, in a directory of your chosing: </p>
@@ -127,40 +123,662 @@ pip install --upgrade pip  # Optional
 pip install pydantic  # Required
 pip install -i https://test.pypi.org/simple/ pydontology
 </code></pre>
-<h2 id="example-1">Example 1<a class="headerlink" href="#example-1" title="Permanent link">#</a></h2>
-<pre><code>from pydantic import Field
-from typing import Optional, Annotated
-from pydontology import Entity, Relation, RDFSAnnotation
+<h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">#</a></h2>
+<pre><code>from typing import Annotated, Optional
+
+from pydantic import Field
+
+from pydontology import (
+    BaseContext,
+    Entity,
+    Relation,
+    Settings,
+    Pydontology,
+    RDFSAnnotation as RDFS,
+    OWLAnnotation as OWL,
+    SHACLAnnotation as SH,
+
+)
 
 class Person(Entity):
-    &quot;&quot;&quot;A person entity&quot;&quot;&quot;
+    &quot;&quot;&quot;A person class&quot;&quot;&quot;
     name: str = Field(description=&quot;Person's name&quot;)
-    age: Optional[int] = Field(default=None, description=&quot;Person's age&quot;)
+    age: Annotated[Optional[int], OWL.functionalProperty(True)] = Field(default=None, description=&quot;Person's age&quot;)
 
 
 class Employee(Person):
-    &quot;&quot;&quot;An employee entity, inherits from Person&quot;&quot;&quot;
-    employee_id: str = Field(description=&quot;Employee ID&quot;)
-    has_manager: Annotated[Optional[Relation], RDFSAnnotation.range('Manager')] = Field(default=None, description=&quot;Link to manager&quot;)
+    &quot;&quot;&quot;An employee class, inherits from Person&quot;&quot;&quot;
+    employee_id: Annotated[
+      str,
+      OWL.functionalProperty(True),
+      OWL.inverseFunctionalProperty(True),
+      SH.minCount(1),
+      SH.maxCount(1)] = Field(description=&quot;Employee ID&quot;)
 
+    has_manager: Annotated[
+      Optional[Relation], 
+      RDFS.range(&quot;Manager&quot;),
+      SH.shclass(&quot;Manager&quot;)] = Field(default=None, description=&quot;Link to manager&quot;)
+
+    department: Annotated[Relation, RDFS.range(&quot;Department&quot;)] = Field(description=&quot;Link to department&quot;)
+
+class Worker(Person):
+    pass
 
 class Manager(Employee):
-    &quot;&quot;&quot;A manager entity, inherits from Employee&quot;&quot;&quot;
-    department: str = Field(description=&quot;Department name&quot;)
-</code></pre>
-<p>Note the use of typing.Annotated above to have the ontology graph include the triple: <code>ex:has_manager rdfs:range ex:Manager</code>,
-by using the <em>RDFSAnnotation.range</em> method.
-The RDFS domain is per default assumed to be the class wherein the attribute is defined.</p>
-<p>The model can then be created using the <em>make_model</em> function:</p>
-<pre><code>from pydontology import make_model
+    &quot;&quot;&quot;A manager class, inherits from Employee&quot;&quot;&quot;
+    heads: Annotated[Relation | None, RDFS.range(&quot;Department&quot;)] = Field(default=None, description=&quot;Department that manager heads&quot;)
 
-ontology = Person | Employee | Manager
-Model = make_model(ontology)
+class Department(Entity):
+    &quot;&quot;&quot;A department class&quot;&quot;&quot;
+    # Name property is defined again with same Python type
+    name: Annotated[str, RDFS.comment(&quot;Person or department name&quot;)] = Field(description=&quot;Name of department&quot;)  
+
+ontology = Person | Annotated[Employee, OWL.equivalentClass(&quot;Worker&quot;)] | Manager | Department
+
 </code></pre>
-<p>View the JSON schema, and the ontology in JSON-LD format:</p>
+<p>Note the use of typing.Annotated above to annotate properties and Entity classes with RDFS, OWL constructs.
+These will appear in the ontology graph and SHACL graph.</p>
+<p>Inherited ontology classes will per default have RDFS subClassOf property set to be the parent class, or owl:Thing class if inheriting from Entity(multiple inheritance is currently not implemented when defining classes, but can be achieved by annotating the inherited class after the definition).</p>
+<p>The RDFS domain of an ontology property is per default set to be the class wherein the property is defined, unless the property is defined in multiple ontology classes, in which cass the user will receive a UserWarning.</p>
+<p>The default annotation behaviour (and whether to show warnings) can be controlled via the <a href="reference/#pydontology.settings.Settings">Settings</a> class, which <a href="reference/#pydontology.pydontology.Pydontology.ontology_graph">ontology_graph</a> and <a href="reference/#pydontology.pydontology.Pydontology.shacl_graph">shacl_graph</a> accept as an optional parameter.</p>
+<p>The model can then be created by instantiating the <a href="reference/#pydontology.pydontology.Pydontology">Pydontology</a> class with the ontology,
+and the ontology graph and SHACL graph can be created using the <a href="reference/#pydontology.pydontology.Pydontology.ontology_graph">ontology_graph</a> and <a href="reference/#pydontology.pydontology.Pydontology.shacl_graph">shacl_graph</a> methods.
+A json (json-ld) schema can be made the usual Pydantic way (see below).</p>
 <pre><code>import json
-print(json.dumps(Model.model_json_schema(), indent=2))
-print(Model.ontology_graph().model_dump_json(indent=2))
+
+pydonto = Pydontology(ontology)
+
+ontog = pydonto.ontology_graph()
+ontog_json = ontog.model_dump_json(indent=2, exclude_none=True)
+
+shaclg = pydonto.shacl_graph()
+shaclg_json = shaclg.model_dump_json(indent=2, exclude_none=True)
+
+schemag = pydonto.schema_graph()
+schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
+</code></pre>
+<p>Output of <code>print(ontog_json)</code>:</p>
+<pre><code>{
+  &quot;@context&quot;: {
+    &quot;@version&quot;: 1.1,
+    &quot;@vocab&quot;: &quot;http://example.com/vocab/&quot;,
+    &quot;@base&quot;: &quot;http://example.com/vocab/&quot;,
+    &quot;@language&quot;: &quot;en&quot;,
+    &quot;sh&quot;: &quot;http://www.w3.org/ns/shacl#&quot;,
+    &quot;xsd&quot;: &quot;http://www.w3.org/2001/XMLSchema#&quot;,
+    &quot;rdfs&quot;: &quot;http://www.w3.org/2000/01/rdf-schema#&quot;,
+    &quot;owl&quot;: &quot;http://www.w3.org/2002/07/owl#&quot;
+  },
+  &quot;@graph&quot;: [
+    {
+      &quot;@id&quot;: &quot;Person&quot;,
+      &quot;@type&quot;: &quot;rdfs:Class&quot;,
+      &quot;rdfs:label&quot;: &quot;Person&quot;,
+      &quot;rdfs:comment&quot;: &quot;A person class&quot;,
+      &quot;rdfs:subClassOf&quot;: {
+        &quot;@id&quot;: &quot;owl:Thing&quot;
+      }
+    },
+    {
+      &quot;@id&quot;: &quot;Employee&quot;,
+      &quot;@type&quot;: &quot;rdfs:Class&quot;,
+      &quot;rdfs:label&quot;: &quot;Employee&quot;,
+      &quot;rdfs:comment&quot;: &quot;An employee class, inherits from Person&quot;,
+      &quot;rdfs:subClassOf&quot;: {
+        &quot;@id&quot;: &quot;Person&quot;
+      },
+      &quot;owl:equivalentClass&quot;: {
+        &quot;@id&quot;: &quot;Worker&quot;
+      }
+    },
+    {
+      &quot;@id&quot;: &quot;Manager&quot;,
+      &quot;@type&quot;: &quot;rdfs:Class&quot;,
+      &quot;rdfs:label&quot;: &quot;Manager&quot;,
+      &quot;rdfs:comment&quot;: &quot;A manager class, inherits from Employee&quot;,
+      &quot;rdfs:subClassOf&quot;: {
+        &quot;@id&quot;: &quot;Employee&quot;
+      }
+    },
+    {
+      &quot;@id&quot;: &quot;Department&quot;,
+      &quot;@type&quot;: &quot;rdfs:Class&quot;,
+      &quot;rdfs:label&quot;: &quot;Department&quot;,
+      &quot;rdfs:comment&quot;: &quot;A department class&quot;,
+      &quot;rdfs:subClassOf&quot;: {
+        &quot;@id&quot;: &quot;owl:Thing&quot;
+      }
+    },
+    {
+      &quot;@id&quot;: &quot;name&quot;,
+      &quot;@type&quot;: [
+        &quot;owl:DatatypeProperty&quot;
+      ],
+      &quot;rdfs:label&quot;: &quot;name&quot;,
+      &quot;rdfs:comment&quot;: &quot;Person or department name&quot;
+    },
+    {
+      &quot;@id&quot;: &quot;age&quot;,
+      &quot;@type&quot;: [
+        &quot;owl:DatatypeProperty&quot;,
+        &quot;owl:FunctionalProperty&quot;
+      ],
+      &quot;rdfs:label&quot;: &quot;age&quot;,
+      &quot;rdfs:domain&quot;: {
+        &quot;@id&quot;: &quot;Person&quot;
+      },
+      &quot;rdfs:comment&quot;: &quot;Person's age&quot;
+    },
+    {
+      &quot;@id&quot;: &quot;employee_id&quot;,
+      &quot;@type&quot;: [
+        &quot;owl:DatatypeProperty&quot;,
+        &quot;owl:FunctionalProperty&quot;,
+        &quot;owl:InverseFunctionalProperty&quot;
+      ],
+      &quot;rdfs:label&quot;: &quot;employee_id&quot;,
+      &quot;rdfs:domain&quot;: {
+        &quot;@id&quot;: &quot;Employee&quot;
+      },
+      &quot;rdfs:comment&quot;: &quot;Employee ID&quot;
+    },
+    {
+      &quot;@id&quot;: &quot;has_manager&quot;,
+      &quot;@type&quot;: [
+        &quot;owl:ObjectProperty&quot;
+      ],
+      &quot;rdfs:label&quot;: &quot;has_manager&quot;,
+      &quot;rdfs:domain&quot;: {
+        &quot;@id&quot;: &quot;Employee&quot;
+      },
+      &quot;rdfs:range&quot;: {
+        &quot;@id&quot;: &quot;Manager&quot;
+      },
+      &quot;rdfs:comment&quot;: &quot;Link to manager&quot;
+    },
+    {
+      &quot;@id&quot;: &quot;department&quot;,
+      &quot;@type&quot;: [
+        &quot;owl:ObjectProperty&quot;
+      ],
+      &quot;rdfs:label&quot;: &quot;department&quot;,
+      &quot;rdfs:domain&quot;: {
+        &quot;@id&quot;: &quot;Employee&quot;
+      },
+      &quot;rdfs:range&quot;: {
+        &quot;@id&quot;: &quot;Department&quot;
+      },
+      &quot;rdfs:comment&quot;: &quot;Link to department&quot;
+    },
+    {
+      &quot;@id&quot;: &quot;heads&quot;,
+      &quot;@type&quot;: [
+        &quot;owl:ObjectProperty&quot;
+      ],
+      &quot;rdfs:label&quot;: &quot;heads&quot;,
+      &quot;rdfs:domain&quot;: {
+        &quot;@id&quot;: &quot;Manager&quot;
+      },
+      &quot;rdfs:range&quot;: {
+        &quot;@id&quot;: &quot;Department&quot;
+      },
+      &quot;rdfs:comment&quot;: &quot;Department that manager heads&quot;
+    }
+  ]
+}
+
+</code></pre>
+<p>Output of <code>print(shaclg_json)</code>:</p>
+<pre><code>{
+  &quot;@context&quot;: {
+    &quot;@version&quot;: 1.1,
+    &quot;@vocab&quot;: &quot;http://example.com/vocab/&quot;,
+    &quot;@base&quot;: &quot;http://example.com/vocab/&quot;,
+    &quot;@language&quot;: &quot;en&quot;,
+    &quot;sh&quot;: &quot;http://www.w3.org/ns/shacl#&quot;,
+    &quot;xsd&quot;: &quot;http://www.w3.org/2001/XMLSchema#&quot;,
+    &quot;rdfs&quot;: &quot;http://www.w3.org/2000/01/rdf-schema#&quot;,
+    &quot;owl&quot;: &quot;http://www.w3.org/2002/07/owl#&quot;
+  },
+  &quot;@graph&quot;: [
+    {
+      &quot;@id&quot;: &quot;PersonShape&quot;,
+      &quot;@type&quot;: &quot;sh:NodeShape&quot;,
+      &quot;sh:targetClass&quot;: {
+        &quot;@id&quot;: &quot;Person&quot;
+      },
+      &quot;sh:property&quot;: [
+        {
+          &quot;@id&quot;: &quot;PersonShape_name&quot;,
+          &quot;@type&quot;: &quot;sh:PropertyShape&quot;,
+          &quot;sh:path&quot;: {
+            &quot;@id&quot;: &quot;name&quot;
+          },
+          &quot;sh:datatype&quot;: {
+            &quot;@id&quot;: &quot;xsd:string&quot;
+          },
+          &quot;sh:name&quot;: &quot;name&quot;,
+          &quot;sh:description&quot;: &quot;Person's name&quot;
+        },
+        {
+          &quot;@id&quot;: &quot;PersonShape_age&quot;,
+          &quot;@type&quot;: &quot;sh:PropertyShape&quot;,
+          &quot;sh:path&quot;: {
+            &quot;@id&quot;: &quot;age&quot;
+          },
+          &quot;sh:datatype&quot;: {
+            &quot;@id&quot;: &quot;xsd:integer&quot;
+          },
+          &quot;sh:name&quot;: &quot;age&quot;,
+          &quot;sh:description&quot;: &quot;Person's age&quot;
+        }
+      ]
+    },
+    {
+      &quot;@id&quot;: &quot;EmployeeShape&quot;,
+      &quot;@type&quot;: &quot;sh:NodeShape&quot;,
+      &quot;sh:targetClass&quot;: {
+        &quot;@id&quot;: &quot;Employee&quot;
+      },
+      &quot;sh:property&quot;: [
+        {
+          &quot;@id&quot;: &quot;EmployeeShape_employee_id&quot;,
+          &quot;@type&quot;: &quot;sh:PropertyShape&quot;,
+          &quot;sh:path&quot;: {
+            &quot;@id&quot;: &quot;employee_id&quot;
+          },
+          &quot;sh:datatype&quot;: {
+            &quot;@id&quot;: &quot;xsd:string&quot;
+          },
+          &quot;sh:minCount&quot;: 1,
+          &quot;sh:maxCount&quot;: 1,
+          &quot;sh:name&quot;: &quot;employee_id&quot;,
+          &quot;sh:description&quot;: &quot;Employee ID&quot;
+        },
+        {
+          &quot;@id&quot;: &quot;EmployeeShape_has_manager&quot;,
+          &quot;@type&quot;: &quot;sh:PropertyShape&quot;,
+          &quot;sh:path&quot;: {
+            &quot;@id&quot;: &quot;has_manager&quot;
+          },
+          &quot;sh:class&quot;: {
+            &quot;@id&quot;: &quot;Manager&quot;
+          },
+          &quot;sh:nodeKind&quot;: {
+            &quot;@id&quot;: &quot;sh:IRI&quot;
+          },
+          &quot;sh:name&quot;: &quot;has_manager&quot;,
+          &quot;sh:description&quot;: &quot;Link to manager&quot;
+        },
+        {
+          &quot;@id&quot;: &quot;EmployeeShape_department&quot;,
+          &quot;@type&quot;: &quot;sh:PropertyShape&quot;,
+          &quot;sh:path&quot;: {
+            &quot;@id&quot;: &quot;department&quot;
+          },
+          &quot;sh:nodeKind&quot;: {
+            &quot;@id&quot;: &quot;sh:IRI&quot;
+          },
+          &quot;sh:name&quot;: &quot;department&quot;,
+          &quot;sh:description&quot;: &quot;Link to department&quot;
+        }
+      ]
+    },
+    {
+      &quot;@id&quot;: &quot;ManagerShape&quot;,
+      &quot;@type&quot;: &quot;sh:NodeShape&quot;,
+      &quot;sh:targetClass&quot;: {
+        &quot;@id&quot;: &quot;Manager&quot;
+      },
+      &quot;sh:property&quot;: [
+        {
+          &quot;@id&quot;: &quot;ManagerShape_heads&quot;,
+          &quot;@type&quot;: &quot;sh:PropertyShape&quot;,
+          &quot;sh:path&quot;: {
+            &quot;@id&quot;: &quot;heads&quot;
+          },
+          &quot;sh:nodeKind&quot;: {
+            &quot;@id&quot;: &quot;sh:IRI&quot;
+          },
+          &quot;sh:name&quot;: &quot;heads&quot;,
+          &quot;sh:description&quot;: &quot;Department that manager heads&quot;
+        }
+      ]
+    },
+    {
+      &quot;@id&quot;: &quot;DepartmentShape&quot;,
+      &quot;@type&quot;: &quot;sh:NodeShape&quot;,
+      &quot;sh:targetClass&quot;: {
+        &quot;@id&quot;: &quot;Department&quot;
+      },
+      &quot;sh:property&quot;: [
+        {
+          &quot;@id&quot;: &quot;DepartmentShape_name&quot;,
+          &quot;@type&quot;: &quot;sh:PropertyShape&quot;,
+          &quot;sh:path&quot;: {
+            &quot;@id&quot;: &quot;name&quot;
+          },
+          &quot;sh:datatype&quot;: {
+            &quot;@id&quot;: &quot;xsd:string&quot;
+          },
+          &quot;sh:name&quot;: &quot;name&quot;,
+          &quot;sh:description&quot;: &quot;Name of department&quot;
+        }
+      ]
+    }
+  ]
+}
+
+</code></pre>
+<p>Output of <code>print(schemag_json)</code>:</p>
+<pre><code>
+{
+  &quot;$defs&quot;: {
+    &quot;BaseContext&quot;: {
+      &quot;description&quot;: &quot;Default context&quot;,
+      &quot;properties&quot;: {
+        &quot;@version&quot;: {
+          &quot;default&quot;: 1.1,
+          &quot;title&quot;: &quot;@Version&quot;,
+          &quot;type&quot;: &quot;number&quot;
+        },
+        &quot;@vocab&quot;: {
+          &quot;default&quot;: &quot;http://example.com/vocab/&quot;,
+          &quot;description&quot;: &quot;Prefix of properties, values of @type, and values of terms that are relative.&quot;,
+          &quot;title&quot;: &quot;@Vocab&quot;,
+          &quot;type&quot;: &quot;string&quot;
+        },
+        &quot;@base&quot;: {
+          &quot;default&quot;: &quot;http://example.com/vocab/&quot;,
+          &quot;description&quot;: &quot;Prefix of relative IRIs.&quot;,
+          &quot;title&quot;: &quot;@Base&quot;,
+          &quot;type&quot;: &quot;string&quot;
+        },
+        &quot;@language&quot;: {
+          &quot;anyOf&quot;: [
+            {
+              &quot;type&quot;: &quot;string&quot;
+            },
+            {
+              &quot;type&quot;: &quot;null&quot;
+            }
+          ],
+          &quot;default&quot;: &quot;en&quot;,
+          &quot;description&quot;: &quot;BCP47 default language identifier&quot;,
+          &quot;title&quot;: &quot;@Language&quot;
+        },
+        &quot;sh&quot;: {
+          &quot;const&quot;: &quot;http://www.w3.org/ns/shacl#&quot;,
+          &quot;default&quot;: &quot;http://www.w3.org/ns/shacl#&quot;,
+          &quot;title&quot;: &quot;Sh&quot;,
+          &quot;type&quot;: &quot;string&quot;
+        },
+        &quot;xsd&quot;: {
+          &quot;const&quot;: &quot;http://www.w3.org/2001/XMLSchema#&quot;,
+          &quot;default&quot;: &quot;http://www.w3.org/2001/XMLSchema#&quot;,
+          &quot;title&quot;: &quot;Xsd&quot;,
+          &quot;type&quot;: &quot;string&quot;
+        },
+        &quot;rdfs&quot;: {
+          &quot;const&quot;: &quot;http://www.w3.org/2000/01/rdf-schema#&quot;,
+          &quot;default&quot;: &quot;http://www.w3.org/2000/01/rdf-schema#&quot;,
+          &quot;title&quot;: &quot;Rdfs&quot;,
+          &quot;type&quot;: &quot;string&quot;
+        },
+        &quot;owl&quot;: {
+          &quot;const&quot;: &quot;http://www.w3.org/2002/07/owl#&quot;,
+          &quot;default&quot;: &quot;http://www.w3.org/2002/07/owl#&quot;,
+          &quot;title&quot;: &quot;Owl&quot;,
+          &quot;type&quot;: &quot;string&quot;
+        }
+      },
+      &quot;title&quot;: &quot;BaseContext&quot;,
+      &quot;type&quot;: &quot;object&quot;
+    },
+    &quot;Department&quot;: {
+      &quot;description&quot;: &quot;A department class&quot;,
+      &quot;properties&quot;: {
+        &quot;@id&quot;: {
+          &quot;description&quot;: &quot;IRI (possibly relative)&quot;,
+          &quot;title&quot;: &quot;@id&quot;,
+          &quot;type&quot;: &quot;string&quot;
+        },
+        &quot;name&quot;: {
+          &quot;description&quot;: &quot;Name of department&quot;,
+          &quot;title&quot;: &quot;Name&quot;,
+          &quot;type&quot;: &quot;string&quot;
+        }
+      },
+      &quot;required&quot;: [
+        &quot;@id&quot;,
+        &quot;name&quot;
+      ],
+      &quot;title&quot;: &quot;Department&quot;,
+      &quot;type&quot;: &quot;object&quot;
+    },
+    &quot;Employee&quot;: {
+      &quot;description&quot;: &quot;An employee class, inherits from Person&quot;,
+      &quot;properties&quot;: {
+        &quot;@id&quot;: {
+          &quot;description&quot;: &quot;IRI (possibly relative)&quot;,
+          &quot;title&quot;: &quot;@id&quot;,
+          &quot;type&quot;: &quot;string&quot;
+        },
+        &quot;name&quot;: {
+          &quot;description&quot;: &quot;Person's name&quot;,
+          &quot;title&quot;: &quot;Name&quot;,
+          &quot;type&quot;: &quot;string&quot;
+        },
+        &quot;age&quot;: {
+          &quot;anyOf&quot;: [
+            {
+              &quot;type&quot;: &quot;integer&quot;
+            },
+            {
+              &quot;type&quot;: &quot;null&quot;
+            }
+          ],
+          &quot;default&quot;: null,
+          &quot;description&quot;: &quot;Person's age&quot;,
+          &quot;title&quot;: &quot;Age&quot;
+        },
+        &quot;employee_id&quot;: {
+          &quot;description&quot;: &quot;Employee ID&quot;,
+          &quot;title&quot;: &quot;Employee Id&quot;,
+          &quot;type&quot;: &quot;string&quot;
+        },
+        &quot;has_manager&quot;: {
+          &quot;anyOf&quot;: [
+            {
+              &quot;$ref&quot;: &quot;#/$defs/Relation&quot;
+            },
+            {
+              &quot;type&quot;: &quot;null&quot;
+            }
+          ],
+          &quot;default&quot;: null,
+          &quot;description&quot;: &quot;Link to manager&quot;
+        },
+        &quot;department&quot;: {
+          &quot;$ref&quot;: &quot;#/$defs/Relation&quot;,
+          &quot;description&quot;: &quot;Link to department&quot;
+        }
+      },
+      &quot;required&quot;: [
+        &quot;@id&quot;,
+        &quot;name&quot;,
+        &quot;employee_id&quot;,
+        &quot;department&quot;
+      ],
+      &quot;title&quot;: &quot;Employee&quot;,
+      &quot;type&quot;: &quot;object&quot;
+    },
+    &quot;Manager&quot;: {
+      &quot;description&quot;: &quot;A manager class, inherits from Employee&quot;,
+      &quot;properties&quot;: {
+        &quot;@id&quot;: {
+          &quot;description&quot;: &quot;IRI (possibly relative)&quot;,
+          &quot;title&quot;: &quot;@id&quot;,
+          &quot;type&quot;: &quot;string&quot;
+        },
+        &quot;name&quot;: {
+          &quot;description&quot;: &quot;Person's name&quot;,
+          &quot;title&quot;: &quot;Name&quot;,
+          &quot;type&quot;: &quot;string&quot;
+        },
+        &quot;age&quot;: {
+          &quot;anyOf&quot;: [
+            {
+              &quot;type&quot;: &quot;integer&quot;
+            },
+            {
+              &quot;type&quot;: &quot;null&quot;
+            }
+          ],
+          &quot;default&quot;: null,
+          &quot;description&quot;: &quot;Person's age&quot;,
+          &quot;title&quot;: &quot;Age&quot;
+        },
+        &quot;employee_id&quot;: {
+          &quot;description&quot;: &quot;Employee ID&quot;,
+          &quot;title&quot;: &quot;Employee Id&quot;,
+          &quot;type&quot;: &quot;string&quot;
+        },
+        &quot;has_manager&quot;: {
+          &quot;anyOf&quot;: [
+            {
+              &quot;$ref&quot;: &quot;#/$defs/Relation&quot;
+            },
+            {
+              &quot;type&quot;: &quot;null&quot;
+            }
+          ],
+          &quot;default&quot;: null,
+          &quot;description&quot;: &quot;Link to manager&quot;
+        },
+        &quot;department&quot;: {
+          &quot;$ref&quot;: &quot;#/$defs/Relation&quot;,
+          &quot;description&quot;: &quot;Link to department&quot;
+        },
+        &quot;heads&quot;: {
+          &quot;anyOf&quot;: [
+            {
+              &quot;$ref&quot;: &quot;#/$defs/Relation&quot;
+            },
+            {
+              &quot;type&quot;: &quot;null&quot;
+            }
+          ],
+          &quot;default&quot;: null,
+          &quot;description&quot;: &quot;Department that manager heads&quot;
+        }
+      },
+      &quot;required&quot;: [
+        &quot;@id&quot;,
+        &quot;name&quot;,
+        &quot;employee_id&quot;,
+        &quot;department&quot;
+      ],
+      &quot;title&quot;: &quot;Manager&quot;,
+      &quot;type&quot;: &quot;object&quot;
+    },
+    &quot;Person&quot;: {
+      &quot;description&quot;: &quot;A person class&quot;,
+      &quot;properties&quot;: {
+        &quot;@id&quot;: {
+          &quot;description&quot;: &quot;IRI (possibly relative)&quot;,
+          &quot;title&quot;: &quot;@id&quot;,
+          &quot;type&quot;: &quot;string&quot;
+        },
+        &quot;name&quot;: {
+          &quot;description&quot;: &quot;Person's name&quot;,
+          &quot;title&quot;: &quot;Name&quot;,
+          &quot;type&quot;: &quot;string&quot;
+        },
+        &quot;age&quot;: {
+          &quot;anyOf&quot;: [
+            {
+              &quot;type&quot;: &quot;integer&quot;
+            },
+            {
+              &quot;type&quot;: &quot;null&quot;
+            }
+          ],
+          &quot;default&quot;: null,
+          &quot;description&quot;: &quot;Person's age&quot;,
+          &quot;title&quot;: &quot;Age&quot;
+        }
+      },
+      &quot;required&quot;: [
+        &quot;@id&quot;,
+        &quot;name&quot;
+      ],
+      &quot;title&quot;: &quot;Person&quot;,
+      &quot;type&quot;: &quot;object&quot;
+    },
+    &quot;Relation&quot;: {
+      &quot;description&quot;: &quot;This class should be the type of Entity attributes for them to be considered as IRIs.&quot;,
+      &quot;properties&quot;: {
+        &quot;@id&quot;: {
+          &quot;description&quot;: &quot;IRI (possibly relative)&quot;,
+          &quot;title&quot;: &quot;@id&quot;,
+          &quot;type&quot;: &quot;string&quot;
+        }
+      },
+      &quot;required&quot;: [
+        &quot;@id&quot;
+      ],
+      &quot;title&quot;: &quot;Relation&quot;,
+      &quot;type&quot;: &quot;object&quot;
+    }
+  },
+  &quot;properties&quot;: {
+    &quot;@context&quot;: {
+      &quot;$ref&quot;: &quot;#/$defs/BaseContext&quot;,
+      &quot;default&quot;: {
+        &quot;@version&quot;: 1.1,
+        &quot;@vocab&quot;: &quot;http://example.com/vocab/&quot;,
+        &quot;@base&quot;: &quot;http://example.com/vocab/&quot;,
+        &quot;@language&quot;: &quot;en&quot;,
+        &quot;sh&quot;: &quot;http://www.w3.org/ns/shacl#&quot;,
+        &quot;xsd&quot;: &quot;http://www.w3.org/2001/XMLSchema#&quot;,
+        &quot;rdfs&quot;: &quot;http://www.w3.org/2000/01/rdf-schema#&quot;,
+        &quot;owl&quot;: &quot;http://www.w3.org/2002/07/owl#&quot;
+      },
+      &quot;description&quot;: &quot;JSON-LD context&quot;,
+      &quot;name&quot;: &quot;@context&quot;
+    },
+    &quot;@graph&quot;: {
+      &quot;description&quot;: &quot;Default json-ld graph&quot;,
+      &quot;items&quot;: {
+        &quot;anyOf&quot;: [
+          {
+            &quot;$ref&quot;: &quot;#/$defs/Person&quot;
+          },
+          {
+            &quot;$ref&quot;: &quot;#/$defs/Employee&quot;
+          },
+          {
+            &quot;$ref&quot;: &quot;#/$defs/Manager&quot;
+          },
+          {
+            &quot;$ref&quot;: &quot;#/$defs/Department&quot;
+          }
+        ]
+      },
+      &quot;name&quot;: &quot;@graph&quot;,
+      &quot;title&quot;: &quot;@Graph&quot;,
+      &quot;type&quot;: &quot;array&quot;
+    }
+  },
+  &quot;required&quot;: [
+    &quot;@graph&quot;
+  ],
+  &quot;title&quot;: &quot;PydontologyModel&quot;,
+  &quot;type&quot;: &quot;object&quot;
+}
+
 </code></pre></div>
             </div>
         </div>
@@ -222,5 +840,5 @@ print(Model.ontology_graph().model_dump_json(indent=2))
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2025-12-05 17:34:16.003631+00:00
+Build Date UTC : 2026-04-18 09:40:33.756377+00:00
 -->

@@ -1,35 +1,74 @@
-# Core classes and methods
+## Core classes and methods
 ::: pydontology.pydontology.Entity
 ::: pydontology.pydontology.Relation
-::: pydontology.pydontology.JSONLDGraph
-::: pydontology.pydontology.JSONLDGraph.ontology_graph
-::: pydontology.pydontology.JSONLDGraph.shacl_graph
-::: pydontology.pydontology.make_model
+::: pydontology.pydontology.Pydontology
 
+## Controlling behaviour
+::: pydontology.settings.Settings
 
-# Annotation classes
-These classes enable use of annotations to provide RDFS/OWL and SHACL metadata
-to attributes of the ontology classes, which is then used in the construction
+## Annotation classes
+These classes enable use of annotations to provide RDFS/OWL and SHACL construct metadata
+to properties of the ontology classes, which is then used in the construction
 of the ontology graph and SHACL graph.
 
-### Supported RDFS and OWL constructs
-Pydontology supports the `rdfs:domain` and `rdfs:range` constructs via annotations.
-The `rdfs:subClassOf` construct is added implicitly to an ontology class via inheritance of an another class.
-Multiple inheritance is currently not supported, but will be in a future release.
+Not all constructs are supported currently, but we strive to add as many as possible within a reasonable timeframe.
 
-### Supported SHACL constructs
-Pydontology supports the following SHACL constructs via annotations:
+## Supported RDFS constructs
+Pydontology currently supports the following subset of RDFS constructs via annotations:
 
-- **Value Type Constraints**: `sh:datatype`, `sh:nodeKind`, `sh:class`
-- **Cardinality Constraints**: `sh:minCount`, `sh:maxCount`
-- **String-based Constraints**: `sh:pattern`, `sh:minLength`, `sh:maxLength`
-- **Value Range Constraints**: `sh:minInclusive`, `sh:maxInclusive`, `sh:minExclusive`, `sh:maxExclusive`
+- **Class Relationships**: `rdfs:subClassOf` - class inheritance relationships
+- **Property Relationships**: `rdfs:subPropertyOf` - property inheritance relationships  
+- **Property Constraints**: `rdfs:domain`, `rdfs:range` - property domain and range constraints
+- **Documentation**: `rdfs:comment`, `rdfs:label` - human-readable descriptions
+- **External References**: `rdfs:seeAlso`, `rdfs:isDefinedBy` - links to external resources
 
 ::: pydontology.rdfs.RDFSAnnotation
     options:
       filters:
         - "!DOMAIN"
         - "!RANGE"
+        - "!COMMENT"
+        - "!IS_DEFINED_BY"
+        - "!LABEL"
+        - "!SEE_ALSO"
+        - "!SUB_CLASS_OF"
+        - "!SUB_PROPERTY_OF"
+
+## Supported OWL constructs
+Pydontology currently supports the following subset of OWL Lite constructs via annotations:
+
+- **Class Equivalence**: `owl:equivalentClass` - class equivalence relationships
+- **Individual Equivalence**: `owl:sameAs` - individual equivalence relationships
+- **Property Equivalence**: `owl:equivalentProperty` - property equivalence relationships
+- **Property Relationships**: `owl:inverseOf` - inverse property relationships
+- **Property Characteristics**: `owl:TransitiveProperty`, `owl:SymmetricProperty`, `owl:FunctionalProperty`, `owl:InverseFunctionalProperty`
+- **Property Types**: `owl:ObjectProperty`, `owl:DatatypeProperty` - explicit property type declarations
+
+::: pydontology.owl.OWLAnnotation
+    options:
+      filters:
+        - "!EQUIVALENT_CLASS"
+        - "!SAME_AS"
+        - "!EQUIVALENT_PROPERTY"
+        - "!INVERSE_OF"
+        - "!TRANSITIVE_PROPERTY"
+        - "!SYMMETRIC_PROPERTY"
+        - "!FUNCTIONAL_PROPERTY"
+        - "!INVERSE_FUNCTIONAL_PROPERTY"
+        - "!OBJECT_PROPERTY"
+        - "!DATATYPE_PROPERTY"
+
+## Supported SHACL constructs
+Pydontology currently supports the following subset of SHACL (Core) constructs via annotations:
+
+- **Value Type Constraints**: `sh:datatype`, `sh:nodeKind`, `sh:class`
+- **Cardinality Constraints**: `sh:minCount`, `sh:maxCount`
+- **Value Range Constraints**: `sh:minInclusive`, `sh:maxInclusive`, `sh:minExclusive`, `sh:maxExclusive`
+- **String-based Constraints**: `sh:pattern`, `sh:minLength`, `sh:maxLength`, `sh:languageIn`, `sh:uniqueLang`
+- **Property Pair Constraints**: `sh:equals`, `sh:disjoint`, `sh:lessThan`, `sh:lessThanOrEquals`
+- **Other Constraints**: `sh:closed`, `sh:ignoredProperties`, `sh:hasValue`
+- **Validation Parameters**: `sh:severity`
+- **Documentation**: `sh:name`, `sh:description`
 
 ::: pydontology.shacl.SHACLAnnotation
     options:
@@ -46,3 +85,16 @@ Pydontology supports the following SHACL constructs via annotations:
         - "!MAX_EXCLUSIVE"
         - "!NODE_KIND"
         - "!CLASS"
+        - "!CLOSED"        
+        - "!DESCRIPTION"        
+        - "!DISJOINT"        
+        - "!EQUALS"        
+        - "!HAS_VALUE"        
+        - "!IGNORED_PROPERTIES"        
+        - "!IN"        
+        - "!LANGUAGE_IN"        
+        - "!LESS_THAN"        
+        - "!LESS_THAN_OR_EQUALS"        
+        - "!NAME"        
+        - "!SEVERITY"
+        - "!UNIQUE_LANG"

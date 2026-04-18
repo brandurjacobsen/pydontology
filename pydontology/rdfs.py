@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from pydantic import AfterValidator
+from pydantic import AfterValidator, HttpUrl
 from pydantic.dataclasses import dataclass
 
 from .validators import val_no_whitespace
@@ -13,17 +13,53 @@ class RDFSAnnotation:
     These annotations are used in the construction of the ontology graph.
     """
 
-    @dataclass
+    @dataclass(frozen=True)
     class DOMAIN:
         """Dataclass that holds rdfs:domain annotation for a property."""
 
         value: Annotated[str, AfterValidator(val_no_whitespace)]
 
-    @dataclass
+    @dataclass(frozen=True)
     class RANGE:
         """Dataclass that holds rdfs:range annotation for a property."""
 
         value: Annotated[str, AfterValidator(val_no_whitespace)]
+
+    @dataclass(frozen=True)
+    class SUB_PROPERTY_OF:
+        """Dataclass that holds rdfs:subPropertyOf annotation for a property"""
+
+        value: Annotated[str, AfterValidator(val_no_whitespace)]
+
+    @dataclass(frozen=True)
+    class COMMENT:
+        """Dataclass that holds rdfs:comment annotation for a class or property."""
+
+        value: str
+
+    @dataclass(frozen=True)
+    class LABEL:
+        """Dataclass that holds rdfs:label annotation for a class or property."""
+
+        value: str
+
+    @dataclass(frozen=True)
+    class SUB_CLASS_OF:
+        """Dataclass that holds rdfs:subClassOf annotation for a class."""
+
+        value: Annotated[str, AfterValidator(val_no_whitespace)]
+
+    @dataclass(frozen=True)
+    class SEE_ALSO:
+        """Dataclass that holds rdfs:seeAlso annotation for a class or property"""
+
+        value: HttpUrl
+
+    @dataclass(frozen=True)
+    class IS_DEFINED_BY:
+        """Dataclass that holds rdfs:isDefinedBy annotation for a class or property"""
+
+        value: HttpUrl
 
     @staticmethod
     def domain(value: str) -> DOMAIN:
@@ -56,3 +92,99 @@ class RDFSAnnotation:
             RDFSAnnotation.RANGE (dataclass)
         """
         return RDFSAnnotation.RANGE(value=value)
+
+    @staticmethod
+    def subPropertyOf(value: str) -> SUB_PROPERTY_OF:
+        """
+        RDFS subPropertyOf annotation.
+
+        rdfs:subPropertyOf is an instance of rdf:Property
+        that states that the subject is a subproperty of a property (super-property).
+
+        Args:
+            value (str): Name of super-property
+
+        Returns:
+            RDFSAnnotation.SUB_PROPERTY_OF (dataclass)
+        """
+        return RDFSAnnotation.SUB_PROPERTY_OF(value=value)
+
+    @staticmethod
+    def comment(value: str) -> COMMENT:
+        """
+        RDFS comment annotation.
+
+        rdfs:comment is an instance of rdf:Property that may be used to provide
+        a human-readable description of a resource.
+
+        Args:
+            value (str): Comment text
+
+        Returns:
+            RDFSAnnotation.COMMENT (dataclass)
+        """
+        return RDFSAnnotation.COMMENT(value=value)
+
+    @staticmethod
+    def label(value: str) -> LABEL:
+        """
+        RDFS label annotation.
+
+        rdfs:label is an instance of rdf:Property that may be used to provide
+        a human-readable version of a resource's name.
+
+        Args:
+            value (str): Label text
+
+        Returns:
+            RDFSAnnotation.LABEL (dataclass)
+        """
+        return RDFSAnnotation.LABEL(value=value)
+
+    @staticmethod
+    def subClassOf(value: str) -> SUB_CLASS_OF:
+        """
+        RDFS subClassOf annotation.
+
+        rdfs:subClassOf is an instance of rdf:Property that is used to state
+        that all the instances of one class are instances of another.
+
+        Args:
+            value (str): Name of parent class
+
+        Returns:
+            RDFSAnnotation.SUB_CLASS_OF (dataclass)
+        """
+        return RDFSAnnotation.SUB_CLASS_OF(value=value)
+
+    @staticmethod
+    def seeAlso(value: HttpUrl) -> SEE_ALSO:
+        """
+        RDFS seeAlso annotation.
+
+        rdfs:seeAlso is an instance of rdf:Property that is used to indicate
+        a resource that might provide additional information about the subject resource.
+
+        Args:
+            value (str): URL of related resource
+
+        Returns:
+            RDFSAnnotation.SEE_ALSO (dataclass)
+        """
+        return RDFSAnnotation.SEE_ALSO(value=value)
+
+    @staticmethod
+    def isDefinedBy(value: HttpUrl) -> IS_DEFINED_BY:
+        """
+        RDFS isDefinedBy annotation.
+
+        rdfs:isDefinedBy is an instance of rdf:Property that is used to indicate
+        a resource defining the subject resource.
+
+        Args:
+            value (str): URL of defining resource
+
+        Returns:
+            RDFSAnnotation.IS_DEFINED_BY (dataclass)
+        """
+        return RDFSAnnotation.IS_DEFINED_BY(value=value)

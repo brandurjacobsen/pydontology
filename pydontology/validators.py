@@ -56,7 +56,26 @@ def val_datatype(input: str):
     Raises:
         ValueError
     """
-    allowed = ["xsd:integer", "xsd:deciaml", "xsd:string", "xsd:boolean"]
+    allowed = [
+        # Core numeric types
+        "xsd:integer",
+        "xsd:decimal",
+        "xsd:float",
+        "xsd:double",
+        # String types
+        "xsd:string",
+        # Boolean
+        "xsd:boolean",
+        # Date and time types
+        "xsd:date",
+        "xsd:time",
+        "xsd:dateTime",
+        "xsd:duration",
+        # Other common types
+        "xsd:anyURI",
+        "xsd:hexBinary",
+        "xsd:base64Binary",
+    ]
 
     if input not in allowed:
         raise ValueError(f"String must be one of {allowed}")
@@ -100,8 +119,8 @@ def val_non_negative_int(input: int):
 def val_regex_pattern(input: str):
     """Custom field validator, that checks that string is a valid SPARQL regex pattern
 
-    Note: Currently returns input pattern!
-    TODO: Implement validator for SPARQL regex pattern
+    SPARQL regex patterns follow the XQuery 1.0 and XPath 2.0 syntax.
+    This is a basic validation to check for syntax errors.
 
     Args:
         input (str): String to validate as SPARQL regex pattern
@@ -110,6 +129,45 @@ def val_regex_pattern(input: str):
         str: Validated input
 
     Raises:
+        ValueError: If the pattern is invalid
+    """
+    # Basic check for balanced parentheses and brackets
+    open_chars = {"(": ")", "[": "]", "{": "}"}
+    stack = []
+
+    try:
+        for char in input:
+            if char in open_chars:
+                stack.append(char)
+            elif char in open_chars.values():
+                if not stack or char != open_chars[stack.pop()]:
+                    raise ValueError(f"Unbalanced delimiter: {char}")
+
+        if stack:
+            raise ValueError(f"Unbalanced delimiters: {stack}")
+
+        # This is a simplified check - for a complete validation,
+        # consider using a regex library to actually compile the pattern
+
+        return input
+    except Exception as e:
+        raise ValueError(f"Invalid regex pattern: {e}")
+
+
+def val_severity_cls(input: str):
+    """Custom field validator, that checks that string is one of the allowed IRIs for sh:severity
+
+    Args:
+        input (str): String to validate
+
+    Returns:
+        str: Validated input
+
+    Raises:
         ValueError
     """
+    allowed = ["sh:Info", "sh:Warning", "sh:Violation"]
+
+    if input not in allowed:
+        raise ValueError(f"String must be one of {allowed}")
     return input

@@ -518,21 +518,21 @@ class SHACLAnnotation:
         """
         return SHACLAnnotation.HAS_VALUE(value)
 
-    @staticmethod
-    def shIn(value: List[str | int | float | bool]) -> IN:
-        """SHACL sh:in annotation.
-
-        Specifies that each value node is a member of a provided SHACL list.
-        The values of sh:in in a shape are SHACL lists.
-        A shape has at most one value for sh:in.
-
-        Args:
-            value (List[Relation | str | int | float | bool]): List of allowed values
-
-        Returns:
-            SHACLAnnotation.IN (dataclass)
-        """
-        return SHACLAnnotation.IN(value)
+    # @staticmethod
+    # def shIn(value: List[str | int | float | bool]) -> IN:
+    #    """SHACL sh:in annotation.
+    #
+    #    Specifies that each value node is a member of a provided SHACL list.
+    #    The values of sh:in in a shape are SHACL lists.
+    #    A shape has at most one value for sh:in.
+    #
+    #    Args:
+    #        value (List[Relation | str | int | float | bool]): List of allowed values
+    #
+    #    Returns:
+    #        SHACLAnnotation.IN (dataclass)
+    #    """
+    #    return SHACLAnnotation.IN(value)
 
     # Validation parameter components
     @staticmethod

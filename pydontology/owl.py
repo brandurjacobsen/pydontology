@@ -65,13 +65,13 @@ class OWLAnnotation:
     class OBJECT_PROPERTY:
         """Dataclass that holds owl:ObjectProperty annotation for a property."""
 
-        value: bool = True
+        value: bool = False
 
     @dataclass(frozen=True)
     class DATATYPE_PROPERTY:
         """Dataclass that holds owl:DatatypeProperty annotation for a property."""
 
-        value: bool = True
+        value: bool = False
 
     @staticmethod
     def equivalentClass(value: str) -> EQUIVALENT_CLASS:
@@ -141,6 +141,9 @@ class OWLAnnotation:
         owl:TransitiveProperty is used to state that a property is transitive.
         If P is transitive, then for any x, y, z: P(x,y) and P(y,z) implies P(x,z).
 
+        Args:
+            value (bool): Whether the property is transitive
+
         Returns:
             OWLAnnotation.TRANSITIVE_PROPERTY (dataclass)
         """
@@ -153,6 +156,9 @@ class OWLAnnotation:
 
         owl:SymmetricProperty is used to state that a property is symmetric.
         If P is symmetric, then for any x, y: P(x,y) implies P(y,x).
+
+        Args:
+            value (bool): Whether the property is symmetric
 
         Returns:
             OWLAnnotation.SYMMETRIC_PROPERTY (dataclass)
@@ -167,6 +173,9 @@ class OWLAnnotation:
         owl:FunctionalProperty is used to state that a property is functional.
         A functional property can have at most one value for each individual.
 
+        Args:
+            value (bool): Whether the property is functional
+
         Returns:
             OWLAnnotation.FUNCTIONAL_PROPERTY (dataclass)
         """
@@ -180,31 +189,40 @@ class OWLAnnotation:
         owl:InverseFunctionalProperty is used to state that a property is inverse functional.
         An inverse functional property can have at most one individual for each value.
 
+        Args:
+            value (bool): Whether the property is inverse functional
+
         Returns:
             OWLAnnotation.INVERSE_FUNCTIONAL_PROPERTY (dataclass)
         """
         return OWLAnnotation.INVERSE_FUNCTIONAL_PROPERTY(value=value)
 
     @staticmethod
-    def objectProperty() -> OBJECT_PROPERTY:
+    def objectProperty(value: bool) -> OBJECT_PROPERTY:
         """
         OWL ObjectProperty annotation.
 
         owl:ObjectProperty is used to state that a property relates individuals to individuals.
 
+        Args:
+            value (bool): Whether the property is an ObjectProperty
+
         Returns:
             OWLAnnotation.OBJECT_PROPERTY (dataclass)
         """
-        return OWLAnnotation.OBJECT_PROPERTY()
+        return OWLAnnotation.OBJECT_PROPERTY(value=value)
 
     @staticmethod
-    def datatypeProperty() -> DATATYPE_PROPERTY:
+    def datatypeProperty(value: bool) -> DATATYPE_PROPERTY:
         """
         OWL DatatypeProperty annotation.
 
         owl:DatatypeProperty is used to state that a property relates individuals to data values.
 
+        Args:
+            value (bool): Whether the property is a DatatypeProperty
+
         Returns:
             OWLAnnotation.DATATYPE_PROPERTY (dataclass)
         """
-        return OWLAnnotation.DATATYPE_PROPERTY()
+        return OWLAnnotation.DATATYPE_PROPERTY(value=value)

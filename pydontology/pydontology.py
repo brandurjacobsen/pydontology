@@ -613,8 +613,8 @@ class Pydontology:
                 ]
             elif isinstance(meta, SHACLAnnotation.HAS_VALUE):
                 prop_shape.hasValue = meta.value
-            elif isinstance(meta, SHACLAnnotation.IN):
-                prop_shape.shIn = meta.value
+            # elif isinstance(meta, SHACLAnnotation.IN):
+            #    prop_shape.shIn = meta.value
 
             # Validation parameter constructs
             elif isinstance(meta, SHACLAnnotation.SEVERITY):

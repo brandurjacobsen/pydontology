@@ -96,30 +96,36 @@ def _(Annotated, Entity, Field, OWL, Optional, RDFS, Relation, SH):
 
 @app.cell
 def _(Pydontology, ontology):
-    pydonto = Pydontology(ontology)
-    onto_graph = pydonto.ontology_graph()
-    sh_graph = pydonto.shacl_graph()
-    return onto_graph, sh_graph
-
-
-@app.cell
-def _(onto_graph):
-    print(onto_graph.model_dump_json(indent=2, exclude_none=True))
-    return
-
-
-@app.cell
-def _(sh_graph):
-    print(sh_graph.model_dump_json(indent=2, exclude_none=True))
-
-    return
-
-
-@app.cell
-def _(onto):
     import json
-    model = onto.make_model()
-    print(json.dumps(model.model_json_schema(), indent=2))
+
+    pydonto = Pydontology(ontology)
+
+    ontog = pydonto.ontology_graph()
+    ontog_json = ontog.model_dump_json(indent=2, exclude_none=True)
+
+    shaclg = pydonto.shacl_graph()
+    shaclg_json = shaclg.model_dump_json(indent=2, exclude_none=True)
+
+    schemag = pydonto.schema_graph()
+    schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
+    return ontog_json, schemag_json, shaclg_json
+
+
+@app.cell
+def _(ontog_json):
+    print(ontog_json)
+    return
+
+
+@app.cell
+def _(shaclg_json):
+    print(shaclg_json)
+    return
+
+
+@app.cell
+def _(schemag_json):
+    print(schemag_json)
     return
 
 

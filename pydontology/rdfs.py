@@ -98,10 +98,11 @@ class RDFSAnnotation:
         """
         RDFS subPropertyOf annotation.
 
-        Relations described by subproperty also hold for superproperty.
+        rdfs:subPropertyOf is an instance of rdf:Property
+        that states that the subject is a subproperty of a property (super-property).
 
         Args:
-            value (str): Name of property
+            value (str): Name of super-property
 
         Returns:
             RDFSAnnotation.SUB_PROPERTY_OF (dataclass)

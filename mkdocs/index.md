@@ -12,7 +12,7 @@ This package will enable you to:
 
 The package exposes, amongst others, the classes [Entity] and [Relation], which inherit Pydantic's BaseModel.
 Entity serves as the base class for ontology classes.
-An attribute of an Entity class is considered to be an RDF literal, unless the attribute is of type Relation, 
+A field of an Entity class is considered to be an RDF literal, unless the attribute is of type Relation, 
 in which case the value is interpreted as an IRI.
 
 Once the ontology classes are defined, an instance of the [Pydontology] class can be instantiated with the union of ontology classes as an argument.
@@ -100,23 +100,34 @@ ontology = Person | Annotated[Employee, OWL.equivalentClass("Worker")] | Manager
 ~~~
 
 Note the use of typing.Annotated above to annotate properties and Entity classes with RDFS, OWL constructs.
-These will appear in the ontology graph, SHACL graph. 
+These will appear in the ontology graph and SHACL graph.
 
-The RDFS domain is per default set to be the class wherein the property is defined, unless the property is defined in multiple ontology classes.
-This will result in a UserWarning.
-This behaviour (and whether to show warnings) can be controlled via the [Settings] class, which [ontology_graph] and [shacl_graph] accept as an optional parameter.
+Inherited ontology classes will per default have RDFS subClassOf property set to be the parent class, or owl:Thing class if inheriting from Entity(multiple inheritance is currently not implemented when defining classes, but can be achieved by annotating the inherited class after the definition).
+
+The RDFS domain of an ontology property is per default set to be the class wherein the property is defined, unless the property is defined in multiple ontology classes, in which cass the user will receive a UserWarning.
+
+The default annotation behaviour (and whether to show warnings) can be controlled via the [Settings] class, which [ontology_graph] and [shacl_graph] accept as an optional parameter.
 
 The model can then be created by instantiating the [Pydontology] class with the ontology,
 and the ontology graph and SHACL graph can be created using the [ontology_graph] and [shacl_graph] methods.
+A json (json-ld) schema can be made the usual Pydantic way (see below).
 ~~~
+import json
 
 pydonto = Pydontology(ontology)
-onto_graph = pydonto.ontology_graph()
-sh_graph = pydonto.shacl_graph()
 
+ontog = pydonto.ontology_graph()
+ontog_json = ontog.model_dump_json(indent=2, exclude_none=True)
+
+shaclg = pydonto.shacl_graph()
+shaclg_json = shaclg.model_dump_json(indent=2, exclude_none=True)
+
+schemag = pydonto.schema_graph()
+schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
 ~~~
 
-Output of `print(onto_graph.model_dump_json(indent=2, exclude_none=True))`:
+Output of `print(ontog_json)`:
+
 ~~~
 {
   "@context": {
@@ -249,7 +260,7 @@ Output of `print(onto_graph.model_dump_json(indent=2, exclude_none=True))`:
 
 ~~~
 
-Output of `print(sh_graph.model_dump_json(indent=2, exclude_none=True))`:
+Output of `print(shaclg_json)`:
 
 ~~~
 {
@@ -390,6 +401,318 @@ Output of `print(sh_graph.model_dump_json(indent=2, exclude_none=True))`:
       ]
     }
   ]
+}
+
+~~~
+
+Output of `print(schemag_json)`:
+
+~~~
+
+{
+  "$defs": {
+    "BaseContext": {
+      "description": "Default context",
+      "properties": {
+        "@version": {
+          "default": 1.1,
+          "title": "@Version",
+          "type": "number"
+        },
+        "@vocab": {
+          "default": "http://example.com/vocab/",
+          "description": "Prefix of properties, values of @type, and values of terms that are relative.",
+          "title": "@Vocab",
+          "type": "string"
+        },
+        "@base": {
+          "default": "http://example.com/vocab/",
+          "description": "Prefix of relative IRIs.",
+          "title": "@Base",
+          "type": "string"
+        },
+        "@language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "en",
+          "description": "BCP47 default language identifier",
+          "title": "@Language"
+        },
+        "sh": {
+          "const": "http://www.w3.org/ns/shacl#",
+          "default": "http://www.w3.org/ns/shacl#",
+          "title": "Sh",
+          "type": "string"
+        },
+        "xsd": {
+          "const": "http://www.w3.org/2001/XMLSchema#",
+          "default": "http://www.w3.org/2001/XMLSchema#",
+          "title": "Xsd",
+          "type": "string"
+        },
+        "rdfs": {
+          "const": "http://www.w3.org/2000/01/rdf-schema#",
+          "default": "http://www.w3.org/2000/01/rdf-schema#",
+          "title": "Rdfs",
+          "type": "string"
+        },
+        "owl": {
+          "const": "http://www.w3.org/2002/07/owl#",
+          "default": "http://www.w3.org/2002/07/owl#",
+          "title": "Owl",
+          "type": "string"
+        }
+      },
+      "title": "BaseContext",
+      "type": "object"
+    },
+    "Department": {
+      "description": "A department class",
+      "properties": {
+        "@id": {
+          "description": "IRI (possibly relative)",
+          "title": "@id",
+          "type": "string"
+        },
+        "name": {
+          "description": "Name of department",
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "@id",
+        "name"
+      ],
+      "title": "Department",
+      "type": "object"
+    },
+    "Employee": {
+      "description": "An employee class, inherits from Person",
+      "properties": {
+        "@id": {
+          "description": "IRI (possibly relative)",
+          "title": "@id",
+          "type": "string"
+        },
+        "name": {
+          "description": "Person's name",
+          "title": "Name",
+          "type": "string"
+        },
+        "age": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Person's age",
+          "title": "Age"
+        },
+        "employee_id": {
+          "description": "Employee ID",
+          "title": "Employee Id",
+          "type": "string"
+        },
+        "has_manager": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Relation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Link to manager"
+        },
+        "department": {
+          "$ref": "#/$defs/Relation",
+          "description": "Link to department"
+        }
+      },
+      "required": [
+        "@id",
+        "name",
+        "employee_id",
+        "department"
+      ],
+      "title": "Employee",
+      "type": "object"
+    },
+    "Manager": {
+      "description": "A manager class, inherits from Employee",
+      "properties": {
+        "@id": {
+          "description": "IRI (possibly relative)",
+          "title": "@id",
+          "type": "string"
+        },
+        "name": {
+          "description": "Person's name",
+          "title": "Name",
+          "type": "string"
+        },
+        "age": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Person's age",
+          "title": "Age"
+        },
+        "employee_id": {
+          "description": "Employee ID",
+          "title": "Employee Id",
+          "type": "string"
+        },
+        "has_manager": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Relation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Link to manager"
+        },
+        "department": {
+          "$ref": "#/$defs/Relation",
+          "description": "Link to department"
+        },
+        "heads": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Relation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Department that manager heads"
+        }
+      },
+      "required": [
+        "@id",
+        "name",
+        "employee_id",
+        "department"
+      ],
+      "title": "Manager",
+      "type": "object"
+    },
+    "Person": {
+      "description": "A person class",
+      "properties": {
+        "@id": {
+          "description": "IRI (possibly relative)",
+          "title": "@id",
+          "type": "string"
+        },
+        "name": {
+          "description": "Person's name",
+          "title": "Name",
+          "type": "string"
+        },
+        "age": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Person's age",
+          "title": "Age"
+        }
+      },
+      "required": [
+        "@id",
+        "name"
+      ],
+      "title": "Person",
+      "type": "object"
+    },
+    "Relation": {
+      "description": "This class should be the type of Entity attributes for them to be considered as IRIs.",
+      "properties": {
+        "@id": {
+          "description": "IRI (possibly relative)",
+          "title": "@id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "@id"
+      ],
+      "title": "Relation",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "@context": {
+      "$ref": "#/$defs/BaseContext",
+      "default": {
+        "@version": 1.1,
+        "@vocab": "http://example.com/vocab/",
+        "@base": "http://example.com/vocab/",
+        "@language": "en",
+        "sh": "http://www.w3.org/ns/shacl#",
+        "xsd": "http://www.w3.org/2001/XMLSchema#",
+        "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+        "owl": "http://www.w3.org/2002/07/owl#"
+      },
+      "description": "JSON-LD context",
+      "name": "@context"
+    },
+    "@graph": {
+      "description": "Default json-ld graph",
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Person"
+          },
+          {
+            "$ref": "#/$defs/Employee"
+          },
+          {
+            "$ref": "#/$defs/Manager"
+          },
+          {
+            "$ref": "#/$defs/Department"
+          }
+        ]
+      },
+      "name": "@graph",
+      "title": "@Graph",
+      "type": "array"
+    }
+  },
+  "required": [
+    "@graph"
+  ],
+  "title": "PydontologyModel",
+  "type": "object"
 }
 
 ~~~

@@ -1105,8 +1105,8 @@
                 <span class="p">]</span>
             <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="n">SHACLAnnotation</span><span class="o">.</span><span class="n">HAS_VALUE</span><span class="p">):</span>
                 <span class="n">prop_shape</span><span class="o">.</span><span class="n">hasValue</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">value</span>
-            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="n">SHACLAnnotation</span><span class="o">.</span><span class="n">IN</span><span class="p">):</span>
-                <span class="n">prop_shape</span><span class="o">.</span><span class="n">shIn</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">value</span>
+            <span class="c1"># elif isinstance(meta, SHACLAnnotation.IN):</span>
+            <span class="c1">#    prop_shape.shIn = meta.value</span>
 
             <span class="c1"># Validation parameter constructs</span>
             <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="n">SHACLAnnotation</span><span class="o">.</span><span class="n">SEVERITY</span><span class="p">):</span>
@@ -1769,7 +1769,8 @@ These annotations are used in the construction of the ontology graph.</p>
 <span class="normal">186</span>
 <span class="normal">187</span>
 <span class="normal">188</span>
-<span class="normal">189</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">RDFSAnnotation</span><span class="p">:</span>
+<span class="normal">189</span>
+<span class="normal">190</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">RDFSAnnotation</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Provides methods for setting RDFS annotations.</span>
 
 <span class="sd">    Encapsulates dataclasses that validate and provide type information for RDFS annotations.</span>
@@ -1861,10 +1862,11 @@ These annotations are used in the construction of the ontology graph.</p>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        RDFS subPropertyOf annotation.</span>
 
-<span class="sd">        Relations described by subproperty also hold for superproperty.</span>
+<span class="sd">        rdfs:subPropertyOf is an instance of rdf:Property</span>
+<span class="sd">        that states that the subject is a subproperty of a property (super-property).</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            value (str): Name of property</span>
+<span class="sd">            value (str): Name of super-property</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            RDFSAnnotation.SUB_PROPERTY_OF (dataclass)</span>
@@ -2042,8 +2044,7 @@ a human-readable description of a resource.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pydontology/rdfs.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">111</span>
-<span class="normal">112</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">112</span>
 <span class="normal">113</span>
 <span class="normal">114</span>
 <span class="normal">115</span>
@@ -2056,7 +2057,8 @@ a human-readable description of a resource.</p>
 <span class="normal">122</span>
 <span class="normal">123</span>
 <span class="normal">124</span>
-<span class="normal">125</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="normal">125</span>
+<span class="normal">126</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">comment</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">COMMENT</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    RDFS comment annotation.</span>
@@ -2264,8 +2266,7 @@ a resource defining the subject resource.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pydontology/rdfs.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">175</span>
-<span class="normal">176</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">176</span>
 <span class="normal">177</span>
 <span class="normal">178</span>
 <span class="normal">179</span>
@@ -2278,7 +2279,8 @@ a resource defining the subject resource.</p>
 <span class="normal">186</span>
 <span class="normal">187</span>
 <span class="normal">188</span>
-<span class="normal">189</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="normal">189</span>
+<span class="normal">190</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">isDefinedBy</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">HttpUrl</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">IS_DEFINED_BY</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    RDFS isDefinedBy annotation.</span>
@@ -2375,8 +2377,7 @@ a human-readable version of a resource's name.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pydontology/rdfs.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">127</span>
-<span class="normal">128</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">128</span>
 <span class="normal">129</span>
 <span class="normal">130</span>
 <span class="normal">131</span>
@@ -2389,7 +2390,8 @@ a human-readable version of a resource's name.</p>
 <span class="normal">138</span>
 <span class="normal">139</span>
 <span class="normal">140</span>
-<span class="normal">141</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="normal">141</span>
+<span class="normal">142</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">label</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LABEL</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    RDFS label annotation.</span>
@@ -2597,8 +2599,7 @@ a resource that might provide additional information about the subject resource.
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pydontology/rdfs.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">159</span>
-<span class="normal">160</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">160</span>
 <span class="normal">161</span>
 <span class="normal">162</span>
 <span class="normal">163</span>
@@ -2611,7 +2612,8 @@ a resource that might provide additional information about the subject resource.
 <span class="normal">170</span>
 <span class="normal">171</span>
 <span class="normal">172</span>
-<span class="normal">173</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="normal">173</span>
+<span class="normal">174</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">seeAlso</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">HttpUrl</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SEE_ALSO</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    RDFS seeAlso annotation.</span>
@@ -2708,8 +2710,7 @@ that all the instances of one class are instances of another.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pydontology/rdfs.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">143</span>
-<span class="normal">144</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">144</span>
 <span class="normal">145</span>
 <span class="normal">146</span>
 <span class="normal">147</span>
@@ -2722,7 +2723,8 @@ that all the instances of one class are instances of another.</p>
 <span class="normal">154</span>
 <span class="normal">155</span>
 <span class="normal">156</span>
-<span class="normal">157</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="normal">157</span>
+<span class="normal">158</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">subClassOf</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SUB_CLASS_OF</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    RDFS subClassOf annotation.</span>
@@ -2759,7 +2761,8 @@ that all the instances of one class are instances of another.</p>
     <div class="doc doc-contents ">
 
         <p>RDFS subPropertyOf annotation.</p>
-<p>Relations described by subproperty also hold for superproperty.</p>
+<p>rdfs:subPropertyOf is an instance of rdf:Property
+that states that the subject is a subproperty of a property (super-property).</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -2782,7 +2785,7 @@ that all the instances of one class are instances of another.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Name of property</p>
+                <p>Name of super-property</p>
               </div>
             </td>
             <td>
@@ -2831,15 +2834,17 @@ that all the instances of one class are instances of another.</p>
 <span class="normal">106</span>
 <span class="normal">107</span>
 <span class="normal">108</span>
-<span class="normal">109</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="normal">109</span>
+<span class="normal">110</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">subPropertyOf</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SUB_PROPERTY_OF</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    RDFS subPropertyOf annotation.</span>
 
-<span class="sd">    Relations described by subproperty also hold for superproperty.</span>
+<span class="sd">    rdfs:subPropertyOf is an instance of rdf:Property</span>
+<span class="sd">    that states that the subject is a subproperty of a property (super-property).</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        value (str): Name of property</span>
+<span class="sd">        value (str): Name of super-property</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        RDFSAnnotation.SUB_PROPERTY_OF (dataclass)</span>
@@ -3098,7 +3103,25 @@ These annotations are used in the construction of the ontology graph.</p>
 <span class="normal">207</span>
 <span class="normal">208</span>
 <span class="normal">209</span>
-<span class="normal">210</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">OWLAnnotation</span><span class="p">:</span>
+<span class="normal">210</span>
+<span class="normal">211</span>
+<span class="normal">212</span>
+<span class="normal">213</span>
+<span class="normal">214</span>
+<span class="normal">215</span>
+<span class="normal">216</span>
+<span class="normal">217</span>
+<span class="normal">218</span>
+<span class="normal">219</span>
+<span class="normal">220</span>
+<span class="normal">221</span>
+<span class="normal">222</span>
+<span class="normal">223</span>
+<span class="normal">224</span>
+<span class="normal">225</span>
+<span class="normal">226</span>
+<span class="normal">227</span>
+<span class="normal">228</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">OWLAnnotation</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Provides methods for setting OWL annotations.</span>
 
 <span class="sd">    Encapsulates dataclasses that validate and provide type information for OWL annotations.</span>
@@ -3157,13 +3180,13 @@ These annotations are used in the construction of the ontology graph.</p>
     <span class="k">class</span><span class="w"> </span><span class="nc">OBJECT_PROPERTY</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Dataclass that holds owl:ObjectProperty annotation for a property.&quot;&quot;&quot;</span>
 
-        <span class="n">value</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">value</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
 
     <span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">class</span><span class="w"> </span><span class="nc">DATATYPE_PROPERTY</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Dataclass that holds owl:DatatypeProperty annotation for a property.&quot;&quot;&quot;</span>
 
-        <span class="n">value</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">value</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">equivalentClass</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EQUIVALENT_CLASS</span><span class="p">:</span>
@@ -3233,6 +3256,9 @@ These annotations are used in the construction of the ontology graph.</p>
 <span class="sd">        owl:TransitiveProperty is used to state that a property is transitive.</span>
 <span class="sd">        If P is transitive, then for any x, y, z: P(x,y) and P(y,z) implies P(x,z).</span>
 
+<span class="sd">        Args:</span>
+<span class="sd">            value (bool): Whether the property is transitive</span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            OWLAnnotation.TRANSITIVE_PROPERTY (dataclass)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -3245,6 +3271,9 @@ These annotations are used in the construction of the ontology graph.</p>
 
 <span class="sd">        owl:SymmetricProperty is used to state that a property is symmetric.</span>
 <span class="sd">        If P is symmetric, then for any x, y: P(x,y) implies P(y,x).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            value (bool): Whether the property is symmetric</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            OWLAnnotation.SYMMETRIC_PROPERTY (dataclass)</span>
@@ -3259,6 +3288,9 @@ These annotations are used in the construction of the ontology graph.</p>
 <span class="sd">        owl:FunctionalProperty is used to state that a property is functional.</span>
 <span class="sd">        A functional property can have at most one value for each individual.</span>
 
+<span class="sd">        Args:</span>
+<span class="sd">            value (bool): Whether the property is functional</span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            OWLAnnotation.FUNCTIONAL_PROPERTY (dataclass)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -3272,34 +3304,43 @@ These annotations are used in the construction of the ontology graph.</p>
 <span class="sd">        owl:InverseFunctionalProperty is used to state that a property is inverse functional.</span>
 <span class="sd">        An inverse functional property can have at most one individual for each value.</span>
 
+<span class="sd">        Args:</span>
+<span class="sd">            value (bool): Whether the property is inverse functional</span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            OWLAnnotation.INVERSE_FUNCTIONAL_PROPERTY (dataclass)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">OWLAnnotation</span><span class="o">.</span><span class="n">INVERSE_FUNCTIONAL_PROPERTY</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">)</span>
 
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">objectProperty</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">OBJECT_PROPERTY</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">objectProperty</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">OBJECT_PROPERTY</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        OWL ObjectProperty annotation.</span>
 
 <span class="sd">        owl:ObjectProperty is used to state that a property relates individuals to individuals.</span>
 
+<span class="sd">        Args:</span>
+<span class="sd">            value (bool): Whether the property is an ObjectProperty</span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            OWLAnnotation.OBJECT_PROPERTY (dataclass)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">OWLAnnotation</span><span class="o">.</span><span class="n">OBJECT_PROPERTY</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">OWLAnnotation</span><span class="o">.</span><span class="n">OBJECT_PROPERTY</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">)</span>
 
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">datatypeProperty</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">DATATYPE_PROPERTY</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">datatypeProperty</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DATATYPE_PROPERTY</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        OWL DatatypeProperty annotation.</span>
 
 <span class="sd">        owl:DatatypeProperty is used to state that a property relates individuals to data values.</span>
 
+<span class="sd">        Args:</span>
+<span class="sd">            value (bool): Whether the property is a DatatypeProperty</span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            OWLAnnotation.DATATYPE_PROPERTY (dataclass)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">OWLAnnotation</span><span class="o">.</span><span class="n">DATATYPE_PROPERTY</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">OWLAnnotation</span><span class="o">.</span><span class="n">DATATYPE_PROPERTY</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
               </details>
 
@@ -3320,7 +3361,7 @@ These annotations are used in the construction of the ontology graph.</p>
 
 
 <h3 id="pydontology.owl.OWLAnnotation.datatypeProperty" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">datatypeProperty</span><span class="p">()</span></code>
+            <code class="highlight language-python"><span class="n">datatypeProperty</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
@@ -3333,6 +3374,37 @@ These annotations are used in the construction of the ontology graph.</p>
 
         <p>OWL DatatypeProperty annotation.</p>
 <p>owl:DatatypeProperty is used to state that a property relates individuals to data values.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>value</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether the property is a DatatypeProperty</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
 
     <p><span class="doc-section-title">Returns:</span></p>
@@ -3360,27 +3432,33 @@ These annotations are used in the construction of the ontology graph.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pydontology/owl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">200</span>
-<span class="normal">201</span>
-<span class="normal">202</span>
-<span class="normal">203</span>
-<span class="normal">204</span>
-<span class="normal">205</span>
-<span class="normal">206</span>
-<span class="normal">207</span>
-<span class="normal">208</span>
-<span class="normal">209</span>
-<span class="normal">210</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">datatypeProperty</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">DATATYPE_PROPERTY</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">215</span>
+<span class="normal">216</span>
+<span class="normal">217</span>
+<span class="normal">218</span>
+<span class="normal">219</span>
+<span class="normal">220</span>
+<span class="normal">221</span>
+<span class="normal">222</span>
+<span class="normal">223</span>
+<span class="normal">224</span>
+<span class="normal">225</span>
+<span class="normal">226</span>
+<span class="normal">227</span>
+<span class="normal">228</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">datatypeProperty</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DATATYPE_PROPERTY</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    OWL DatatypeProperty annotation.</span>
 
 <span class="sd">    owl:DatatypeProperty is used to state that a property relates individuals to data values.</span>
 
+<span class="sd">    Args:</span>
+<span class="sd">        value (bool): Whether the property is a DatatypeProperty</span>
+
 <span class="sd">    Returns:</span>
 <span class="sd">        OWLAnnotation.DATATYPE_PROPERTY (dataclass)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">OWLAnnotation</span><span class="o">.</span><span class="n">DATATYPE_PROPERTY</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">OWLAnnotation</span><span class="o">.</span><span class="n">DATATYPE_PROPERTY</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3623,6 +3701,37 @@ These annotations are used in the construction of the ontology graph.</p>
 A functional property can have at most one value for each individual.</p>
 
 
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>value</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether the property is functional</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
     <p><span class="doc-section-title">Returns:</span></p>
     <table>
       <thead>
@@ -3648,24 +3757,30 @@ A functional property can have at most one value for each individual.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pydontology/owl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">162</span>
-<span class="normal">163</span>
-<span class="normal">164</span>
-<span class="normal">165</span>
-<span class="normal">166</span>
-<span class="normal">167</span>
-<span class="normal">168</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">168</span>
 <span class="normal">169</span>
 <span class="normal">170</span>
 <span class="normal">171</span>
 <span class="normal">172</span>
-<span class="normal">173</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="normal">173</span>
+<span class="normal">174</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span>
+<span class="normal">178</span>
+<span class="normal">179</span>
+<span class="normal">180</span>
+<span class="normal">181</span>
+<span class="normal">182</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">functionalProperty</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FUNCTIONAL_PROPERTY</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    OWL FunctionalProperty annotation.</span>
 
 <span class="sd">    owl:FunctionalProperty is used to state that a property is functional.</span>
 <span class="sd">    A functional property can have at most one value for each individual.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        value (bool): Whether the property is functional</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        OWLAnnotation.FUNCTIONAL_PROPERTY (dataclass)</span>
@@ -3697,6 +3812,37 @@ A functional property can have at most one value for each individual.</p>
 An inverse functional property can have at most one individual for each value.</p>
 
 
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>value</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether the property is inverse functional</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
     <p><span class="doc-section-title">Returns:</span></p>
     <table>
       <thead>
@@ -3722,24 +3868,30 @@ An inverse functional property can have at most one individual for each value.</
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pydontology/owl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">175</span>
-<span class="normal">176</span>
-<span class="normal">177</span>
-<span class="normal">178</span>
-<span class="normal">179</span>
-<span class="normal">180</span>
-<span class="normal">181</span>
-<span class="normal">182</span>
-<span class="normal">183</span>
-<span class="normal">184</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">184</span>
 <span class="normal">185</span>
-<span class="normal">186</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="normal">186</span>
+<span class="normal">187</span>
+<span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span>
+<span class="normal">192</span>
+<span class="normal">193</span>
+<span class="normal">194</span>
+<span class="normal">195</span>
+<span class="normal">196</span>
+<span class="normal">197</span>
+<span class="normal">198</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">inverseFunctionalProperty</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">INVERSE_FUNCTIONAL_PROPERTY</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    OWL InverseFunctionalProperty annotation.</span>
 
 <span class="sd">    owl:InverseFunctionalProperty is used to state that a property is inverse functional.</span>
 <span class="sd">    An inverse functional property can have at most one individual for each value.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        value (bool): Whether the property is inverse functional</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        OWLAnnotation.INVERSE_FUNCTIONAL_PROPERTY (dataclass)</span>
@@ -3863,7 +4015,7 @@ An inverse functional property can have at most one individual for each value.</
 
 
 <h3 id="pydontology.owl.OWLAnnotation.objectProperty" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">objectProperty</span><span class="p">()</span></code>
+            <code class="highlight language-python"><span class="n">objectProperty</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
@@ -3876,6 +4028,37 @@ An inverse functional property can have at most one individual for each value.</
 
         <p>OWL ObjectProperty annotation.</p>
 <p>owl:ObjectProperty is used to state that a property relates individuals to individuals.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>value</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether the property is an ObjectProperty</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
 
     <p><span class="doc-section-title">Returns:</span></p>
@@ -3903,27 +4086,33 @@ An inverse functional property can have at most one individual for each value.</
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pydontology/owl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">188</span>
-<span class="normal">189</span>
-<span class="normal">190</span>
-<span class="normal">191</span>
-<span class="normal">192</span>
-<span class="normal">193</span>
-<span class="normal">194</span>
-<span class="normal">195</span>
-<span class="normal">196</span>
-<span class="normal">197</span>
-<span class="normal">198</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">objectProperty</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">OBJECT_PROPERTY</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">200</span>
+<span class="normal">201</span>
+<span class="normal">202</span>
+<span class="normal">203</span>
+<span class="normal">204</span>
+<span class="normal">205</span>
+<span class="normal">206</span>
+<span class="normal">207</span>
+<span class="normal">208</span>
+<span class="normal">209</span>
+<span class="normal">210</span>
+<span class="normal">211</span>
+<span class="normal">212</span>
+<span class="normal">213</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">objectProperty</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">OBJECT_PROPERTY</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    OWL ObjectProperty annotation.</span>
 
 <span class="sd">    owl:ObjectProperty is used to state that a property relates individuals to individuals.</span>
 
+<span class="sd">    Args:</span>
+<span class="sd">        value (bool): Whether the property is an ObjectProperty</span>
+
 <span class="sd">    Returns:</span>
 <span class="sd">        OWLAnnotation.OBJECT_PROPERTY (dataclass)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">OWLAnnotation</span><span class="o">.</span><span class="n">OBJECT_PROPERTY</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">OWLAnnotation</span><span class="o">.</span><span class="n">OBJECT_PROPERTY</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -4058,6 +4247,37 @@ An inverse functional property can have at most one individual for each value.</
 If P is symmetric, then for any x, y: P(x,y) implies P(y,x).</p>
 
 
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>value</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether the property is symmetric</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
     <p><span class="doc-section-title">Returns:</span></p>
     <table>
       <thead>
@@ -4083,10 +4303,7 @@ If P is symmetric, then for any x, y: P(x,y) implies P(y,x).</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>pydontology/owl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">149</span>
-<span class="normal">150</span>
-<span class="normal">151</span>
-<span class="normal">152</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">152</span>
 <span class="normal">153</span>
 <span class="normal">154</span>
 <span class="normal">155</span>
@@ -4094,13 +4311,22 @@ If P is symmetric, then for any x, y: P(x,y) implies P(y,x).</p>
 <span class="normal">157</span>
 <span class="normal">158</span>
 <span class="normal">159</span>
-<span class="normal">160</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="normal">160</span>
+<span class="normal">161</span>
+<span class="normal">162</span>
+<span class="normal">163</span>
+<span class="normal">164</span>
+<span class="normal">165</span>
+<span class="normal">166</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">symmetricProperty</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SYMMETRIC_PROPERTY</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    OWL SymmetricProperty annotation.</span>
 
 <span class="sd">    owl:SymmetricProperty is used to state that a property is symmetric.</span>
 <span class="sd">    If P is symmetric, then for any x, y: P(x,y) implies P(y,x).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        value (bool): Whether the property is symmetric</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        OWLAnnotation.SYMMETRIC_PROPERTY (dataclass)</span>
@@ -4130,6 +4356,37 @@ If P is symmetric, then for any x, y: P(x,y) implies P(y,x).</p>
         <p>OWL TransitiveProperty annotation.</p>
 <p>owl:TransitiveProperty is used to state that a property is transitive.
 If P is transitive, then for any x, y, z: P(x,y) and P(y,z) implies P(x,z).</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>value</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether the property is transitive</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
 
     <p><span class="doc-section-title">Returns:</span></p>
@@ -4168,13 +4425,19 @@ If P is transitive, then for any x, y, z: P(x,y) and P(y,z) implies P(x,z).</p>
 <span class="normal">144</span>
 <span class="normal">145</span>
 <span class="normal">146</span>
-<span class="normal">147</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="normal">147</span>
+<span class="normal">148</span>
+<span class="normal">149</span>
+<span class="normal">150</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">transitiveProperty</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TRANSITIVE_PROPERTY</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    OWL TransitiveProperty annotation.</span>
 
 <span class="sd">    owl:TransitiveProperty is used to state that a property is transitive.</span>
 <span class="sd">    If P is transitive, then for any x, y, z: P(x,y) and P(y,z) implies P(x,z).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        value (bool): Whether the property is transitive</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        OWLAnnotation.TRANSITIVE_PROPERTY (dataclass)</span>
@@ -4200,7 +4463,7 @@ If P is transitive, then for any x, y, z: P(x,y) and P(y,z) implies P(x,z).</p>
 <li><strong>Value Range Constraints</strong>: <code>sh:minInclusive</code>, <code>sh:maxInclusive</code>, <code>sh:minExclusive</code>, <code>sh:maxExclusive</code></li>
 <li><strong>String-based Constraints</strong>: <code>sh:pattern</code>, <code>sh:minLength</code>, <code>sh:maxLength</code>, <code>sh:languageIn</code>, <code>sh:uniqueLang</code></li>
 <li><strong>Property Pair Constraints</strong>: <code>sh:equals</code>, <code>sh:disjoint</code>, <code>sh:lessThan</code>, <code>sh:lessThanOrEquals</code></li>
-<li><strong>Other Constraints</strong>: <code>sh:closed</code>, <code>sh:ignoredProperties</code>, <code>sh:hasValue</code>, <code>sh:in</code></li>
+<li><strong>Other Constraints</strong>: <code>sh:closed</code>, <code>sh:ignoredProperties</code>, <code>sh:hasValue</code></li>
 <li><strong>Validation Parameters</strong>: <code>sh:severity</code></li>
 <li><strong>Documentation</strong>: <code>sh:name</code>, <code>sh:description</code></li>
 </ul>
@@ -5305,21 +5568,21 @@ These annotations are used in the construction of the SHACL graph.</p>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">SHACLAnnotation</span><span class="o">.</span><span class="n">HAS_VALUE</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
 
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">shIn</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">bool</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">IN</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;SHACL sh:in annotation.</span>
-
-<span class="sd">        Specifies that each value node is a member of a provided SHACL list.</span>
-<span class="sd">        The values of sh:in in a shape are SHACL lists.</span>
-<span class="sd">        A shape has at most one value for sh:in.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            value (List[Relation | str | int | float | bool]): List of allowed values</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            SHACLAnnotation.IN (dataclass)</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">SHACLAnnotation</span><span class="o">.</span><span class="n">IN</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="c1"># @staticmethod</span>
+    <span class="c1"># def shIn(value: List[str | int | float | bool]) -&gt; IN:</span>
+    <span class="c1">#    &quot;&quot;&quot;SHACL sh:in annotation.</span>
+    <span class="c1">#</span>
+    <span class="c1">#    Specifies that each value node is a member of a provided SHACL list.</span>
+    <span class="c1">#    The values of sh:in in a shape are SHACL lists.</span>
+    <span class="c1">#    A shape has at most one value for sh:in.</span>
+    <span class="c1">#</span>
+    <span class="c1">#    Args:</span>
+    <span class="c1">#        value (List[Relation | str | int | float | bool]): List of allowed values</span>
+    <span class="c1">#</span>
+    <span class="c1">#    Returns:</span>
+    <span class="c1">#        SHACLAnnotation.IN (dataclass)</span>
+    <span class="c1">#    &quot;&quot;&quot;</span>
+    <span class="c1">#    return SHACLAnnotation.IN(value)</span>
 
     <span class="c1"># Validation parameter components</span>
     <span class="nd">@staticmethod</span>
@@ -7831,123 +8094,6 @@ The values of sh:pattern in a shape are valid pattern arguments for the SPARQL R
 <span class="sd">        SHACLAnnotation.CLASS (dataclass)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">SHACLAnnotation</span><span class="o">.</span><span class="n">SEVERITY</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="pydontology.shacl.SHACLAnnotation.shIn" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">shIn</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></code>
-
-  <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
-  </span>
-
-<a href="#pydontology.shacl.SHACLAnnotation.shIn" class="headerlink" title="Permanent link">#</a></h3>
-
-
-    <div class="doc doc-contents ">
-
-        <p>SHACL sh:in annotation.</p>
-<p>Specifies that each value node is a member of a provided SHACL list.
-The values of sh:in in a shape are SHACL lists.
-A shape has at most one value for sh:in.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Type</th>
-          <th>Description</th>
-          <th>Default</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                <code>value</code>
-            </td>
-            <td>
-                  <code><span title="typing.List">List</span>[<a class="autorefs autorefs-internal" title="Relation
-
-
-  
-      pydantic-model
-   (pydontology.pydontology.Relation)" href="#pydontology.pydontology.Relation">Relation</a> | <span title="str">str</span> | <span title="int">int</span> | <span title="float">float</span> | <span title="bool">bool</span>]</code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>List of allowed values</p>
-              </div>
-            </td>
-            <td>
-                <em>required</em>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
-    <p><span class="doc-section-title">Returns:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Description</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td>
-                  <code><span title="pydontology.shacl.SHACLAnnotation.IN">IN</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>SHACLAnnotation.IN (dataclass)</p>
-              </div>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-
-            <details class="mkdocstrings-source">
-              <summary>Source code in <code>pydontology/shacl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">521</span>
-<span class="normal">522</span>
-<span class="normal">523</span>
-<span class="normal">524</span>
-<span class="normal">525</span>
-<span class="normal">526</span>
-<span class="normal">527</span>
-<span class="normal">528</span>
-<span class="normal">529</span>
-<span class="normal">530</span>
-<span class="normal">531</span>
-<span class="normal">532</span>
-<span class="normal">533</span>
-<span class="normal">534</span>
-<span class="normal">535</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">shIn</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">bool</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">IN</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;SHACL sh:in annotation.</span>
-
-<span class="sd">    Specifies that each value node is a member of a provided SHACL list.</span>
-<span class="sd">    The values of sh:in in a shape are SHACL lists.</span>
-<span class="sd">    A shape has at most one value for sh:in.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        value (List[Relation | str | int | float | bool]): List of allowed values</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        SHACLAnnotation.IN (dataclass)</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">SHACLAnnotation</span><span class="o">.</span><span class="n">IN</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>

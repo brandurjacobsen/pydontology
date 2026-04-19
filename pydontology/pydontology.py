@@ -1,20 +1,18 @@
-import uuid
 import warnings
+from copy import deepcopy
 from inspect import get_annotations, isclass
 from types import UnionType
-from typing import Annotated, Any, List, Literal, Optional, get_args, get_origin
+from typing import Annotated, Any, List, Literal, Optional, Union, get_args, get_origin
 
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
     HttpUrl,
-    TypeAdapter,
     computed_field,
     create_model,
 )
-from pydantic.json_schema import SkipJsonSchema
-from pydantic.types import UUID4
+from pydantic.fields import FieldInfo
 
 from .owl import OWLAnnotation
 from .rdfs import RDFSAnnotation
@@ -715,6 +713,73 @@ class Pydontology:
         shacl_shapes = self._create_node_shapes()
         return JSONLDGraph(context=context, graph=shacl_shapes)  # pyright: ignore
 
+    def _strip_type(self, tp: Any, cache: dict[type, type]) -> Any:
+        origin = get_origin(tp)
+        args = get_args(tp)
+
+        # Basemodel
+        if origin is None:
+            if isinstance(tp, type) and issubclass(tp, BaseModel):
+                return self._strip_model(tp, cache)
+            return tp
+
+        # Containers
+        if origin in (list, set, tuple, frozenset):
+            return origin[tuple(self._strip_type(a, cache) for a in args)]  # pyright: ignore
+
+        # Dict
+        if origin is dict:
+            k, v = args
+            return dict[self._strip_type(k, cache), self._strip_type(v, cache)]
+
+        # Union (incl. | syntax)
+        if origin is Union:
+            return Union[tuple(self._strip_type(a, cache) for a in args)]
+
+        return tp
+
+    def _strip_aliases(self, tp: Any, cache: dict[type, type] | None = None) -> Any:
+        """
+        Returns an equivalent type with all Pydantic aliases removed.
+
+        Accepts BaseModel, Union, or arbitrary nested type.
+        """
+        if cache is None:
+            cache = {}
+        return self._strip_type(tp, cache)
+
+    def _strip_model(
+        self, model: type[BaseModel], cache: dict[type, type]
+    ) -> type[BaseModel]:
+        if model in cache:
+            return cache[model]
+
+        new_fields = {}
+
+        for name, field in model.model_fields.items():
+            info: FieldInfo = deepcopy(field)
+
+            # Remove alias-related metadata
+            info.alias = None
+            info.validation_alias = None
+            info.serialization_alias = None
+
+            new_type = self._strip_type(field.annotation, cache)
+
+            if field.is_required():
+                new_fields[name] = (new_type, info)
+            else:
+                new_fields[name] = (new_type, field.default)
+
+        New = create_model(
+            f"{model.__name__}NoAlias",
+            __base__=model,
+            **new_fields,
+        )
+
+        cache[model] = New
+        return New
+
     def schema_graph(self, context: BaseContext = BaseContext()) -> type[JSONLDGraph]:
         """
         Makes a JSONLDGraph class from the ontology for making JSON schemas
@@ -724,7 +789,6 @@ class Pydontology:
             context=(
                 BaseContext,
                 Field(
-                    alias="@context",
                     default=context,
                     json_schema_extra={
                         "name": "@context",
@@ -733,9 +797,8 @@ class Pydontology:
                 ),
             ),
             graph=(
-                List[self.ontology],
+                List[self._strip_aliases(self.ontology)],
                 Field(
-                    alias="@graph",
                     json_schema_extra={
                         "name": "@graph",
                         "description": "Default json-ld graph",

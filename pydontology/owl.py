@@ -1,8 +1,9 @@
-from typing import Annotated
+from typing import Annotated, Literal, Optional, Self
 
-from pydantic import AfterValidator
+from pydantic import AfterValidator, BaseModel, Field, model_validator
 from pydantic.dataclasses import dataclass
 
+from .models import Entity, Relation
 from .validators import val_no_whitespace
 
 
@@ -13,17 +14,58 @@ class OWLAnnotation:
     These annotations are used in the construction of the ontology graph.
     """
 
+    class Restriction(BaseModel):
+        """Model for use in applying OWL restrictions"""
+
+        type: Literal["owl:Restriction"] = Field(
+            alias="@type", default="owl:Restriction"
+        )
+        onProperty: Relation = Field(alias="owl:onProperty")
+        hasValue: Optional[str | Relation] = Field(alias="owl:hasValue", default=None)
+        someValuesFrom: Optional[Relation] = Field(
+            alias="owl:someValuesFrom", default=None
+        )
+        allValuesFrom: Optional[Relation] = Field(
+            alias="owl:allValuesFrom", default=None
+        )
+        cardinality: Optional[int] = Field(alias="owl:cardinality", default=None)
+        minCardinality: Optional[int] = Field(alias="owl:minCardinality", default=None)
+        maxCardinality: Optional[int] = Field(alias="owl:maxCardinality", default=None)
+
+        @model_validator(mode="after")
+        def mutually_exclusive(self) -> Self:
+            """Ensure only one restriction type is specified at a time."""
+            restriction_fields = [
+                "hasValue",
+                "someValuesFrom",
+                "allValuesFrom",
+                "cardinality",
+                "minCardinality",
+                "maxCardinality",
+            ]
+
+            # List of optional fields populated
+            populated_fields = [
+                field
+                for field in restriction_fields
+                if self.__getattribute__(field) is not None
+            ]
+
+            if len(populated_fields) > 1:
+                raise ValueError(
+                    f"Only one restriction type can be specified. Found: {populated_fields}"
+                )
+
+            if len(populated_fields) == 0:
+                raise ValueError("At least one restriction type must be specified")
+
+            return self
+
     @dataclass(frozen=True)
     class EQUIVALENT_CLASS:
         """Dataclass that holds owl:equivalentClass annotation for a class"""
 
-        value: Annotated[str, AfterValidator(val_no_whitespace)]
-
-    @dataclass(frozen=True)
-    class SAME_AS:
-        """Dataclass that holds owl:sameAs annotation for a class or instance of class"""
-
-        value: Annotated[str, AfterValidator(val_no_whitespace)]
+        value: "Relation | OWLAnnotation.Restriction"
 
     @dataclass(frozen=True)
     class EQUIVALENT_PROPERTY:
@@ -74,7 +116,7 @@ class OWLAnnotation:
         value: bool = False
 
     @staticmethod
-    def equivalentClass(value: str) -> EQUIVALENT_CLASS:
+    def equivalentClass(value: Relation | Restriction) -> EQUIVALENT_CLASS:
         """
         OWL equivalentClass annotation.
 
@@ -87,21 +129,6 @@ class OWLAnnotation:
             OWLAnnotation.EQUIVALENT_CLASS (dataclass)
         """
         return OWLAnnotation.EQUIVALENT_CLASS(value=value)
-
-    @staticmethod
-    def sameAs(value: str) -> SAME_AS:
-        """
-        OWL sameAs annotation.
-
-        owl:sameAs is used to state that two URI references refer to the same individual.
-
-        Args:
-            value (str): Name of the same individual
-
-        Returns:
-            OWLAnnotation.SAME_AS (dataclass)
-        """
-        return OWLAnnotation.SAME_AS(value=value)
 
     @staticmethod
     def equivalentProperty(value: str) -> EQUIVALENT_PROPERTY:

@@ -3,6 +3,8 @@ from typing import Annotated
 from pydantic import AfterValidator, HttpUrl
 from pydantic.dataclasses import dataclass
 
+from .models import Relation
+from .owl import OWLAnnotation
 from .validators import val_no_whitespace
 
 
@@ -47,7 +49,7 @@ class RDFSAnnotation:
     class SUB_CLASS_OF:
         """Dataclass that holds rdfs:subClassOf annotation for a class."""
 
-        value: Annotated[str, AfterValidator(val_no_whitespace)]
+        value: Relation | OWLAnnotation.Restriction
 
     @dataclass(frozen=True)
     class SEE_ALSO:
@@ -142,7 +144,7 @@ class RDFSAnnotation:
         return RDFSAnnotation.LABEL(value=value)
 
     @staticmethod
-    def subClassOf(value: str) -> SUB_CLASS_OF:
+    def subClassOf(value: Relation | OWLAnnotation.Restriction) -> SUB_CLASS_OF:
         """
         RDFS subClassOf annotation.
 

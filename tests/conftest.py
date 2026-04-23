@@ -5,11 +5,17 @@ from pydantic import Field
 
 from pydontology.pydontology import (
     Entity,
-    OWLAnnotation,
     Pydontology,
-    RDFSAnnotation,
     Relation,
-    SHACLAnnotation,
+)
+from pydontology.pydontology import (
+    OWLAnnotation as OWL,
+)
+from pydontology.pydontology import (
+    RDFSAnnotation as RDFS,
+)
+from pydontology.pydontology import (
+    SHACLAnnotation as SH,
 )
 
 
@@ -21,20 +27,20 @@ def TestModel():
 
         name: Annotated[
             str,
-            SHACLAnnotation.minCount(1),
-            SHACLAnnotation.minLength(1),
-            SHACLAnnotation.maxLength(100),
+            SH.minCount(1),
+            SH.minLength(1),
+            SH.maxLength(100),
         ] = Field(description="Person's name")
         age: Annotated[
             Optional[int],
-            OWLAnnotation.functionalProperty(True),
-            SHACLAnnotation.minInclusive(0),
-            SHACLAnnotation.maxInclusive(150),
-            SHACLAnnotation.datatype("xsd:integer"),
-            SHACLAnnotation.severity("sh:Warning"),
+            OWL.functionalProperty(True),
+            SH.minInclusive(0),
+            SH.maxInclusive(150),
+            SH.datatype("xsd:integer"),
+            SH.severity("sh:Warning"),
         ] = Field(default=None, description="Person's age in years")
-        knows: Annotated[Optional[Relation], OWLAnnotation.symmetricProperty(True)] = (
-            Field(default=None, description="A friend or colleague")
+        knows: Annotated[Optional[Relation], OWL.symmetricProperty(True)] = Field(
+            default=None, description="A friend or colleague"
         )
 
     class Employee(Person):
@@ -42,30 +48,30 @@ def TestModel():
 
         employee_id: Annotated[
             str,
-            OWLAnnotation.functionalProperty(True),
-            OWLAnnotation.inverseFunctionalProperty(True),
-            SHACLAnnotation.pattern(r"^E\d{3}$"),
+            OWL.functionalProperty(True),
+            OWL.inverseFunctionalProperty(True),
+            SH.pattern(r"^E\d{3}$"),
         ] = Field(description="Employee ID")
 
         manager: Annotated[
             Optional[Relation],
-            RDFSAnnotation.range("Manager"),
-            OWLAnnotation.transitiveProperty(True),
-            SHACLAnnotation.shclass("Manager"),
-            SHACLAnnotation.minCount(1),
-            SHACLAnnotation.maxCount(1),
+            RDFS.range("Manager"),
+            OWL.transitiveProperty(True),
+            SH.shclass("Manager"),
+            SH.minCount(1),
+            SH.maxCount(1),
         ] = Field(default=None, description="Link to manager")
 
         department: Annotated[
             Relation,
-            RDFSAnnotation.range("Department"),
-            SHACLAnnotation.minCount(1),
+            RDFS.range("Department"),
+            SH.minCount(1),
         ] = Field(description="Department IRI")
 
         company: Annotated[
             Relation,
-            RDFSAnnotation.range("Company"),
-            SHACLAnnotation.shclass("Company"),
+            RDFS.range("Company"),
+            SH.shclass("Company"),
         ]
 
     class Manager(Employee):
@@ -73,41 +79,41 @@ def TestModel():
 
         head_of: Annotated[
             Optional[Relation],
-            RDFSAnnotation.range("Department"),
+            RDFS.range("Department"),
         ] = Field(default=None, description="Department manager heads")
 
         vice_head_of: Annotated[
             Optional[Relation],
-            RDFSAnnotation.range("Department"),
+            RDFS.range("Department"),
         ] = Field(default=None, description="Department manager is vice head of")
 
     class Department(Entity):
         """A department, subclass of Entity"""
 
-        name: Annotated[
-            str, SHACLAnnotation.minLength(1), SHACLAnnotation.maxLength(50)
-        ] = Field(description="Department's name")
+        name: Annotated[str, SH.minLength(1), SH.maxLength(50)] = Field(
+            description="Department's name"
+        )
         head: Annotated[
             Relation,
-            RDFSAnnotation.range("Manager"),
-            OWLAnnotation.inverseOf("head_of"),
-            SHACLAnnotation.minCount(1),
-            SHACLAnnotation.maxCount(1),
-            SHACLAnnotation.disjoint("vice_head"),
+            RDFS.range("Manager"),
+            OWL.inverseOf("head_of"),
+            SH.minCount(1),
+            SH.maxCount(1),
+            SH.disjoint("vice_head"),
         ]
         vice_head: Annotated[
             Optional[Relation],
-            RDFSAnnotation.range("Manager"),
-            OWLAnnotation.inverseOf("vice_head_of"),
-            SHACLAnnotation.disjoint("head"),
+            RDFS.range("Manager"),
+            OWL.inverseOf("vice_head_of"),
+            SH.disjoint("head"),
         ] = Field(default=None)
 
     class Company(Entity):
-        name: Annotated[
-            str, SHACLAnnotation.minLength(1), SHACLAnnotation.maxLength(50)
-        ] = Field(description="Company name")
-        ceo: Annotated[Relation, SHACLAnnotation.shclass("Manager")] = Field(
-            description="Name of CEO of company"
+        name: Annotated[str, SH.minLength(1), SH.maxLength(50)] = Field(
+            description="Company name"
+        )
+        ceo: Annotated[Relation, SH.shclass("Manager")] = Field(
+            description="Name of company CEO"
         )
 
     onto = Pydontology(ontology=Person | Employee | Manager | Department | Company)

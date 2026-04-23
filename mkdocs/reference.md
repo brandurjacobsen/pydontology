@@ -38,7 +38,7 @@ Pydontology currently supports the following subset of RDFS constructs via annot
 Pydontology currently supports the following subset of OWL Lite constructs via annotations:
 
 - **Class Equivalence**: `owl:equivalentClass` - class equivalence relationships
-- **Individual Equivalence**: `owl:sameAs` - individual equivalence relationships
+- **Individual Equivalence**: `owl:sameAs`, `owl:differentFrom` - individual equivalence relationships
 - **Property Equivalence**: `owl:equivalentProperty` - property equivalence relationships
 - **Property Relationships**: `owl:inverseOf` - inverse property relationships
 - **Property Characteristics**: `owl:TransitiveProperty`, `owl:SymmetricProperty`, `owl:FunctionalProperty`, `owl:InverseFunctionalProperty`

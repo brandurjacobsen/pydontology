@@ -11,6 +11,7 @@ from .models import (
     BaseContext,
     Entity,
     JSONLDGraph,
+    RDFList,
     Relation,
     _NodeShape,
     _PropertyShape,
@@ -41,7 +42,7 @@ class _OntologyClass(BaseModel):
         default=None, alias="rdfs:comment", description="Class description"
     )
     subClassOf: Optional[List[Relation | OWLAnnotation.Restriction]] = Field(
-        default=None, alias="rdfs:subClassOf", description="Parent class IRI"
+        default=None, alias="rdfs:subClassOf", description="Parent class(es)"
     )
     seeAlso: Optional[HttpUrl] = Field(
         default=None, alias="rdfs:seeAlso", description="Link to additional information"
@@ -53,6 +54,9 @@ class _OntologyClass(BaseModel):
         default=None,
         alias="owl:equivalentClass",
         description="Members of this class are also members of the other",
+    )
+    intersectionOf: Optional[RDFList] = Field(
+        default=None, alias="owl:intersectionOf", description=""
     )
 
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
@@ -223,7 +227,13 @@ class Pydontology:
             elif isinstance(meta, RDFSAnnotation.IS_DEFINED_BY):
                 class_def.isDefinedBy = meta.value
             elif isinstance(meta, OWLAnnotation.EQUIVALENT_CLASS):
-                class_def.equivalentClass.append(meta.value)  # pyright: ignore
+                if class_def.equivalentClass is not None:
+                    class_def.equivalentClass.append(meta.value)  # pyright: ignore
+                else:
+                    class_def.equivalentClass = [meta.value]
+            elif isinstance(meta, OWLAnnotation.INTERSECTION_OF):
+                class_def.intersectionOf = meta.value
+
         return class_def
 
     def _create_ontology_classes(self) -> List[_OntologyClass]:
@@ -264,19 +274,19 @@ class Pydontology:
             if isinstance(meta, RDFSAnnotation.LABEL):
                 prop_def.label = meta.value
             if isinstance(meta, RDFSAnnotation.RANGE):
-                prop_def.range = Relation(id=meta.value)  # pyright: ignore
+                prop_def.range = meta.value
             elif isinstance(meta, RDFSAnnotation.DOMAIN):
-                prop_def.domain = Relation(id=meta.value)  # pyright: ignore
+                prop_def.domain = meta.value
             elif isinstance(meta, RDFSAnnotation.SUB_PROPERTY_OF):
-                prop_def.subPropertyOf = Relation(id=meta.value)  # pyright: ignore
+                prop_def.subPropertyOf = meta.value
             elif isinstance(meta, RDFSAnnotation.SEE_ALSO):
                 prop_def.seeAlso = meta.value
             elif isinstance(meta, RDFSAnnotation.IS_DEFINED_BY):
                 prop_def.isDefinedBy = meta.value
             elif isinstance(meta, OWLAnnotation.EQUIVALENT_PROPERTY):
-                prop_def.equivalentProperty = Relation(id=meta.value)  # pyright: ignore
+                prop_def.equivalentProperty = meta.value
             elif isinstance(meta, OWLAnnotation.INVERSE_OF):
-                prop_def.inverseOf = Relation(id=meta.value)  # pyright: ignore
+                prop_def.inverseOf = meta.value
             elif isinstance(meta, OWLAnnotation.FUNCTIONAL_PROPERTY):
                 if meta.value:
                     prop_def.type.append("owl:FunctionalProperty")

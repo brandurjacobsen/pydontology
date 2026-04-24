@@ -49,7 +49,9 @@ class Relation(BaseModel):
     id: Annotated[str, AfterValidator(val_no_whitespace)] = Field(
         alias="@id", title="@id", description="IRI", min_length=1
     )
-    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+    model_config = ConfigDict(
+        populate_by_name=True, serialize_by_alias=True, frozen=True
+    )
 
 
 class Entity(BaseModel):
@@ -106,10 +108,10 @@ class _PropertyShape(BaseModel):
     )
     # Cardinality Constraint Components
     minCount: Optional[int] = Field(
-        default=None, alias="sh:minCount", description="Minimum cardinality"
+        default=None, alias="sh:minCount", ge=0, description="Minimum cardinality"
     )
     maxCount: Optional[int] = Field(
-        default=None, alias="sh:maxCount", description="Maximum cardinality"
+        default=None, alias="sh:maxCount", ge=0, description="Maximum cardinality"
     )
     # Value Range Constraint Components
     minInclusive: Optional[float] = Field(

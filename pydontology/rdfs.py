@@ -1,11 +1,8 @@
-from typing import Annotated
-
-from pydantic import AfterValidator, HttpUrl
+from pydantic import HttpUrl
 from pydantic.dataclasses import dataclass
 
 from .models import Relation
 from .owl import OWLAnnotation
-from .validators import val_no_whitespace
 
 
 class RDFSAnnotation:
@@ -19,19 +16,19 @@ class RDFSAnnotation:
     class DOMAIN:
         """Dataclass that holds rdfs:domain annotation for a property."""
 
-        value: Annotated[str, AfterValidator(val_no_whitespace)]
+        value: Relation
 
     @dataclass(frozen=True)
     class RANGE:
         """Dataclass that holds rdfs:range annotation for a property."""
 
-        value: Annotated[str, AfterValidator(val_no_whitespace)]
+        value: Relation
 
     @dataclass(frozen=True)
     class SUB_PROPERTY_OF:
         """Dataclass that holds rdfs:subPropertyOf annotation for a property"""
 
-        value: Annotated[str, AfterValidator(val_no_whitespace)]
+        value: Relation
 
     @dataclass(frozen=True)
     class COMMENT:
@@ -64,7 +61,7 @@ class RDFSAnnotation:
         value: HttpUrl
 
     @staticmethod
-    def domain(value: str) -> DOMAIN:
+    def domain(value: str | Relation) -> DOMAIN:
         """
         RDFS domain annotation.
 
@@ -72,15 +69,17 @@ class RDFSAnnotation:
         any resource that has a given property is an instance of one or more classes.
 
         Args:
-            value (str): Name of RDFS class
+            value (str | Relation): Ontology class name or Relation to ontology class
 
         Returns:
             RDFSAnnotation.DOMAIN (dataclass)
         """
-        return RDFSAnnotation.DOMAIN(value=value)
+        if isinstance(value, str):
+            return RDFSAnnotation.DOMAIN(value=Relation(id=value))  # pyright: ignore
+        return RDFSAnnotation.DOMAIN(value=value)  # pyright: ignore
 
     @staticmethod
-    def range(value: str) -> RANGE:
+    def range(value: str | Relation) -> RANGE:
         """
         RDFS range annotation.
 
@@ -88,15 +87,17 @@ class RDFSAnnotation:
         that the values of a property are instances of one or more classes.
 
         Args:
-            value (str): Name of RDFS class
+            value (str | Relation): Ontology class name or Relation to ontology class
 
         Returns:
             RDFSAnnotation.RANGE (dataclass)
         """
+        if isinstance(value, str):
+            return RDFSAnnotation.RANGE(value=Relation(id=value))  # pyright: ignore
         return RDFSAnnotation.RANGE(value=value)
 
     @staticmethod
-    def subPropertyOf(value: str) -> SUB_PROPERTY_OF:
+    def subPropertyOf(value: str | Relation) -> SUB_PROPERTY_OF:
         """
         RDFS subPropertyOf annotation.
 
@@ -104,11 +105,13 @@ class RDFSAnnotation:
         that states that the subject is a subproperty of a property (super-property).
 
         Args:
-            value (str): Name of super-property
+            value (str | Relation): Name of property or Relation to property
 
         Returns:
             RDFSAnnotation.SUB_PROPERTY_OF (dataclass)
         """
+        if isinstance(value, str):
+            return RDFSAnnotation.SUB_PROPERTY_OF(value=Relation(id=value))  # pyright: ignore
         return RDFSAnnotation.SUB_PROPERTY_OF(value=value)
 
     @staticmethod
@@ -144,7 +147,7 @@ class RDFSAnnotation:
         return RDFSAnnotation.LABEL(value=value)
 
     @staticmethod
-    def subClassOf(value: Relation | OWLAnnotation.Restriction) -> SUB_CLASS_OF:
+    def subClassOf(value: str | Relation | OWLAnnotation.Restriction) -> SUB_CLASS_OF:
         """
         RDFS subClassOf annotation.
 
@@ -152,11 +155,13 @@ class RDFSAnnotation:
         that all the instances of one class are instances of another.
 
         Args:
-            value (str): Name of parent class
+            value (str | Relation | Restriction): Name of parent class, Relation to parent class, or Restriction
 
         Returns:
             RDFSAnnotation.SUB_CLASS_OF (dataclass)
         """
+        if isinstance(value, str):
+            return RDFSAnnotation.SUB_CLASS_OF(value=Relation(id=value))  # pyright: ignore
         return RDFSAnnotation.SUB_CLASS_OF(value=value)
 
     @staticmethod

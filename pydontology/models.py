@@ -81,14 +81,6 @@ class Entity(BaseModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
 
-class RDFList(BaseModel):
-    """An ordered RDF list structure (collection)"""
-
-    list: List[Any] = Field(alias="@list")
-
-    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
-
-
 class _PropertyShape(BaseModel):
     """Represents a SHACL property shape in a SHACL graph."""
 

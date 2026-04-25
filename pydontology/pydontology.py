@@ -11,12 +11,11 @@ from .models import (
     BaseContext,
     Entity,
     JSONLDGraph,
-    RDFList,
     Relation,
     _NodeShape,
     _PropertyShape,
 )
-from .owl import OWLAnnotation
+from .owl import OWLAnnotation, RDFList
 from .rdfs import RDFSAnnotation
 from .settings import Settings
 from .shacl import SHACLAnnotation

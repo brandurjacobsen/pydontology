@@ -1,11 +1,3 @@
-"""
-Pydontology - Ontologies the Pydantic way.
-
-This package enables building RDF ontologies using Pydantic model classes.
-"""
-
-__version__ = "0.1.7"
-
 from .owl import OWLAnnotation
 from .pydontology import (
     BaseContext,

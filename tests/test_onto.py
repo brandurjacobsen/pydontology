@@ -2,7 +2,6 @@ import pytest
 from rdflib import OWL, RDF, RDFS, Graph, Namespace
 
 from pydontology.pydontology import BaseContext, JSONLDGraph
-from pydontology.settings import Settings
 
 # See conftest.py for TestModel definition
 

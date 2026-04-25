@@ -1,9 +1,19 @@
-from typing import List, Literal, Optional, Self
+from typing import List, Literal, Optional, Self, Tuple
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.dataclasses import dataclass
 
-from .models import RDFList, Relation
+from .models import Relation
+
+
+class RDFList(BaseModel):
+    """An ordered RDF list structure (collection)"""
+
+    list: Tuple["Relation | OWLAnnotation.Restriction", ...] = Field(alias="@list")
+
+    model_config = ConfigDict(
+        populate_by_name=True, serialize_by_alias=True, frozen=True
+    )
 
 
 class OWLAnnotation:
@@ -157,7 +167,9 @@ class OWLAnnotation:
             OWLAnnotation.INTERSECTION_OF (dataclass)
         """
 
-        lst = [Relation(id=item) if isinstance(item, str) else item for item in value]  # pyright: ignore
+        lst = tuple(
+            [Relation(id=item) if isinstance(item, str) else item for item in value]
+        )  # pyright: ignore
         return OWLAnnotation.INTERSECTION_OF(value=RDFList(list=lst))  # pyright: ignore
 
     @staticmethod

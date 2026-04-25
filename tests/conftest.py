@@ -74,6 +74,8 @@ def TestModel():
             SH.shclass("Company"),
         ]
 
+        permanent: bool = Field(default=True)
+
     class Manager(Employee):
         """A manager, subclass of Employee"""
 
@@ -108,6 +110,9 @@ def TestModel():
             SH.disjoint("head"),
         ] = Field(default=None)
 
+    class Contractor(Person):
+        pass
+
     class Company(Entity):
         name: Annotated[str, SH.minLength(1), SH.maxLength(50)] = Field(
             description="Company name"
@@ -116,5 +121,17 @@ def TestModel():
             description="Name of company CEO"
         )
 
-    onto = Pydontology(ontology=Person | Employee | Manager | Department | Company)
+    onto = Pydontology(
+        ontology=Person
+        | Employee
+        | Manager
+        | Department
+        | Company
+        | Annotated[
+            Contractor,
+            OWL.equivalentClass(
+                OWL.Restriction(onProperty=Relation(id="permanent"), hasValue="True")
+            ),
+        ]
+    )
     return onto

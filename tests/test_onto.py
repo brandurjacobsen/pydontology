@@ -53,9 +53,9 @@ def test_ontology_classes_present(rdf_graph, vocab_namespace):
     assert (VOCAB.Department, RDF.type, RDFS.Class) in rdf_graph
     assert (VOCAB.Company, RDF.type, RDFS.Class) in rdf_graph
 
-    # Count total classes (should be exactly 5)
+    # Count total classes (should be exactly 6)
     classes = list(rdf_graph.subjects(RDF.type, RDFS.Class))
-    assert len(classes) == 5
+    assert len(classes) == 6
 
 
 def test_ontology_inheritance(rdf_graph, vocab_namespace):
@@ -87,8 +87,8 @@ def test_ontology_properties_present(rdf_graph, vocab_namespace):
     datatype_props = list(rdf_graph.subjects(RDF.type, OWL.DatatypeProperty))
     all_props = object_props + datatype_props
 
-    # Should have exactly 12 properties
-    assert len(all_props) == 12
+    # Should have exactly 13 properties
+    assert len(all_props) == 13
 
     # Verify each expected property exists
     assert VOCAB.name in all_props
@@ -105,7 +105,68 @@ def test_ontology_properties_present(rdf_graph, vocab_namespace):
     assert VOCAB.ceo in all_props
 
 
-def test_ontology_property_types(rdf_graph, vocab_namespace):
+def test_ontology_symmetric_property(rdf_graph, vocab_namespace):
+    """Test that symmetric properties are correctly annotated"""
+    VOCAB = vocab_namespace
+
+    # Check knows property is symmetric
+    assert (VOCAB.knows, RDF.type, OWL.SymmetricProperty) in rdf_graph
+
+
+def test_ontology_transitive_property(rdf_graph, vocab_namespace):
+    """Test that transitive properties are correctly annotated"""
+    VOCAB = vocab_namespace
+
+    # Check manager property is transitive
+    assert (VOCAB.manager, RDF.type, OWL.TransitiveProperty) in rdf_graph
+
+
+def test_ontology_functional_property(rdf_graph, vocab_namespace):
+    """Test that functional properties are correctly annotated"""
+    VOCAB = vocab_namespace
+
+    # Check age property is functional
+    assert (VOCAB.age, RDF.type, OWL.FunctionalProperty) in rdf_graph
+
+    # Check employee_id property is functional
+    assert (VOCAB.employee_id, RDF.type, OWL.FunctionalProperty) in rdf_graph
+
+
+def test_ontology_inverse_of_property(rdf_graph, vocab_namespace):
+    """Test that inverse properties are correctly annotated"""
+    VOCAB = vocab_namespace
+
+    # Check head property is inverse of head_of
+    assert (VOCAB.head, OWL.inverseOf, VOCAB.head_of) in rdf_graph
+
+    # Check vice_head property is inverse of vice_head_of
+    assert (VOCAB.vice_head, OWL.inverseOf, VOCAB.vice_head_of) in rdf_graph
+
+
+def test_ontology_equivalent_class(rdf_graph, vocab_namespace):
+    """Test that equivalent classes are correctly annotated"""
+    VOCAB = vocab_namespace
+
+    # Check Project class is equivalent to another class
+    assert (VOCAB.Project, OWL.equivalentClass, VOCAB.Project) in rdf_graph
+
+
+def test_ontology_equivalent_property(rdf_graph, vocab_namespace):
+    """Test that equivalent properties are correctly annotated"""
+    VOCAB = vocab_namespace
+
+    # Check related_project property is equivalent to another property
+    # This test is not applicable as equivalentProperty is not used in TestModel
+    pass
+
+    """Test that inverse functional properties are correctly annotated"""
+    VOCAB = vocab_namespace
+
+    # Check employee_id property is inverse functional
+    assert (VOCAB.employee_id, RDF.type, OWL.InverseFunctionalProperty) in rdf_graph
+
+
+def test_ontology_property_type(rdf_graph, vocab_namespace):
     """Test that properties are either owl:ObjectProperty or owl:DatatypeProperty (default)"""
     VOCAB = vocab_namespace
 

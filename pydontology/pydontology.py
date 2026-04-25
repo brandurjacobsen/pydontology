@@ -1,7 +1,7 @@
 import warnings
 from copy import deepcopy
 from inspect import get_annotations, isclass
-from types import UnionType
+from types import NoneType, UnionType
 from typing import Annotated, Any, List, Literal, Optional, Union, get_args, get_origin
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, create_model
@@ -147,11 +147,20 @@ class Pydontology:
             for field_name in get_annotations(cls).keys():
                 field_info = cls.model_fields[field_name]
 
-                if field_info.is_required():
-                    assert field_info.annotation is not None
-                    field_type = field_info.annotation.__name__
+                origin = get_origin(field_info.annotation)
+                if origin is None:
+                    if field_info.annotation is not None:
+                        field_type = field_info.annotation.__name__
+                    else:
+                        field_type = None
+                elif origin is UnionType:
+                    args = get_args(field_info.annotation)
+                    if len(args) == 2 and NoneType in args:
+                        field_type = args[0] if args[0] is not NoneType else args[1]
+                    else:
+                        field_type = None
                 else:
-                    field_type = get_args(field_info.annotation)[0].__name__
+                    field_type = None
 
                 # Fields are identified by alias (if present), otherwise by name in the self._prop_db dict.
                 # If an ontology class redefines a previously identified property (according to the above),

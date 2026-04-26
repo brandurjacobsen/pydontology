@@ -156,7 +156,11 @@ class Pydontology:
                 elif origin is UnionType:
                     args = get_args(field_info.annotation)
                     if len(args) == 2 and NoneType in args:
-                        field_type = args[0] if args[0] is not NoneType else args[1]
+                        field_type = (
+                            args[0].__name__
+                            if args[0] is not NoneType
+                            else args[1].__name__
+                        )
                     else:
                         field_type = None
                 else:

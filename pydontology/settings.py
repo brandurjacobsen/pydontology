@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     # Set rdfs:subClassOf to parent class (Recommended)
     SUBCLASS_OF_PARENT: bool = True
 
-    # Use field name as sh:name for property shapes
+    # Use field name (or alias) as sh:name for property shapes
     FIELD_NAME_AS_SH_NAME: bool = True
 
     # Use field description as sh:description for property shapes
@@ -41,5 +41,12 @@ class Settings(BaseSettings):
     # Set sh:nodeKind to IRI for property shapes of relations
     RELATION_AS_NODEKIND_IRI: bool = True
 
-    # Use internal typemap of Python type to xsd type to set sh:datatype for property shapes
-    TYPEMAP_AS_DATATYPE: bool = True
+    # Use internal typemap of Python types to xsd types to set sh:datatype for SHACL property shapes
+    TYPE_AS_SH_DATATYPE: bool = True
+
+    # Attempt to use internal typemap of Python types to xsd types to set rdf:type for properties
+    TYPE_AS_RDF_TYPE: bool = True
+
+    # Require that Entity class fields can resolve to specific Python type
+    # and that redefined properties have same Python type
+    TYPE_STRICT_MODE: bool = True

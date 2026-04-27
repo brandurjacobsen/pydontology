@@ -142,7 +142,7 @@ class OWLAnnotation:
         owl:equivalentClass is used to state that two classes have the same class extension.
 
         Args:
-            value (str | Relation): Name of, Relation to the equivalent class, or Restriction
+            value (str | Relation | Restriction): Name of, Relation to the equivalent class, or Restriction
 
         Returns:
             OWLAnnotation.EQUIVALENT_CLASS (dataclass)
@@ -180,7 +180,7 @@ class OWLAnnotation:
         owl:equivalentProperty is used to state that two properties are equivalent.
 
         Args:
-            value (str): Name of the equivalent property
+            value (str | Relation): Name of the equivalent property
 
         Returns:
             OWLAnnotation.EQUIVALENT_PROPERTY (dataclass)
@@ -197,7 +197,7 @@ class OWLAnnotation:
         owl:inverseOf is used to state that one property is the inverse of another property.
 
         Args:
-            value (str): Name of the inverse property
+            value (str | Relation): Name of the inverse property
 
         Returns:
             OWLAnnotation.INVERSE_OF (dataclass)

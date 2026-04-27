@@ -20,6 +20,16 @@ from .rdfs import RDFSAnnotation
 from .settings import Settings
 from .shacl import SHACLAnnotation
 
+TYPE_MAP = {
+    "str": "xsd:string",
+    "int": "xsd:integer",
+    "float": "xsd:decimal",
+    "Decimal": "xsd:decimal",
+    "bool": "xsd:boolean",
+    "datetime": "xsd:dateTime",
+    "date": "xsd:date",
+}
+
 
 class DuplicatePropertyError(Exception):
     """Raised when fields/properties are redefined erroneously"""
@@ -66,6 +76,7 @@ class _OntologyProperty(BaseModel):
 
     id: str = Field(alias="@id", description="Property IRI")
     type: List[
+        # How can I add the values of TYPE_MAP to the literals AI?
         Literal[
             "owl:ObjectProperty",
             "owl:DatatypeProperty",
@@ -74,6 +85,7 @@ class _OntologyProperty(BaseModel):
             "owl:FunctionalProperty",
             "owl:InverseFunctionalProperty",
             "owl:InverseProperty",
+            *TYPE_MAP.values(),
         ]
     ] = Field(alias="@type")
     label: Optional[str] = Field(alias="rdfs:label", description="Human-readable label")
@@ -110,14 +122,7 @@ class _OntologyProperty(BaseModel):
 
 
 class Pydontology:
-    # Map Python types to xml schema types
-    type_map = {
-        "str": "xsd:string",
-        "int": "xsd:integer",
-        "float": "xsd:decimal",
-        "bool": "xsd:boolean",
-        "datetime": "xsd:dateTimeStamp",
-    }
+    type_map = TYPE_MAP
 
     def __init__(self, ontology: UnionType):
         self.ontology = ontology
@@ -146,30 +151,18 @@ class Pydontology:
             # want to process fields defined in the current class, not inherited fields
             for field_name in get_annotations(cls).keys():
                 field_info = cls.model_fields[field_name]
+                field_type = self._get_field_type(field_info)
 
-                origin = get_origin(field_info.annotation)
-                if origin is None:
-                    if field_info.annotation is not None:
-                        field_type = field_info.annotation.__name__
-                    else:
-                        field_type = None
-                elif origin is UnionType:
-                    args = get_args(field_info.annotation)
-                    if len(args) == 2 and NoneType in args:
-                        field_type = (
-                            args[0].__name__
-                            if args[0] is not NoneType
-                            else args[1].__name__
+                if self.cfg.TYPE_STRICT_MODE:
+                    if field_type not in self.type_map and field_type != "Relation":
+                        raise ValueError(
+                            f"Field {field_name} has type {field_type} which is not a Relation, or in the type map (Setting: TYPE_STRICT_MODE)"
                         )
-                    else:
-                        field_type = None
-                else:
-                    field_type = None
 
                 # Fields are identified by alias (if present), otherwise by name in the self._prop_db dict.
                 # If an ontology class redefines a previously identified property (according to the above),
                 # then the Python type needs to be identical, while e.g. default, description, title,
-                # examples and SHACL annotation can vary. RDFS/OWL annotations are ignored in redefinitions.
+                # examples and SHACL annotation can vary.
 
                 if field_info.alias is not None and field_info.alias in self._prop_db:
                     field_map = self._handle_duplicate_fields(
@@ -191,10 +184,31 @@ class Pydontology:
                 else:
                     self._prop_db[field_name] = field_map
 
+    def _get_field_type(self, field_info: FieldInfo) -> str | None:
+        """Resolve field type to one specific (optional) Python type as string or None"""
+        annotation = field_info.annotation
+        if annotation is None:
+            return None
+
+        origin = get_origin(annotation)
+        if origin is None:
+            return annotation.__name__
+        elif origin is Union or origin is UnionType:
+            args = get_args(annotation)
+            if len(args) == 2 and NoneType in args:
+                return args[0].__name__ if args[0] is not NoneType else args[1].__name__
+            else:
+                return None
+        else:
+            return None
+
     def _handle_duplicate_fields(self, class_name, field_id, field_type, field_info):
-        if field_type != self._prop_db[field_id]["field_type"]:
-            raise DuplicatePropertyError(
-                f"Field {field_id} can not be defined again with different Python type"
+        if (
+            field_type != self._prop_db[field_id]["field_type"]
+            and self.cfg.TYPE_STRICT_MODE
+        ):
+            raise ValueError(
+                f"Field {field_id} can not be defined again with different Python type (Setting: TYPE_STRICT_MODE)"
             )
         return {
             "defined_in": [*self._prop_db[field_id]["defined_in"], class_name],
@@ -323,6 +337,12 @@ class Pydontology:
                 prop_fields["type"] = ["owl:ObjectProperty"]
             else:
                 prop_fields["type"] = ["owl:DatatypeProperty"]
+                if (
+                    field_info["field_type"] in self.type_map
+                    and self.cfg.TYPE_AS_RDF_TYPE
+                ):
+                    prop_fields["type"].append(self.type_map[field_info["field_type"]])
+
             if self.cfg.FIELD_NAME_AS_LABEL:
                 prop_fields["label"] = field_name
 
@@ -473,7 +493,7 @@ class Pydontology:
                 create_prop_shape = True
             if (
                 field_info["field_type"] in self.type_map
-                and self.cfg.TYPEMAP_AS_DATATYPE
+                and self.cfg.TYPE_AS_SH_DATATYPE
             ):
                 prop_shape.datatype = Relation(
                     id=self.type_map[field_info["field_type"]]  # pyright: ignore

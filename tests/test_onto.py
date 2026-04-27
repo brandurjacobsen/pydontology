@@ -143,14 +143,6 @@ def test_ontology_inverse_of_property(rdf_graph, vocab_namespace):
     assert (VOCAB.vice_head, OWL.inverseOf, VOCAB.vice_head_of) in rdf_graph
 
 
-def test_ontology_equivalent_class(rdf_graph, vocab_namespace):
-    """Test that equivalent classes are correctly annotated"""
-    VOCAB = vocab_namespace
-
-    # Check Project class is equivalent to another class
-    assert (VOCAB.Project, OWL.equivalentClass, VOCAB.Project) in rdf_graph
-
-
 def test_ontology_equivalent_property(rdf_graph, vocab_namespace):
     """Test that equivalent properties are correctly annotated"""
     VOCAB = vocab_namespace

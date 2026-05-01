@@ -98,3 +98,26 @@ Pydontology currently supports the following subset of SHACL (Core) constructs v
         - "!NAME"        
         - "!SEVERITY"
         - "!UNIQUE_LANG"
+
+## API annotations
+API annotations provide metadata for generating FastAPI apps from ontology classes
+and properties. These annotations do not affect ontology, SHACL, or schema output.
+
+::: pydontology.api.APIAnnotation
+
+### Pydontology.generate_api
+Use `Pydontology.generate_api()` to build a FastAPI app from API annotations.
+
+#### SPARQL-backed handlers
+Pass SPARQL settings to `generate_api()` to enable read-only default handlers
+that issue CONSTRUCT queries against a triple store.
+
+Example:
+```python
+app = onto.generate_api(
+    base_path="/api/v1",
+    sparql_endpoint="https://example.com/sparql",
+    sparql_user="user",
+    sparql_password="pass",
+)
+```

@@ -25,6 +25,8 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+api = ["fastapi"]
+sparql = ["SPARQLWrapper"]
 examples = ["marimo", "rdflib", "pyshacl"]
 tests = ["pytest", "rdflib", "pyshacl"]
 

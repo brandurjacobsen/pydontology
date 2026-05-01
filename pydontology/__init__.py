@@ -1,3 +1,4 @@
+from .api import APIAnnotation
 from .owl import OWLAnnotation
 from .pydontology import (
     BaseContext,
@@ -26,6 +27,7 @@ __all__ = [
     "RDFSAnnotation",
     "OWLAnnotation",
     "SHACLAnnotation",
+    "APIAnnotation",
     "Settings",
     "val_datatype",
     "val_no_whitespace",

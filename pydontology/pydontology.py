@@ -135,7 +135,15 @@ class Pydontology:
         # Construct a dict that maps field names/properties to field metadata
         self._prop_db = dict()
 
-        for arg in get_args(ontology):
+        origin = get_origin(ontology)
+        if origin is Annotated:  # E.g. one annotated class
+            components = [ontology]
+        elif origin is Union or origin is UnionType:
+            components = get_args(ontology)
+        else:
+            components = [ontology]
+
+        for arg in components:
             cls, metadata = self._get_class_and_metadata(arg)
             class_name = cls.__name__
             description = cls.__doc__.strip() if cls.__doc__ else None

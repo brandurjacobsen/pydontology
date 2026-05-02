@@ -12,6 +12,7 @@ from .models import (
     Entity,
     JSONLDGraph,
     Relation,
+    TypeVal,
     _NodeShape,
     _PropertyShape,
 )
@@ -162,10 +163,11 @@ class Pydontology:
                 field_type = self._get_field_type(field_info)
 
                 if self.cfg.TYPE_STRICT_MODE:
-                    if field_type not in self.type_map and field_type != "Relation":
-                        raise ValueError(
-                            f"Field {field_name} has type {field_type} which is not a Relation, or in the type map (Setting: TYPE_STRICT_MODE)"
-                        )
+                    if field_type not in self.type_map:
+                        if field_type != "Relation" and field_type != "TypeVal":
+                            raise ValueError(
+                                f"Field '{field_name}' has type '{field_type}' which is not a Relation, nor in the type map (Setting: TYPE_STRICT_MODE)"
+                            )
 
                 # Fields are identified by alias (if present), otherwise by name in the self._prop_db dict.
                 # If an ontology class redefines a previously identified property (according to the above),
@@ -205,6 +207,9 @@ class Pydontology:
             args = get_args(annotation)
             if len(args) == 2 and NoneType in args:
                 return args[0].__name__ if args[0] is not NoneType else args[1].__name__
+            elif len(args) == 2 and TypeVal in args:
+                # Here we tacitly assume that non-TypeVal type is the same as TypeVal.type
+                return args[0].__name__ if args[0] is not TypeVal else args[1].__name__
             else:
                 return None
         else:
@@ -616,7 +621,7 @@ class Pydontology:
                 new_fields[name] = (new_type, field.default)
 
         New = create_model(
-            f"{model.__name__}NoAlias",
+            model.__name__,
             __base__=model,
             **new_fields,
         )
@@ -626,8 +631,36 @@ class Pydontology:
 
     def schema_graph(self, context: BaseContext = BaseContext()) -> type[JSONLDGraph]:
         """
-        Makes a JSONLDGraph class from the ontology for making JSON schemas
+        Creates a JSONLDGraph subclass that holds ontology classes in the default graph.
+
+        This class is specifically for LLM structured output, as it strips aliases
+        from the ontology classes, which cause errors when using e.g. Pydantic AI.
         """
+        return create_model(
+            "PydontologySchema",
+            context=(
+                BaseContext,
+                Field(
+                    default=context,
+                    json_schema_extra={
+                        "name": "@context",
+                        "description": "JSON-LD context",
+                    },
+                ),
+            ),
+            graph=(
+                List[self._strip_aliases(self.ontology)],
+                Field(
+                    json_schema_extra={
+                        "name": "@graph",
+                        "description": "Default json-ld graph",
+                    },
+                ),
+            ),
+            __base__=JSONLDGraph,
+        )
+
+    def jsonld_graph(self, context: BaseContext = BaseContext()) -> type[JSONLDGraph]:
         return create_model(
             "PydontologyModel",
             context=(
@@ -641,7 +674,7 @@ class Pydontology:
                 ),
             ),
             graph=(
-                List[self._strip_aliases(self.ontology)],
+                List[self.ontology],
                 Field(
                     json_schema_extra={
                         "name": "@graph",

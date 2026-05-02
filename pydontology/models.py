@@ -54,6 +54,17 @@ class Relation(BaseModel):
     )
 
 
+class TypeVal(BaseModel):
+    """Class that serializes as a typed value literal"""
+
+    value: Any = Field(alias="@value", description="Value of RDF literal")
+    type: Any = Field(alias="@type", description="XML schema type of RDF literal")
+
+    model_config = ConfigDict(
+        populate_by_name=True, serialize_by_alias=True, frozen=True
+    )
+
+
 class Entity(BaseModel):
     """The base class of all ontology classes."""
 

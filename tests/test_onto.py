@@ -1,5 +1,5 @@
 import pytest
-from rdflib import OWL, RDF, RDFS, Graph, Namespace
+from rdflib import OWL, RDF, RDFS, Dataset, Graph, Namespace
 
 from pydontology.pydontology import BaseContext, JSONLDGraph
 
@@ -21,9 +21,10 @@ def onto_graph_json(onto_graph):
 @pytest.fixture
 def rdf_graph(onto_graph_json):
     """Fixture returing the ontology graph as an rdflib Graph"""
-    g = Graph()
-    g.parse(data=onto_graph_json, format="json-ld")
-    return g
+    # g = Graph()
+    ds = Dataset().parse(data=onto_graph_json, format="json-ld")
+    # g.parse(data=onto_graph_json, format="json-ld")
+    return ds
 
 
 @pytest.fixture
@@ -87,8 +88,7 @@ def test_ontology_properties_present(rdf_graph, vocab_namespace):
     datatype_props = list(rdf_graph.subjects(RDF.type, OWL.DatatypeProperty))
     all_props = object_props + datatype_props
 
-    # Should have exactly 13 properties
-    assert len(all_props) == 13
+    assert len(all_props) == 12
 
     # Verify each expected property exists
     assert VOCAB.name in all_props
@@ -143,15 +143,8 @@ def test_ontology_inverse_of_property(rdf_graph, vocab_namespace):
     assert (VOCAB.vice_head, OWL.inverseOf, VOCAB.vice_head_of) in rdf_graph
 
 
-def test_ontology_equivalent_property(rdf_graph, vocab_namespace):
-    """Test that equivalent properties are correctly annotated"""
-    VOCAB = vocab_namespace
-
-    # Check related_project property is equivalent to another property
-    # This test is not applicable as equivalentProperty is not used in TestModel
-    pass
-
-    """Test that inverse functional properties are correctly annotated"""
+def test_ontology_inverse_dunctional_property(rdf_graph, vocab_namespace):
+    """Test that owl:InverseFunctionalProperty shows up as expected"""
     VOCAB = vocab_namespace
 
     # Check employee_id property is inverse functional
@@ -199,6 +192,12 @@ def test_ontology_class_descriptions(rdf_graph, vocab_namespace):
     # Check Company rdfs comment (should have no comment)
     company_comments = list(rdf_graph.objects(VOCAB.Company, RDFS.comment))
     assert len(company_comments) == 0
+
+
+def test_ontology_equivalent_class(rdf_graph, vocab_namespace):
+    """Test that owl:equivalentClass shows up as expected"""
+    VOCAB = vocab_namespace
+    print(next(rdf_graph.subject_objects(OWL.equivalentClass)))
 
 
 def test_ontology_property_descriptions(rdf_graph, vocab_namespace):

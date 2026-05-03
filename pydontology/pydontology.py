@@ -12,7 +12,6 @@ from .models import (
     Entity,
     JSONLDGraph,
     Relation,
-    TypeVal,
     _NodeShape,
     _PropertyShape,
 )
@@ -24,12 +23,14 @@ from .shacl import SHACLAnnotation
 TYPE_MAP = {
     "str": "xsd:string",
     "int": "xsd:integer",
-    "float": "xsd:decimal",
     "Decimal": "xsd:decimal",
+    "float": "xsd:decimal",  # float after Decimal for INV_TYPE_MAP
     "bool": "xsd:boolean",
     "datetime": "xsd:dateTime",
     "date": "xsd:date",
 }
+INV_TYPE_MAP = {v: k for k, v in TYPE_MAP.items()}
+TYPE_SET = set(TYPE_MAP.values())
 
 
 class DuplicatePropertyError(Exception):
@@ -86,7 +87,7 @@ class _OntologyProperty(BaseModel):
             "owl:FunctionalProperty",
             "owl:InverseFunctionalProperty",
             "owl:InverseProperty",
-            *TYPE_MAP.values(),
+            *TYPE_SET,
         ]
     ] = Field(alias="@type")
     label: Optional[str] = Field(alias="rdfs:label", description="Human-readable label")
@@ -163,11 +164,10 @@ class Pydontology:
                 field_type = self._get_field_type(field_info)
 
                 if self.cfg.TYPE_STRICT_MODE:
-                    if field_type not in self.type_map:
-                        if field_type != "Relation" and field_type != "TypeVal":
-                            raise ValueError(
-                                f"Field '{field_name}' has type '{field_type}' which is not a Relation, nor in the type map (Setting: TYPE_STRICT_MODE)"
-                            )
+                    if field_type not in self.type_map and field_type != "Relation":
+                        raise ValueError(
+                            f"Field '{field_name}' has type '{field_type}' which is not a Relation, nor in the type map (Setting: TYPE_STRICT_MODE)"
+                        )
 
                 # Fields are identified by alias (if present), otherwise by name in the self._prop_db dict.
                 # If an ontology class redefines a previously identified property (according to the above),
@@ -195,7 +195,7 @@ class Pydontology:
                     self._prop_db[field_name] = field_map
 
     def _get_field_type(self, field_info: FieldInfo) -> str | None:
-        """Resolve field type to one specific (optional) Python type as string or None"""
+        """Resolve field type to one specific Python type as string or None"""
         annotation = field_info.annotation
         if annotation is None:
             return None
@@ -207,9 +207,7 @@ class Pydontology:
             args = get_args(annotation)
             if len(args) == 2 and NoneType in args:
                 return args[0].__name__ if args[0] is not NoneType else args[1].__name__
-            elif len(args) == 2 and TypeVal in args:
-                # Here we tacitly assume that non-TypeVal type is the same as TypeVal.type
-                return args[0].__name__ if args[0] is not TypeVal else args[1].__name__
+
             else:
                 return None
         else:

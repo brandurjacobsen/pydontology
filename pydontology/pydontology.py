@@ -19,18 +19,7 @@ from .owl import OWLAnnotation, RDFList
 from .rdfs import RDFSAnnotation
 from .settings import Settings
 from .shacl import SHACLAnnotation
-
-TYPE_MAP = {
-    "str": "xsd:string",
-    "int": "xsd:integer",
-    "Decimal": "xsd:decimal",
-    "float": "xsd:decimal",  # float after Decimal for INV_TYPE_MAP
-    "bool": "xsd:boolean",
-    "datetime": "xsd:dateTime",
-    "date": "xsd:date",
-}
-INV_TYPE_MAP = {v: k for k, v in TYPE_MAP.items()}
-TYPE_SET = set(TYPE_MAP.values())
+from .types import TYPE_MAP, TYPE_SET
 
 
 class DuplicatePropertyError(Exception):
@@ -78,7 +67,6 @@ class _OntologyProperty(BaseModel):
 
     id: str = Field(alias="@id", description="Property IRI")
     type: List[
-        # How can I add the values of TYPE_MAP to the literals AI?
         Literal[
             "owl:ObjectProperty",
             "owl:DatatypeProperty",
@@ -129,7 +117,7 @@ class Pydontology:
     def __init__(self, ontology: UnionType):
         self.ontology = ontology
         # Get default settings for ontology_graph and shacl_graph methods
-        self.cfg = Settings()
+        self._apply_settings(Settings())
 
         # Construct a dict that maps Entity class names to class metadata
         self._cls_db = dict()
@@ -193,6 +181,11 @@ class Pydontology:
                     self._prop_db[field_info.alias] = field_map
                 else:
                     self._prop_db[field_name] = field_map
+
+    def _apply_settings(self, settings: Settings) -> None:
+        self.cfg = settings
+        Entity._serialize_literals_as_typeval = settings.SERIALIZE_LITERALS_AS_TYPEVAL
+        Entity._type_strict_mode = settings.TYPE_STRICT_MODE
 
     def _get_field_type(self, field_info: FieldInfo) -> str | None:
         """Resolve field type to one specific Python type as string or None"""
@@ -380,7 +373,7 @@ class Pydontology:
             if len(field_info["metadata"]) > 1:
                 if self.cfg.SHOW_WARNINGS:
                     warnings.warn(
-                        f"OWL/RDFS annotations will be concatenated for '{field_name}' property since it is defined in multiple classe",
+                        f"OWL/RDFS annotations will be concatenated/added for '{field_name}' property since it is defined in multiple classe",
                         UserWarning,
                     )
             self._add_property_annotations(
@@ -393,7 +386,7 @@ class Pydontology:
         self, context: BaseContext = BaseContext(), settings: Settings = Settings()
     ):
         """Generate ontology graph"""
-        self.cfg = settings
+        self._apply_settings(settings)
         onto_classes = self._create_ontology_classes()
         onto_props = self._create_ontology_properties()
         return JSONLDGraph(context=context, graph=[*onto_classes, *onto_props])  # pyright: ignore
@@ -555,8 +548,7 @@ class Pydontology:
         self, context: BaseContext = BaseContext(), settings: Settings = Settings()
     ):
         """Generate SHACL graph"""
-
-        self.cfg = settings
+        self._apply_settings(settings)
         shacl_shapes = self._create_node_shapes()
         return JSONLDGraph(context=context, graph=shacl_shapes)  # pyright: ignore
 
@@ -627,13 +619,16 @@ class Pydontology:
         cache[model] = New
         return New
 
-    def schema_graph(self, context: BaseContext = BaseContext()) -> type[JSONLDGraph]:
+    def schema_graph(
+        self, context: BaseContext = BaseContext(), settings: Settings = Settings()
+    ) -> type[JSONLDGraph]:
         """
         Creates a JSONLDGraph subclass that holds ontology classes in the default graph.
 
         This class is specifically for LLM structured output, as it strips aliases
         from the ontology classes, which cause errors when using e.g. Pydantic AI.
         """
+        self._apply_settings(settings)
         return create_model(
             "PydontologySchema",
             context=(
@@ -659,6 +654,7 @@ class Pydontology:
         )
 
     def jsonld_graph(self, context: BaseContext = BaseContext()) -> type[JSONLDGraph]:
+        self._apply_settings(self.cfg)
         return create_model(
             "PydontologyModel",
             context=(

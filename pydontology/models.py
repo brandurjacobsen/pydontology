@@ -1,4 +1,5 @@
-from typing import Annotated, Any, List, Literal, Optional
+from types import NoneType, UnionType
+from typing import Annotated, Any, List, Literal, Optional, Union, get_args, get_origin
 
 from pydantic import (
     AfterValidator,
@@ -6,9 +7,11 @@ from pydantic import (
     ConfigDict,
     Field,
     computed_field,
+    model_serializer,
 )
 
 from .validators import val_no_whitespace
+from .types import infer_xsd_type
 
 
 class BaseContext(BaseModel):
@@ -68,6 +71,9 @@ class TypeVal(BaseModel):
 class Entity(BaseModel):
     """The base class of all ontology classes."""
 
+    _serialize_literals_as_typeval: bool = False
+    _type_strict_mode: bool = True
+
     id: Annotated[str, AfterValidator(val_no_whitespace)] = Field(
         alias="@id", description="IRI", title="@id", min_length=1
     )
@@ -76,6 +82,87 @@ class Entity(BaseModel):
     @property
     def type(self) -> str:
         return type(self).__name__
+
+    @classmethod
+    def _annotation_contains_type(cls, annotation: Any, target: type) -> bool:
+        if annotation is target:
+            return True
+
+        origin = get_origin(annotation)
+        if origin is Annotated:
+            return cls._annotation_contains_type(get_args(annotation)[0], target)
+
+        if origin in (list, List, set, tuple, frozenset):
+            return any(cls._annotation_contains_type(arg, target) for arg in get_args(annotation))
+
+        if origin in (Union, UnionType):
+            return any(
+                cls._annotation_contains_type(arg, target)
+                for arg in get_args(annotation)
+                if arg is not NoneType
+            )
+
+        return False
+
+    @classmethod
+    def _should_wrap_field(cls, field_name: str, field_info) -> bool:
+        if field_name == "id":
+            return False
+        if cls._annotation_contains_type(field_info.annotation, Relation):
+            return False
+        if cls._annotation_contains_type(field_info.annotation, TypeVal):
+            return False
+        return True
+
+    def _wrap_serialized_value(self, raw_value, serialized_value, field_name: str):
+        if raw_value is None:
+            return serialized_value
+        if isinstance(raw_value, (Relation, TypeVal)):
+            return serialized_value
+        if isinstance(raw_value, list):
+            if not isinstance(serialized_value, list):
+                return serialized_value
+            wrapped = []
+            for idx, raw_item in enumerate(raw_value):
+                ser_item = (
+                    serialized_value[idx]
+                    if idx < len(serialized_value)
+                    else raw_item
+                )
+                wrapped.append(
+                    self._wrap_serialized_value(raw_item, ser_item, field_name)
+                )
+            if len(serialized_value) > len(raw_value):
+                wrapped.extend(serialized_value[len(raw_value) :])
+            return wrapped
+
+        xsd_type = infer_xsd_type(raw_value)
+        if xsd_type is None:
+            if self._type_strict_mode:
+                raise ValueError(
+                    f"Field '{field_name}' has value type '{type(raw_value).__name__}' which is not in the type map (Setting: TYPE_STRICT_MODE)"
+                )
+            return serialized_value
+        return TypeVal(value=raw_value, type=xsd_type).model_dump(by_alias=True)
+
+    @model_serializer(mode="wrap")
+    def _serialize_literals(self, handler):
+        data = handler(self)
+        if not self._serialize_literals_as_typeval:
+            return data
+
+        for field_name, field_info in self.__class__.model_fields.items():
+            if not self._should_wrap_field(field_name, field_info):
+                continue
+            key = field_info.serialization_alias or field_info.alias or field_name
+            if key not in data:
+                continue
+            raw_value = getattr(self, field_name)
+            if raw_value is None:
+                continue
+            data[key] = self._wrap_serialized_value(raw_value, data[key], field_name)
+
+        return data
 
     sameAs: Optional[List[Relation]] = Field(
         default=None,

@@ -24,13 +24,12 @@ class OWLAnnotation:
     """
 
     class Restriction(BaseModel):
-        """Model for use in applying OWL restrictions"""
+        """Model for use in applying OWL Lite restrictions"""
 
         type: Literal["owl:Restriction"] = Field(
             alias="@type", default="owl:Restriction"
         )
         onProperty: Relation = Field(alias="owl:onProperty")
-        hasValue: Optional[Relation] = Field(alias="owl:hasValue", default=None)
         someValuesFrom: Optional[Relation] = Field(
             alias="owl:someValuesFrom", default=None
         )

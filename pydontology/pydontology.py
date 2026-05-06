@@ -2,9 +2,9 @@ import warnings
 from copy import deepcopy
 from inspect import get_annotations, isclass
 from types import NoneType, UnionType
-from typing import Annotated, Any, List, Literal, Optional, Union, get_args, get_origin
+from typing import Annotated, Any, List, Union, get_args, get_origin
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, create_model
+from pydantic import BaseModel, Field, create_model
 from pydantic.fields import FieldInfo
 
 from .models import (
@@ -13,102 +13,21 @@ from .models import (
     JSONLDGraph,
     Relation,
     _NodeShape,
+    _OntologyClass,
+    _OntologyProperty,
     _PropertyShape,
 )
-from .owl import OWLAnnotation, RDFList
+from .owl import OWLAnnotation
 from .rdfs import RDFSAnnotation
 from .settings import Settings
 from .shacl import SHACLAnnotation
-from .types import TYPE_MAP, TYPE_SET
+from .types import TYPE_MAP
+
+# _OntologyClass.model_rebuild()
 
 
 class DuplicatePropertyError(Exception):
     """Raised when fields/properties are redefined erroneously"""
-
-
-class _OntologyClass(BaseModel):
-    """Represents an RDFS/OWL class in an ontology graph"""
-
-    id: str = Field(alias="@id", description="Class IRI")
-    type: Literal["rdfs:Class", "owl:Class"] = Field(
-        default="rdfs:Class",
-        alias="@type",
-        description="The RDF type.",
-    )
-    label: Optional[str] = Field(
-        alias="rdfs:label", default=None, description="Human-readable label"
-    )
-    comment: Optional[str] = Field(
-        default=None, alias="rdfs:comment", description="Class description"
-    )
-    subClassOf: Optional[List[Relation | OWLAnnotation.Restriction]] = Field(
-        default=None, alias="rdfs:subClassOf", description="Parent class(es)"
-    )
-    seeAlso: Optional[HttpUrl] = Field(
-        default=None, alias="rdfs:seeAlso", description="Link to additional information"
-    )
-    isDefinedBy: Optional[HttpUrl] = Field(
-        default=None, alias="rdfs:isDefinedBy", description="Link to definition"
-    )
-    equivalentClass: Optional[List[Relation | OWLAnnotation.Restriction]] = Field(
-        default=None,
-        alias="owl:equivalentClass",
-        description="Members of this class are also members of the other",
-    )
-    intersectionOf: Optional[RDFList] = Field(
-        default=None, alias="owl:intersectionOf", description=""
-    )
-
-    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
-
-
-class _OntologyProperty(BaseModel):
-    """Represents an OWL property in an ontology graph."""
-
-    id: str = Field(alias="@id", description="Property IRI")
-    type: List[
-        Literal[
-            "owl:ObjectProperty",
-            "owl:DatatypeProperty",
-            "owl:TransitiveProperty",
-            "owl:SymmetricProperty",
-            "owl:FunctionalProperty",
-            "owl:InverseFunctionalProperty",
-            "owl:InverseProperty",
-            *TYPE_SET,
-        ]
-    ] = Field(alias="@type")
-    label: Optional[str] = Field(alias="rdfs:label", description="Human-readable label")
-    domain: Optional[Relation] = Field(
-        default=None, alias="rdfs:domain", description="Domain class IRI"
-    )
-    range: Optional[Relation] = Field(
-        default=None, alias="rdfs:range", description="Range class or datatype IRI"
-    )
-    comment: Optional[str] = Field(
-        default=None, alias="rdfs:comment", description="Property description"
-    )
-    subPropertyOf: Optional[Relation] = Field(
-        default=None, alias="rdfs:subPropertyOf", description="IRI of super-property"
-    )
-    seeAlso: Optional[HttpUrl] = Field(
-        default=None, alias="rdfs:seeAlso", description="Link to additional information"
-    )
-    isDefinedBy: Optional[HttpUrl] = Field(
-        default=None, alias="rdfs:isDefinedBy", description="Link to definition"
-    )
-    equivalentProperty: Optional[Relation] = Field(
-        default=None,
-        alias="owl:equivalentProperty",
-        description="IRI of equivalent property",
-    )
-    inverseOf: Optional[Relation] = Field(
-        default=None,
-        alias="owl:inverseOf",
-        description="Property is the inverse of another property",
-    )
-
-    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
 
 class Pydontology:
@@ -653,13 +572,16 @@ class Pydontology:
             __base__=JSONLDGraph,
         )
 
-    def jsonld_graph(self, context: BaseContext = BaseContext()) -> type[JSONLDGraph]:
+    def jsonld_graph(
+        self, context: BaseContext = BaseContext(), settings: Settings = Settings()
+    ) -> type[JSONLDGraph]:
         self._apply_settings(self.cfg)
         return create_model(
             "PydontologyModel",
             context=(
                 BaseContext,
                 Field(
+                    alias="@context",
                     default=context,
                     json_schema_extra={
                         "name": "@context",
@@ -670,6 +592,7 @@ class Pydontology:
             graph=(
                 List[self.ontology],
                 Field(
+                    alias="@graph",
                     json_schema_extra={
                         "name": "@graph",
                         "description": "Default json-ld graph",

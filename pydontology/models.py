@@ -1,17 +1,30 @@
 from types import NoneType, UnionType
-from typing import Annotated, Any, List, Literal, Optional, Union, get_args, get_origin
+from typing import (
+    Annotated,
+    Any,
+    List,
+    Literal,
+    Optional,
+    Self,
+    Tuple,
+    Union,
+    get_args,
+    get_origin,
+)
 
 from pydantic import (
     AfterValidator,
     BaseModel,
     ConfigDict,
     Field,
+    HttpUrl,
     computed_field,
     model_serializer,
+    model_validator,
 )
 
+from .types import TYPE_SET, infer_xsd_type
 from .validators import val_no_whitespace
-from .types import infer_xsd_type
 
 
 class BaseContext(BaseModel):
@@ -68,6 +81,71 @@ class TypeVal(BaseModel):
     )
 
 
+class Restriction(BaseModel):
+    """Model for use in applying OWL Restrictions"""
+
+    type: Literal["owl:Restriction"] = Field(alias="@type", default="owl:Restriction")
+    onProperty: Relation = Field(alias="owl:onProperty")
+    someValuesFrom: Optional[Relation] = Field(alias="owl:someValuesFrom", default=None)
+    allValuesFrom: Optional[Relation] = Field(alias="owl:allValuesFrom", default=None)
+    cardinality: Optional[int] = Field(alias="owl:cardinality", default=None)
+    minCardinality: Optional[int] = Field(alias="owl:minCardinality", default=None)
+    maxCardinality: Optional[int] = Field(alias="owl:maxCardinality", default=None)
+
+    @model_validator(mode="after")
+    def mutually_exclusive(self) -> Self:
+        """Ensure only one restriction type is specified at a time."""
+        restriction_fields = [
+            "someValuesFrom",
+            "allValuesFrom",
+            "cardinality",
+            "minCardinality",
+            "maxCardinality",
+        ]
+
+        # List of optional fields populated
+        populated_fields = [
+            field
+            for field in restriction_fields
+            if self.__getattribute__(field) is not None
+        ]
+
+        if len(populated_fields) > 1:
+            raise ValueError(
+                f"Only one restriction type can be specified. Found: {populated_fields}"
+            )
+
+        if len(populated_fields) == 0:
+            raise ValueError("At least one restriction type must be specified")
+
+        return self
+
+    model_config = ConfigDict(
+        populate_by_name=True, serialize_by_alias=True, frozen=True
+    )
+
+
+class RDFList(BaseModel):
+    """An ordered RDF list structure (collection)"""
+
+    list: Tuple[Relation | Restriction, ...] = Field(alias="@list")
+
+    model_config = ConfigDict(
+        populate_by_name=True, serialize_by_alias=True, frozen=True
+    )
+
+
+class AllDifferent(BaseModel):
+    """The OWL AllDifferent class"""
+
+    type: Literal["owl:AllDifferent"] = Field(alias="@type", default="owl:AllDifferent")
+    distinctMembers: RDFList = Field(alias="owl:distinctMembers")
+
+    model_config = ConfigDict(
+        populate_by_name=True, serialize_by_alias=True, frozen=True
+    )
+
+
 class Entity(BaseModel):
     """The base class of all ontology classes."""
 
@@ -93,7 +171,10 @@ class Entity(BaseModel):
             return cls._annotation_contains_type(get_args(annotation)[0], target)
 
         if origin in (list, List, set, tuple, frozenset):
-            return any(cls._annotation_contains_type(arg, target) for arg in get_args(annotation))
+            return any(
+                cls._annotation_contains_type(arg, target)
+                for arg in get_args(annotation)
+            )
 
         if origin in (Union, UnionType):
             return any(
@@ -125,9 +206,7 @@ class Entity(BaseModel):
             wrapped = []
             for idx, raw_item in enumerate(raw_value):
                 ser_item = (
-                    serialized_value[idx]
-                    if idx < len(serialized_value)
-                    else raw_item
+                    serialized_value[idx] if idx < len(serialized_value) else raw_item
                 )
                 wrapped.append(
                     self._wrap_serialized_value(raw_item, ser_item, field_name)
@@ -143,7 +222,7 @@ class Entity(BaseModel):
                     f"Field '{field_name}' has value type '{type(raw_value).__name__}' which is not in the type map (Setting: TYPE_STRICT_MODE)"
                 )
             return serialized_value
-        return TypeVal(value=raw_value, type=xsd_type).model_dump(by_alias=True)
+        return TypeVal(value=raw_value, type=xsd_type).model_dump()  # pyright: ignore
 
     @model_serializer(mode="wrap")
     def _serialize_literals(self, handler):
@@ -179,6 +258,91 @@ class Entity(BaseModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
 
+class _OntologyClass(BaseModel):
+    """Represents an RDFS/OWL class in an ontology graph"""
+
+    id: str = Field(alias="@id", description="Class IRI")
+    type: Literal["rdfs:Class", "owl:Class"] = Field(
+        default="rdfs:Class",
+        alias="@type",
+        description="The RDF type.",
+    )
+    label: Optional[str] = Field(
+        alias="rdfs:label", default=None, description="Human-readable label"
+    )
+    comment: Optional[str] = Field(
+        default=None, alias="rdfs:comment", description="Class description"
+    )
+    subClassOf: Optional[List[Relation | Restriction]] = Field(
+        default=None, alias="rdfs:subClassOf", description="Parent class(es)"
+    )
+    seeAlso: Optional[HttpUrl] = Field(
+        default=None, alias="rdfs:seeAlso", description="Link to additional information"
+    )
+    isDefinedBy: Optional[HttpUrl] = Field(
+        default=None, alias="rdfs:isDefinedBy", description="Link to definition"
+    )
+    equivalentClass: Optional[List[Relation | Restriction]] = Field(
+        default=None,
+        alias="owl:equivalentClass",
+        description="Members of this class are also members of the other",
+    )
+    intersectionOf: Optional[RDFList] = Field(
+        default=None, alias="owl:intersectionOf", description=""
+    )
+
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+
+
+class _OntologyProperty(BaseModel):
+    """Represents an OWL property in an ontology graph."""
+
+    id: str = Field(alias="@id", description="Property IRI")
+    type: List[
+        Literal[
+            "owl:ObjectProperty",
+            "owl:DatatypeProperty",
+            "owl:TransitiveProperty",
+            "owl:SymmetricProperty",
+            "owl:FunctionalProperty",
+            "owl:InverseFunctionalProperty",
+            "owl:InverseProperty",
+            *TYPE_SET,
+        ]
+    ] = Field(alias="@type")
+    label: Optional[str] = Field(alias="rdfs:label", description="Human-readable label")
+    domain: Optional[Relation] = Field(
+        default=None, alias="rdfs:domain", description="Domain class IRI"
+    )
+    range: Optional[Relation] = Field(
+        default=None, alias="rdfs:range", description="Range class or datatype IRI"
+    )
+    comment: Optional[str] = Field(
+        default=None, alias="rdfs:comment", description="Property description"
+    )
+    subPropertyOf: Optional[Relation] = Field(
+        default=None, alias="rdfs:subPropertyOf", description="IRI of super-property"
+    )
+    seeAlso: Optional[HttpUrl] = Field(
+        default=None, alias="rdfs:seeAlso", description="Link to additional information"
+    )
+    isDefinedBy: Optional[HttpUrl] = Field(
+        default=None, alias="rdfs:isDefinedBy", description="Link to definition"
+    )
+    equivalentProperty: Optional[Relation] = Field(
+        default=None,
+        alias="owl:equivalentProperty",
+        description="IRI of equivalent property",
+    )
+    inverseOf: Optional[Relation] = Field(
+        default=None,
+        alias="owl:inverseOf",
+        description="Property is the inverse of another property",
+    )
+
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+
+
 class _PropertyShape(BaseModel):
     """Represents a SHACL property shape in a SHACL graph."""
 
@@ -196,6 +360,7 @@ class _PropertyShape(BaseModel):
     nodeKind: Optional[Relation] = Field(
         default=None, alias="sh:nodeKind", description="Node kind constraint"
     )
+    
     # Cardinality Constraint Components
     minCount: Optional[int] = Field(
         default=None, alias="sh:minCount", ge=0, description="Minimum cardinality"
@@ -203,6 +368,7 @@ class _PropertyShape(BaseModel):
     maxCount: Optional[int] = Field(
         default=None, alias="sh:maxCount", ge=0, description="Maximum cardinality"
     )
+    
     # Value Range Constraint Components
     minInclusive: Optional[float] = Field(
         default=None, alias="sh:minInclusive", description="Minimum inclusive value"
@@ -216,6 +382,7 @@ class _PropertyShape(BaseModel):
     maxExclusive: Optional[float] = Field(
         default=None, alias="sh:maxExclusive", description="Maximum exclusive value"
     )
+    
     # String-based Constraint Components
     pattern: Optional[str] = Field(
         default=None, alias="sh:pattern", description="Pattern constraint"
@@ -234,6 +401,7 @@ class _PropertyShape(BaseModel):
         alias="sh:uniqueLang",
         description="Whether language tags must be unique",
     )
+    
     # Property Pair Constraint Components
     equals: Optional[Relation] = Field(
         default=None, alias="sh:equals", description="Property path with equal values"
@@ -253,15 +421,8 @@ class _PropertyShape(BaseModel):
         alias="sh:lessThanOrEquals",
         description="Property path with greater or equal values",
     )
-    # Other Constraint Components
-    closed: Optional[bool] = Field(
-        default=None, alias="sh:closed", description="Whether shape is closed"
-    )
-    ignoredProperties: Optional[List[Relation]] = Field(
-        default=None,
-        alias="sh:ignoredProperties",
-        description="Properties to ignore when closed",
-    )
+    
+    ## Other Constraint Components
     hasValue: Optional[str | int | float | bool] = Field(
         default=None, alias="sh:hasValue", description="Required value"
     )
@@ -311,6 +472,8 @@ class _NodeShape(BaseModel):
 class JSONLDGraph(BaseModel):
     """Class that encapsulates a JSON-LD document/graph."""
 
+    _all_different = False
+
     context: BaseContext = Field(
         default=BaseContext(),
         alias="@context",
@@ -324,5 +487,25 @@ class JSONLDGraph(BaseModel):
         title="@graph",
         description="Default or named graph",
     )
+
+    def all_different(self, toggle: bool) -> None:
+        """Includes the owl:allDifferent class in the serialization
+
+        All individuals in the graph are then seen as distinct members
+        """
+        self._all_different = toggle
+
+    @model_serializer(mode="wrap")
+    def _serialize_as_all_different(self, handler):
+        data = handler(self)
+        if not self._all_different:
+            return data
+
+        # Include AllDifferent class in graph with graph individuals in 'distinctMembers' RDF collection.
+        rdf_list = [Relation(id=i["@id"]) for i in data["@graph"]]  # pyright: ignore
+        data["@graph"].append(
+            AllDifferent(distinctMembers=RDFList(list=tuple(rdf_list)))  # pyright: ignore
+        )
+        return data
 
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)

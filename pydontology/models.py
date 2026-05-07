@@ -147,7 +147,10 @@ class AllDifferent(BaseModel):
 
 
 class Entity(BaseModel):
-    """The base class of all ontology classes."""
+    """The base class of all ontology classes.
+
+    Serialization behavior is controlled via Settings class.
+    """
 
     _serialize_literals_as_typeval: bool = False
     _type_strict_mode: bool = True
@@ -162,7 +165,8 @@ class Entity(BaseModel):
         return type(self).__name__
 
     @classmethod
-    def _annotation_contains_type(cls, annotation: Any, target: type) -> bool:
+    def _annotation_contains_type(cls, annotation: Any, target: Any) -> bool:
+        """Return True if annotation contains target type in nested typing constructs."""
         if annotation is target:
             return True
 
@@ -187,6 +191,7 @@ class Entity(BaseModel):
 
     @classmethod
     def _should_wrap_field(cls, field_name: str, field_info) -> bool:
+        """Decide whether a field is eligible for TypeVal serialization."""
         if field_name == "id":
             return False
         if cls._annotation_contains_type(field_info.annotation, Relation):
@@ -196,6 +201,7 @@ class Entity(BaseModel):
         return True
 
     def _wrap_serialized_value(self, raw_value, serialized_value, field_name: str):
+        """Wrap scalar values as TypeVal; recurse into lists and honor strict mode."""
         if raw_value is None:
             return serialized_value
         if isinstance(raw_value, (Relation, TypeVal)):
@@ -226,6 +232,7 @@ class Entity(BaseModel):
 
     @model_serializer(mode="wrap")
     def _serialize_literals(self, handler):
+        """Serialize scalar literals as TypeVal when the global toggle is enabled."""
         data = handler(self)
         if not self._serialize_literals_as_typeval:
             return data
@@ -360,7 +367,7 @@ class _PropertyShape(BaseModel):
     nodeKind: Optional[Relation] = Field(
         default=None, alias="sh:nodeKind", description="Node kind constraint"
     )
-    
+
     # Cardinality Constraint Components
     minCount: Optional[int] = Field(
         default=None, alias="sh:minCount", ge=0, description="Minimum cardinality"
@@ -368,7 +375,7 @@ class _PropertyShape(BaseModel):
     maxCount: Optional[int] = Field(
         default=None, alias="sh:maxCount", ge=0, description="Maximum cardinality"
     )
-    
+
     # Value Range Constraint Components
     minInclusive: Optional[float] = Field(
         default=None, alias="sh:minInclusive", description="Minimum inclusive value"
@@ -382,7 +389,7 @@ class _PropertyShape(BaseModel):
     maxExclusive: Optional[float] = Field(
         default=None, alias="sh:maxExclusive", description="Maximum exclusive value"
     )
-    
+
     # String-based Constraint Components
     pattern: Optional[str] = Field(
         default=None, alias="sh:pattern", description="Pattern constraint"
@@ -401,7 +408,7 @@ class _PropertyShape(BaseModel):
         alias="sh:uniqueLang",
         description="Whether language tags must be unique",
     )
-    
+
     # Property Pair Constraint Components
     equals: Optional[Relation] = Field(
         default=None, alias="sh:equals", description="Property path with equal values"
@@ -421,7 +428,7 @@ class _PropertyShape(BaseModel):
         alias="sh:lessThanOrEquals",
         description="Property path with greater or equal values",
     )
-    
+
     ## Other Constraint Components
     hasValue: Optional[str | int | float | bool] = Field(
         default=None, alias="sh:hasValue", description="Required value"

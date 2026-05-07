@@ -102,7 +102,9 @@ class Pydontology:
                     self._prop_db[field_name] = field_map
 
     def _apply_settings(self, settings: Settings) -> None:
+        """Apply Settings to runtime behavior, including Entity serialization."""
         self.cfg = settings
+        # These flags control JSON-LD data serialization of Entity instances.
         Entity._serialize_literals_as_typeval = settings.SERIALIZE_LITERALS_AS_TYPEVAL
         Entity._type_strict_mode = settings.TYPE_STRICT_MODE
 

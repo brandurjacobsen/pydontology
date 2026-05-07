@@ -109,22 +109,30 @@ class Pydontology:
         Entity._type_strict_mode = settings.TYPE_STRICT_MODE
 
     def _get_field_type(self, field_info: FieldInfo) -> str | None:
-        """Resolve field type to one specific Python type as string or None"""
+        """Resolve field type to one specific Python type or builtin class name as string or None"""
         annotation = field_info.annotation
         if annotation is None:
             return None
-
-        origin = get_origin(annotation)
-        if origin is None:
-            return annotation.__name__
-        elif origin is Union or origin is UnionType:
-            args = get_args(annotation)
-            if len(args) == 2 and NoneType in args:
-                return args[0].__name__ if args[0] is not NoneType else args[1].__name__
-
-            else:
-                return None
-        else:
+        try:
+            origin = get_origin(annotation)
+            if origin is None:
+                return annotation.__name__
+            elif origin is Union or origin is UnionType:
+                args = get_args(annotation)
+                if len(args) > 3:
+                    return None
+                if len(args) > 2 and NoneType not in args:
+                    return None
+                for a in args:
+                    if a is NoneType:
+                        continue
+                    if a.__name__ == "List" or a.__name__ == "list":
+                        aargs = get_args(a)
+                        if type(aargs[0]) is UnionType or type(aargs[0]) is Union:
+                            return None
+                        return aargs[0].__name__
+                    return a.__name__
+        except AttributeError:
             return None
 
     def _handle_duplicate_fields(self, class_name, field_id, field_type, field_info):

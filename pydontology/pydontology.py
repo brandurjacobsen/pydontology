@@ -73,7 +73,7 @@ class Pydontology:
                 if self.cfg.TYPE_STRICT_MODE:
                     if field_type not in self.type_map and field_type != "Relation":
                         raise ValueError(
-                            f"Field '{field_name}' has type '{field_type}' which is not a Relation, nor in the type map (Setting: TYPE_STRICT_MODE)"
+                            f"Field '{field_name}' was resolved as type '{field_type}' which is not a Relation, nor in the type map (Setting: TYPE_STRICT_MODE)"
                         )
 
                 # Fields are identified by alias (if present), otherwise by name in the self._prop_db dict.

@@ -250,13 +250,13 @@ class Entity(BaseModel):
 
         return data
 
-    sameAs: Optional[List[Relation]] = Field(
+    sameAs: Optional[Relation | List[Relation]] = Field(
         default=None,
         alias="owl:sameAs",
         description="Same individual(s)",
     )
 
-    differentFrom: Optional[List[Relation]] = Field(
+    differentFrom: Optional[Relation | List[Relation]] = Field(
         default=None,
         alias="owl:differentFrom",
         description="Different individual(s)",

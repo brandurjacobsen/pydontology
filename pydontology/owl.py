@@ -12,6 +12,10 @@ class OWLAnnotation:
     These annotations are used in the construction of the ontology graph.
     """
 
+    # We want to to use OWL restrictions as OWLAnnotation.Restriction
+    # Is this the way to do it?
+    Restriction = Restriction
+
     @dataclass(frozen=True)
     class EQUIVALENT_CLASS:
         """Dataclass that holds owl:equivalentClass annotation for a class"""

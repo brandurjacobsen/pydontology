@@ -158,6 +158,15 @@ class BaseMetaData(BaseModel):
     label: Optional[str] = Field(alias="rdfs:label", default=None)
     versionInfo: Optional[str] = Field(alias="owl:versionInfo", default=None)
     imports: Optional[Relation] = Field(alias="owl:imports", default=None)
+    seeAlso: Optional[HttpUrl] = Field(alias="rdfs:seeAlso", default=None)
+    isDefinedBy: Optional[HttpUrl] = Field(alias="owl:isDefinedBy", default=None)
+    priorVersion: Optional[Relation] = Field(alias="owl:priorVersion", default=None)
+    backwardCompatibleWith: Optional[Relation] = Field(
+        alias="owl:backwardCompatibleWith", default=None
+    )
+    incompatibleWith: Optional[Relation] = Field(
+        alias="owl:incompatibleWith", default=None
+    )
 
     model_config = ConfigDict(
         populate_by_name=True, serialize_by_alias=True, frozen=True

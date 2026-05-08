@@ -3,7 +3,7 @@ from typing import Annotated, List, Optional
 import pytest
 from pydantic import Field
 
-from pydontology.models import Entity, Relation, Restriction
+from pydontology.models import Entity, Relation
 from pydontology.owl import (
     OWLAnnotation as OWL,
 )
@@ -146,7 +146,7 @@ def TestModel():
         | Annotated[
             Contractor,
             OWL.equivalentClass(
-                value=Restriction(
+                value=OWL.Restriction(
                     id="ContractorRestriction",
                     onProperty=Relation(id="has_contract_with"),
                     allValuesFrom=Relation(id="Company"),

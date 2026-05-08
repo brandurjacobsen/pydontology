@@ -106,7 +106,7 @@ class Pydontology:
         """Apply Settings to runtime behavior, including Entity serialization."""
         self.cfg = settings
         # These flags control JSON-LD data serialization of Entity instances.
-        Entity._serialize_literals_as_typeval = settings.SERIALIZE_LITERALS_AS_TYPEVAL
+        Entity._serialize_literals_as_typeval = settings.LITERALS_AS_TYPEVAL
         Entity._type_strict_mode = settings.TYPE_STRICT_MODE
 
     def _get_field_type(self, field_info: FieldInfo) -> str | None:

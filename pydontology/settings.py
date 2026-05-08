@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     TYPE_AS_RDF_TYPE: bool = True
 
     # Serialize scalar literals as typed values in JSON-LD data graphs
-    SERIALIZE_LITERALS_AS_TYPEVAL: bool = False
+    LITERALS_AS_TYPEVAL: bool = False
 
     # Require that Entity class fields can resolve to specific Python type
     # and that redefined properties have same Python type

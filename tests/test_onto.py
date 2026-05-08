@@ -1,6 +1,7 @@
 import pytest
-from rdflib import OWL, RDF, RDFS, Dataset, Graph, Namespace
+from rdflib import OWL, RDF, RDFS, Dataset, Namespace
 
+from pydontology.models import BaseMetaData
 from pydontology.pydontology import BaseContext, JSONLDGraph
 
 # See conftest.py for TestModel definition
@@ -9,7 +10,11 @@ from pydontology.pydontology import BaseContext, JSONLDGraph
 @pytest.fixture
 def onto_graph(TestModel):
     """Fixture providing the generated ontology graph"""
-    return TestModel.ontology_graph()
+
+    onto_meta = BaseMetaData(
+        id="TestOntology", comment="Ontology used for testing", versionInfo="1.0.2"
+    )
+    return TestModel.ontology_graph(onto_meta=onto_meta)
 
 
 @pytest.fixture
@@ -21,9 +26,8 @@ def onto_graph_json(onto_graph):
 @pytest.fixture
 def rdf_graph(onto_graph_json):
     """Fixture returing the ontology graph as an rdflib Graph"""
-    # g = Graph()
+
     ds = Dataset().parse(data=onto_graph_json, format="json-ld")
-    # g.parse(data=onto_graph_json, format="json-ld")
     return ds
 
 
@@ -50,13 +54,14 @@ def test_ontology_classes_present(rdf_graph, vocab_namespace):
     # Verify all classes exist as rdfs:Class
     assert (VOCAB.Person, RDF.type, RDFS.Class) in rdf_graph
     assert (VOCAB.Employee, RDF.type, RDFS.Class) in rdf_graph
+    assert (VOCAB.Contractor, RDF.type, RDFS.Class) in rdf_graph
+    assert (VOCAB.DualIncome, RDF.type, RDFS.Class) in rdf_graph
     assert (VOCAB.Manager, RDF.type, RDFS.Class) in rdf_graph
     assert (VOCAB.Department, RDF.type, RDFS.Class) in rdf_graph
     assert (VOCAB.Company, RDF.type, RDFS.Class) in rdf_graph
 
-    # Count total classes (should be exactly 6)
     classes = list(rdf_graph.subjects(RDF.type, RDFS.Class))
-    assert len(classes) == 6
+    assert len(classes) == 7
 
 
 def test_ontology_inheritance(rdf_graph, vocab_namespace):
@@ -65,6 +70,12 @@ def test_ontology_inheritance(rdf_graph, vocab_namespace):
 
     # Employee should be subclass of Person
     assert (VOCAB.Employee, RDFS.subClassOf, VOCAB.Person) in rdf_graph
+
+    # Contractor should be subclass of owl:Thing
+    assert (VOCAB.Contractor, RDFS.subClassOf, OWL.Thing) in rdf_graph
+
+    # DualIncome should be subclass of owl:Thing
+    assert (VOCAB.DualIncome, RDFS.subClassOf, OWL.Thing) in rdf_graph
 
     # Manager should be subclass of Employee
     assert (VOCAB.Manager, RDFS.subClassOf, VOCAB.Employee) in rdf_graph
@@ -88,12 +99,15 @@ def test_ontology_properties_present(rdf_graph, vocab_namespace):
     datatype_props = list(rdf_graph.subjects(RDF.type, OWL.DatatypeProperty))
     all_props = object_props + datatype_props
 
-    assert len(all_props) == 12
+    assert len(all_props) == 15
 
     # Verify each expected property exists
     assert VOCAB.name in all_props
     assert VOCAB.age in all_props
     assert VOCAB.knows in all_props
+    assert VOCAB.acquaintance in all_props
+    assert VOCAB.works_for in all_props
+    assert VOCAB.has_contract_with in all_props
     assert VOCAB.employee_id in all_props
     assert VOCAB.manager in all_props
     assert VOCAB.department in all_props
@@ -143,7 +157,7 @@ def test_ontology_inverse_of_property(rdf_graph, vocab_namespace):
     assert (VOCAB.vice_head, OWL.inverseOf, VOCAB.vice_head_of) in rdf_graph
 
 
-def test_ontology_inverse_dunctional_property(rdf_graph, vocab_namespace):
+def test_ontology_inverse_functional_property(rdf_graph, vocab_namespace):
     """Test that owl:InverseFunctionalProperty shows up as expected"""
     VOCAB = vocab_namespace
 
@@ -158,6 +172,16 @@ def test_ontology_property_type(rdf_graph, vocab_namespace):
     # Relation fields should be ObjectProperty
     assert (VOCAB.manager, RDF.type, OWL.ObjectProperty) in rdf_graph
     assert (VOCAB.department, RDF.type, OWL.ObjectProperty) in rdf_graph
+    assert (VOCAB.has_contract_with, RDF.type, OWL.ObjectProperty) in rdf_graph
+    assert (VOCAB.ceo, RDF.type, OWL.ObjectProperty) in rdf_graph
+    assert (VOCAB.knows, RDF.type, OWL.ObjectProperty) in rdf_graph
+    assert (VOCAB.acquaintance, RDF.type, OWL.ObjectProperty) in rdf_graph
+    assert (VOCAB.works_for, RDF.type, OWL.ObjectProperty) in rdf_graph
+    assert (VOCAB.company, RDF.type, OWL.ObjectProperty) in rdf_graph
+    assert (VOCAB.head, RDF.type, OWL.ObjectProperty) in rdf_graph
+    assert (VOCAB.head_of, RDF.type, OWL.ObjectProperty) in rdf_graph
+    assert (VOCAB.vice_head, RDF.type, OWL.ObjectProperty) in rdf_graph
+    assert (VOCAB.vice_head_of, RDF.type, OWL.ObjectProperty) in rdf_graph
 
     # Regular fields should be DatatypeProperty
     assert (VOCAB.name, RDF.type, OWL.DatatypeProperty) in rdf_graph
@@ -192,12 +216,6 @@ def test_ontology_class_descriptions(rdf_graph, vocab_namespace):
     # Check Company rdfs comment (should have no comment)
     company_comments = list(rdf_graph.objects(VOCAB.Company, RDFS.comment))
     assert len(company_comments) == 0
-
-
-def test_ontology_equivalent_class(rdf_graph, vocab_namespace):
-    """Test that owl:equivalentClass shows up as expected"""
-    VOCAB = vocab_namespace
-    print(next(rdf_graph.subject_objects(OWL.equivalentClass)))
 
 
 def test_ontology_property_descriptions(rdf_graph, vocab_namespace):
@@ -273,20 +291,6 @@ def test_ontology_property_range(rdf_graph, vocab_namespace):
     assert dept_ranges[0] == VOCAB.Department
 
 
-def test_optional_fields_are_in_ontology(rdf_graph, vocab_namespace):
-    """Test that optional fields (with default=None) are still included in ontology"""
-    VOCAB = vocab_namespace
-
-    # age is Optional[int] with default=None
-    assert (VOCAB.age, RDF.type, OWL.DatatypeProperty) in rdf_graph
-
-    # manager is Optional[Relation] with default=None
-    assert (VOCAB.manager, RDF.type, OWL.ObjectProperty) in rdf_graph
-
-    # department is Optional[Relation] with default=None
-    assert (VOCAB.department, RDF.type, OWL.ObjectProperty) in rdf_graph
-
-
 def test_no_orphaned_properties(rdf_graph, vocab_namespace):
     """Test that all properties that are not defined multiple times have at least a domain"""
     VOCAB = vocab_namespace
@@ -296,6 +300,38 @@ def test_no_orphaned_properties(rdf_graph, vocab_namespace):
 
     for prop in all_properties:
         domains = list(rdf_graph.objects(prop, RDFS.domain))
-        if prop == VOCAB.name:  # Name is defined multiple times
+        if (
+            prop == VOCAB.name or prop == VOCAB.company
+        ):  # Name is defined multiple times
             continue
         assert len(domains) >= 1, f"Property {prop} has no domain"
+
+
+def test_contractor_has_equivalent_class(rdf_graph, vocab_namespace):
+    VOCAB = vocab_namespace
+    assert (VOCAB.ContractorRestriction, RDF.type, OWL.Restriction) in rdf_graph
+    assert (
+        VOCAB.Contractor,
+        OWL.equivalentClass,
+        VOCAB.ContractorRestriction,
+    ) in rdf_graph
+
+
+def test_dual_income_is_intersection(rdf_graph, vocab_namespace):
+    VOCAB = vocab_namespace
+    query = """
+        SELECT ?member where {
+           ?a owl:intersectionOf ?list .
+           ?list rdf:rest*/rdf:first ?member .
+        }
+    """
+    results = rdf_graph.query(query)
+    classes = [row.member for row in results]
+    assert VOCAB.Contractor in classes
+    assert VOCAB.Employee in classes
+    # assert VOCAB.Employee in intersection_members
+
+
+def test_subproperty_of(rdf_graph, vocab_namespace):
+    VOCAB = vocab_namespace
+    assert (VOCAB.acquaintance, RDFS.subPropertyOf, VOCAB.knows) in rdf_graph

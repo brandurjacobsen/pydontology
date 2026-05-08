@@ -1,20 +1,17 @@
-from typing import Annotated, Optional
+from typing import Annotated, List, Optional
 
 import pytest
 from pydantic import Field
 
-from pydontology.pydontology import (
-    Entity,
-    Pydontology,
-    Relation,
-)
-from pydontology.pydontology import (
+from pydontology.models import Entity, Relation, Restriction
+from pydontology.owl import (
     OWLAnnotation as OWL,
 )
-from pydontology.pydontology import (
+from pydontology.pydontology import Pydontology
+from pydontology.rdfs import (
     RDFSAnnotation as RDFS,
 )
-from pydontology.pydontology import (
+from pydontology.shacl import (
     SHACLAnnotation as SH,
 )
 
@@ -36,8 +33,17 @@ class Person(Entity):
         SH.datatype("xsd:integer"),
         SH.severity("sh:Warning"),
     ] = Field(default=None, description="Person's age in years")
-    knows: Annotated[Optional[Relation], OWL.symmetricProperty(True)] = Field(
-        default=None, description="A friend or colleague"
+    knows: Annotated[
+        Optional[Relation | list[Relation]], OWL.symmetricProperty(True)
+    ] = Field(default=None, description="A friend or colleague")
+    acquaintance: Annotated[
+        Optional[List[Relation] | Relation], RDFS.subPropertyOf(Relation(id="knows"))
+    ]
+    works_for: Optional[Relation] = Field(
+        default=None, description="Person's place of work"
+    )
+    works_at: Annotated[Optional[Relation], OWL.equivalentProperty("works_for")] = (
+        Field(default=None)
     )
 
 
@@ -89,6 +95,11 @@ class Department(Entity):
     name: Annotated[str, SH.minLength(1), SH.maxLength(50)] = Field(
         description="Department's name"
     )
+    company: Annotated[
+        Relation,
+        RDFS.range("Company"),
+        SH.shclass("Company"),
+    ]
     head: Annotated[
         Relation,
         RDFS.range("Manager"),
@@ -130,11 +141,7 @@ def TestModel():
         | Company
         | Annotated[
             Contractor,
-            OWL.equivalentClass(
-                OWL.Restriction(
-                    onProperty=Relation(id="manager"), hasValue=Relation(id="Joe")
-                )
-            ),
+            OWL.equivalentClass(value="Employee"),
         ]
     )
     return onto
@@ -146,7 +153,7 @@ def data_graph(TestModel):
 
     p1 = Person(
         id="Jane",
-        name=TypeVal(value="Jane Doe", type="xsd:string"),
+        name="Jane Doe",
         age=27,
         knows=Relation(id="John"),
     )
@@ -156,13 +163,15 @@ def data_graph(TestModel):
         name="Jane Doe",
         employee_id="E000",
         age=27,
+        sameAs=[Relation(id="Jane")],
         department=Relation(id="Accounting"),
         company=Relation(id="ACME"),
     )
     e2 = Employee(
         id="Mariella",
-        name="Mariella Moaner",
+        name="Mariella Munez",
         employee_id="E001",
+        differentFrom=Relation(id="JaneDoe"),
         department=Relation(id="Production"),
         company=Relation(id="ACME"),
     )
@@ -175,7 +184,7 @@ def data_graph(TestModel):
     )
     m2 = Manager(
         id="Rex",
-        name="Rex Mega",
+        name="Rex Vega",
         employee_id="E003",
         department=Relation(id="Management"),
         company=Relation(id="ACME"),

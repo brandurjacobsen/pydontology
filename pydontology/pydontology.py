@@ -109,11 +109,12 @@ class Pydontology:
         Entity._type_strict_mode = settings.TYPE_STRICT_MODE
 
     def _get_field_type(self, field_info: FieldInfo) -> str | None:
-        """Resolve field type to one specific Python type or builtin class name as string or None"""
-        annotation = field_info.annotation
-        if annotation is None:
-            return None
+        """Attempt to resolve field type to one specific Python type or builtin class name as string else None"""
+
         try:
+            annotation = field_info.annotation
+            if annotation is None:
+                return None
             origin = get_origin(annotation)
             if origin is None:
                 return annotation.__name__

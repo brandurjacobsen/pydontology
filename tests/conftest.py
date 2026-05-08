@@ -39,12 +39,10 @@ class Person(Entity):
     acquaintance: Annotated[
         Optional[List[Relation] | Relation], RDFS.subPropertyOf(Relation(id="knows"))
     ]
-    works_for: Optional[Relation] = Field(
-        default=None, description="Person's place of work"
-    )
-    works_at: Annotated[Optional[Relation], OWL.equivalentProperty("works_for")] = (
+    works_for: Annotated[Optional[Relation], OWL.equivalentProperty("works_at")] = (
         Field(default=None)
     )
+    has_contract_with: Annotated[Relation, RDFS.range(Relation(id="Company"))]
 
 
 class Employee(Person):
@@ -116,7 +114,11 @@ class Department(Entity):
     ] = Field(default=None)
 
 
-class Contractor(Person):
+class Contractor(Entity):
+    pass
+
+
+class DualIncome(Entity):
     pass
 
 
@@ -124,9 +126,11 @@ class Company(Entity):
     name: Annotated[str, SH.minLength(1), SH.maxLength(50)] = Field(
         description="Company name"
     )
-    ceo: Annotated[Relation, SH.shclass("Manager")] = Field(
-        description="Name of company CEO"
-    )
+    ceo: Annotated[
+        Relation,
+        SH.shclass("Manager"),
+        SH.maxCount(1),
+    ] = Field(description="Name of company CEO")
 
 
 # Define ontology_model fixture to be used across test files
@@ -141,8 +145,15 @@ def TestModel():
         | Company
         | Annotated[
             Contractor,
-            OWL.equivalentClass(value="Employee"),
+            OWL.equivalentClass(
+                value=Restriction(
+                    id="ContractorRestriction",
+                    onProperty=Relation(id="has_contract_with"),
+                    allValuesFrom=Relation(id="Company"),
+                )
+            ),
         ]
+        | Annotated[DualIncome, OWL.intersectionOf(["Contractor", "Employee"])]
     )
     return onto
 
@@ -157,7 +168,9 @@ def data_graph(TestModel):
         age=27,
         knows=Relation(id="John"),
     )
-    p2 = Person(id="John", name="John Doe", age=45)
+    p2 = Person(
+        id="John", name="John Doe", age=45, has_contract_with=Relation(id="ACME")
+    )
     e1 = Employee(
         id="JaneDoe",
         name="Jane Doe",
@@ -180,7 +193,7 @@ def data_graph(TestModel):
         name="Bud Weizer",
         employee_id="E002",
         department=Relation(id="Management"),
-        company=Relation(id="ACME"),
+        company=Relation(id="EMCA"),
     )
     m2 = Manager(
         id="Rex",
@@ -191,7 +204,8 @@ def data_graph(TestModel):
     )
 
     c1 = Company(id="ACME", name="ACME", ceo=Relation(id="Rex"))
+    c2 = Company(id="EMCA", name="EMCA", ceo=Relation(id="Bud"))
 
-    data_graph = data_graph_model(graph=[p1, p2, e1, e2, m1, m2, c1])
+    data_graph = data_graph_model(graph=[p1, p2, e1, e2, m1, m2, c1, c2])
 
     return data_graph

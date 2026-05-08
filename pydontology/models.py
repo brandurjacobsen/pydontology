@@ -28,7 +28,7 @@ from .validators import val_no_whitespace
 
 
 class BaseContext(BaseModel):
-    """Default context"""
+    """Base json-ld context model"""
 
     version: float = Field(alias="@version", default=1.1)
     vocab: str = Field(
@@ -71,7 +71,7 @@ class Relation(BaseModel):
 
 
 class TypeVal(BaseModel):
-    """Class that serializes as a typed value literal"""
+    """Class that serializes as an RDF typed value literal"""
 
     value: Any = Field(alias="@value", description="Value of RDF literal")
     type: Any = Field(alias="@type", description="XML schema type of RDF literal")
@@ -82,8 +82,11 @@ class TypeVal(BaseModel):
 
 
 class Restriction(BaseModel):
-    """Model for use in applying OWL Restrictions"""
+    """Model defining OWL Restrictions for use with owl:equivalentClass, owl:intersectionOf, etc.."""
 
+    id: Optional[str] = Field(
+        alias="@id", default=None, description="Optional restriction IRI"
+    )
     type: Literal["owl:Restriction"] = Field(alias="@type", default="owl:Restriction")
     onProperty: Relation = Field(alias="owl:onProperty")
     someValuesFrom: Optional[Relation] = Field(alias="owl:someValuesFrom", default=None)
@@ -146,6 +149,21 @@ class AllDifferent(BaseModel):
     )
 
 
+class BaseMeta(BaseModel):
+    """The base class of a owl:Ontology class"""
+
+    id: str = Field(alias="@id", description="IRI of ontology meta-data")
+    type: Literal["owl:Ontology"] = Field(alias="@type", default="owl:Ontology")
+    comment: Optional[str] = Field(alias="rdfs:comment", default=None)
+    label: Optional[str] = Field(alias="rdfs:label", default=None)
+    versionInfo: Optional[str] = Field(alias="owl:versionInfo", default=None)
+    imports: Optional[Relation] = Field(alias="owl:imports", default=None)
+
+    model_config = ConfigDict(
+        populate_by_name=True, serialize_by_alias=True, frozen=True
+    )
+
+
 class Entity(BaseModel):
     """The base class of all ontology classes.
 
@@ -157,6 +175,18 @@ class Entity(BaseModel):
 
     id: Annotated[str, AfterValidator(val_no_whitespace)] = Field(
         alias="@id", description="IRI", title="@id", min_length=1
+    )
+
+    sameAs: Optional[Relation | List[Relation]] = Field(
+        default=None,
+        alias="owl:sameAs",
+        description="Same individual(s)",
+    )
+
+    differentFrom: Optional[Relation | List[Relation]] = Field(
+        default=None,
+        alias="owl:differentFrom",
+        description="Different individual(s)",
     )
 
     @computed_field(alias="@type", title="@type", description="JSON-LD @type")
@@ -249,18 +279,6 @@ class Entity(BaseModel):
             data[key] = self._wrap_serialized_value(raw_value, data[key], field_name)
 
         return data
-
-    sameAs: Optional[Relation | List[Relation]] = Field(
-        default=None,
-        alias="owl:sameAs",
-        description="Same individual(s)",
-    )
-
-    differentFrom: Optional[Relation | List[Relation]] = Field(
-        default=None,
-        alias="owl:differentFrom",
-        description="Different individual(s)",
-    )
 
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
@@ -496,7 +514,7 @@ class JSONLDGraph(BaseModel):
     )
 
     def all_different(self, toggle: bool) -> None:
-        """Includes the owl:allDifferent class in the serialization
+        """Includes the owl:AllDifferent class in the serialization
 
         All individuals in the graph are then seen as distinct members
         """

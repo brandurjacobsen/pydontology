@@ -9,6 +9,7 @@ from pydantic.fields import FieldInfo
 
 from .models import (
     BaseContext,
+    BaseMeta,
     Entity,
     JSONLDGraph,
     Relation,
@@ -313,13 +314,19 @@ class Pydontology:
         return ontology_props
 
     def ontology_graph(
-        self, context: BaseContext = BaseContext(), settings: Settings = Settings()
+        self,
+        context: BaseContext = BaseContext(),
+        settings: Settings = Settings(),
+        onto_meta: BaseMeta | None = None,
     ):
         """Generate ontology graph"""
         self._apply_settings(settings)
         onto_classes = self._create_ontology_classes()
         onto_props = self._create_ontology_properties()
-        return JSONLDGraph(context=context, graph=[*onto_classes, *onto_props])  # pyright: ignore
+        return JSONLDGraph(
+            context=context,  # pyright: ignore
+            graph=[onto_meta, *onto_classes, *onto_props],  # pyright: ignore
+        )
 
     def _add_shacl_annotations(
         self, prop_shape: _PropertyShape, annotations: List

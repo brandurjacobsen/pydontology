@@ -1,10 +1,11 @@
-from .owl import OWLAnnotation
-from .pydontology import (
+from .models import (
     BaseContext,
+    BaseMeta,
     Entity,
-    Pydontology,
     Relation,
 )
+from .owl import OWLAnnotation
+from .pydontology import Pydontology
 from .rdfs import RDFSAnnotation
 from .settings import Settings
 from .shacl import SHACLAnnotation
@@ -20,6 +21,7 @@ from .validators import (
 
 __all__ = [
     "BaseContext",
+    "BaseMeta",
     "Entity",
     "Relation",
     "Pydontology",

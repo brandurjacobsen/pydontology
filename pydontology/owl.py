@@ -1,9 +1,8 @@
-from typing import Annotated
+from typing import List
 
-from pydantic import AfterValidator
 from pydantic.dataclasses import dataclass
 
-from .validators import val_no_whitespace
+from .models import RDFList, Relation, Restriction
 
 
 class OWLAnnotation:
@@ -13,29 +12,33 @@ class OWLAnnotation:
     These annotations are used in the construction of the ontology graph.
     """
 
+    # We want to to use OWL restrictions as OWLAnnotation.Restriction
+    # Is this the way to do it?
+    Restriction = Restriction
+
     @dataclass(frozen=True)
     class EQUIVALENT_CLASS:
         """Dataclass that holds owl:equivalentClass annotation for a class"""
 
-        value: Annotated[str, AfterValidator(val_no_whitespace)]
+        value: Relation | Restriction
 
     @dataclass(frozen=True)
-    class SAME_AS:
-        """Dataclass that holds owl:sameAs annotation for a class or instance of class"""
+    class INTERSECTION_OF:
+        """Dataclass that holds owl:intersectionOf annotation for a class"""
 
-        value: Annotated[str, AfterValidator(val_no_whitespace)]
+        value: RDFList
 
     @dataclass(frozen=True)
     class EQUIVALENT_PROPERTY:
         """Dataclass that holds owl:equivalentProperty annotation for a property."""
 
-        value: Annotated[str, AfterValidator(val_no_whitespace)]
+        value: Relation
 
     @dataclass(frozen=True)
     class INVERSE_OF:
         """Dataclass that holds owl:inverseOf annotation for a property."""
 
-        value: Annotated[str, AfterValidator(val_no_whitespace)]
+        value: Relation
 
     @dataclass(frozen=True)
     class TRANSITIVE_PROPERTY:
@@ -74,63 +77,75 @@ class OWLAnnotation:
         value: bool = False
 
     @staticmethod
-    def equivalentClass(value: str) -> EQUIVALENT_CLASS:
+    def equivalentClass(value: str | Relation | Restriction) -> EQUIVALENT_CLASS:
         """
         OWL equivalentClass annotation.
 
         owl:equivalentClass is used to state that two classes have the same class extension.
 
         Args:
-            value (str): Name of the equivalent class
+            value (str | Relation | Restriction): Name of, Relation to the equivalent class, or Restriction
 
         Returns:
             OWLAnnotation.EQUIVALENT_CLASS (dataclass)
         """
+        if isinstance(value, str):
+            return OWLAnnotation.EQUIVALENT_CLASS(Relation(id=value))  # pyright: ignore
         return OWLAnnotation.EQUIVALENT_CLASS(value=value)
 
     @staticmethod
-    def sameAs(value: str) -> SAME_AS:
+    def intersectionOf(
+        value: List[str | Relation | Restriction],
+    ) -> RDFList:
         """
-        OWL sameAs annotation.
+        OWL intersectionOf annotation.
 
-        owl:sameAs is used to state that two URI references refer to the same individual.
+        owl:intersectionOf is used to state that the class consists of the intersection of individuals from named classes or Restrictions.
 
         Args:
-            value (str): Name of the same individual
+            value (List[str | Relation | Restriction]) Construction of intersection
 
         Returns:
-            OWLAnnotation.SAME_AS (dataclass)
+            OWLAnnotation.INTERSECTION_OF (dataclass)
         """
-        return OWLAnnotation.SAME_AS(value=value)
+
+        lst = tuple(
+            [Relation(id=item) if isinstance(item, str) else item for item in value]  # pyright: ignore
+        )
+        return OWLAnnotation.INTERSECTION_OF(value=RDFList(list=lst))  # pyright: ignore
 
     @staticmethod
-    def equivalentProperty(value: str) -> EQUIVALENT_PROPERTY:
+    def equivalentProperty(value: str | Relation) -> EQUIVALENT_PROPERTY:
         """
         OWL equivalentProperty annotation.
 
         owl:equivalentProperty is used to state that two properties are equivalent.
 
         Args:
-            value (str): Name of the equivalent property
+            value (str | Relation): Name of the equivalent property
 
         Returns:
             OWLAnnotation.EQUIVALENT_PROPERTY (dataclass)
         """
+        if isinstance(value, str):
+            return OWLAnnotation.EQUIVALENT_PROPERTY(Relation(id=value))  # pyright: ignore
         return OWLAnnotation.EQUIVALENT_PROPERTY(value=value)
 
     @staticmethod
-    def inverseOf(value: str) -> INVERSE_OF:
+    def inverseOf(value: str | Relation) -> INVERSE_OF:
         """
         OWL inverseOf annotation.
 
         owl:inverseOf is used to state that one property is the inverse of another property.
 
         Args:
-            value (str): Name of the inverse property
+            value (str | Relation): Name of the inverse property
 
         Returns:
             OWLAnnotation.INVERSE_OF (dataclass)
         """
+        if isinstance(value, str):
+            return OWLAnnotation.INVERSE_OF(Relation(id=value))  # pyright: ignore
         return OWLAnnotation.INVERSE_OF(value=value)
 
     @staticmethod

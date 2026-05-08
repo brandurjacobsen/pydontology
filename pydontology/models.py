@@ -149,8 +149,8 @@ class AllDifferent(BaseModel):
     )
 
 
-class BaseMeta(BaseModel):
-    """The base class of a owl:Ontology class"""
+class BaseMetaData(BaseModel):
+    """The base class for a owl:Ontology class"""
 
     id: str = Field(alias="@id", description="IRI of ontology meta-data")
     type: Literal["owl:Ontology"] = Field(alias="@type", default="owl:Ontology")

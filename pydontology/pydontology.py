@@ -9,7 +9,7 @@ from pydantic.fields import FieldInfo
 
 from .models import (
     BaseContext,
-    BaseMeta,
+    BaseMetaData,
     Entity,
     JSONLDGraph,
     Relation,
@@ -317,7 +317,7 @@ class Pydontology:
         self,
         context: BaseContext = BaseContext(),
         settings: Settings = Settings(),
-        onto_meta: BaseMeta | None = None,
+        onto_meta: BaseMetaData | None = None,
     ):
         """Generate ontology graph"""
         self._apply_settings(settings)

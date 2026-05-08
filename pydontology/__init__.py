@@ -1,6 +1,6 @@
 from .models import (
     BaseContext,
-    BaseMeta,
+    BaseMetaData,
     Entity,
     Relation,
 )
@@ -21,7 +21,7 @@ from .validators import (
 
 __all__ = [
     "BaseContext",
-    "BaseMeta",
+    "BaseMetaData",
     "Entity",
     "Relation",
     "Pydontology",

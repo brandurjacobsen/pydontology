@@ -1,6 +1,6 @@
 import pytest
 from pyshacl import validate
-from rdflib import RDF, Dataset, Graph, Namespace
+from rdflib import RDF, Dataset, Namespace
 from rdflib.namespace import SH, XSD
 
 from pydontology.pydontology import BaseContext, JSONLDGraph

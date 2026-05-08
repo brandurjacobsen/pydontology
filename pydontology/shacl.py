@@ -3,7 +3,6 @@ from typing import Annotated, List
 from pydantic.dataclasses import dataclass
 from pydantic.functional_validators import AfterValidator
 
-# from .pydontology import Relation
 from .validators import (
     val_datatype,
     val_no_whitespace,

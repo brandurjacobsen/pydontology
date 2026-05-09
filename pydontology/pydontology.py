@@ -557,7 +557,10 @@ class Pydontology:
         return New
 
     def schema_graph(
-        self, context: BaseContext = BaseContext(), settings: Settings = Settings()
+        self,
+        name: str = "PydontologySchema",
+        context: BaseContext = BaseContext(),
+        settings: Settings = Settings(),
     ) -> type[JSONLDGraph]:
         """
         Creates a JSONLDGraph subclass that holds ontology classes in the default graph.
@@ -567,7 +570,7 @@ class Pydontology:
         """
         self._apply_settings(settings)
         return create_model(
-            "PydontologySchema",
+            name,
             context=(
                 BaseContext,
                 Field(
@@ -591,11 +594,14 @@ class Pydontology:
         )
 
     def jsonld_graph(
-        self, context: BaseContext = BaseContext(), settings: Settings = Settings()
+        self,
+        name: str = "PydontologyModel",
+        context: BaseContext = BaseContext(),
+        settings: Settings = Settings(),
     ) -> type[JSONLDGraph]:
         self._apply_settings(self.cfg)
         return create_model(
-            "PydontologyModel",
+            name,
             context=(
                 BaseContext,
                 Field(

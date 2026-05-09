@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, List
 
+from .models import BaseContext
 from .pydontology import Pydontology
 from .settings import Settings
-from .models import BaseContext
 
 if TYPE_CHECKING:
     from pydantic_ai.output import ToolOutput
@@ -20,6 +20,7 @@ class SubOntology:
 
 class PydontologyCollection:
     """Registry of sub-ontologies for ToolOutput export."""
+
     def __init__(self) -> None:
         self._sub_ontologies: List[SubOntology] = []
 
@@ -47,12 +48,14 @@ class PydontologyCollection:
 
         outputs = []
         for sub in self._sub_ontologies:
-            schema_model = sub.ontology.schema_graph(context=context, settings=settings)
+            schema_model = sub.ontology.schema_graph(
+                name=sub.name, context=context, settings=settings
+            )
             outputs.append(
                 ToolOutput(
+                    schema_model,
                     name=sub.name,
                     description=sub.description,
-                    output=schema_model,
                 )
             )
         return outputs

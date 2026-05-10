@@ -34,15 +34,17 @@ class DuplicatePropertyError(Exception):
 class Pydontology:
     type_map = TYPE_MAP
 
-    def __init__(self, ontology: UnionType):
+    def __init__(self, ontology: UnionType, metadata: BaseMetaData | None = None):
         self.ontology = ontology
+        self.metadata = metadata
+
         # Get default settings for ontology_graph and shacl_graph methods
         self._apply_settings(Settings())
 
         # Construct a dict that maps Entity class names to class metadata
         self._cls_db = dict()
 
-        # Construct a dict that maps field names/properties to field metadata
+        # Construct a dict that maps field names/aliases to field metadata
         self._prop_db = dict()
 
         origin = get_origin(ontology)
@@ -314,18 +316,21 @@ class Pydontology:
         return ontology_props
 
     def ontology_graph(
-        self,
-        context: BaseContext = BaseContext(),
-        settings: Settings = Settings(),
-        onto_meta: BaseMetaData | None = None,
+        self, context: BaseContext = BaseContext(), settings: Settings = Settings()
     ):
         """Generate ontology graph"""
         self._apply_settings(settings)
+
         onto_classes = self._create_ontology_classes()
         onto_props = self._create_ontology_properties()
+        graph = [*onto_classes, *onto_props]
+
+        if self.metadata is not None:
+            graph.append(self.metadata)
+
         return JSONLDGraph(
             context=context,  # pyright: ignore
-            graph=[onto_meta, *onto_classes, *onto_props],  # pyright: ignore
+            graph=graph,  # pyright: ignore
         )
 
     def _add_shacl_annotations(

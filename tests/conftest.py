@@ -3,7 +3,7 @@ from typing import Annotated, List, Optional
 import pytest
 from pydantic import Field
 
-from pydontology.models import Entity, Relation
+from pydontology.models import BaseMetaData, Entity, Relation
 from pydontology.owl import (
     OWLAnnotation as OWL,
 )
@@ -137,24 +137,26 @@ class Company(Entity):
 @pytest.fixture
 def TestModel():
 
-    onto = Pydontology(
-        ontology=Person
-        | Employee
-        | Manager
-        | Department
-        | Company
-        | Annotated[
-            Contractor,
-            OWL.equivalentClass(
-                value=OWL.Restriction(
-                    id="ContractorRestriction",
-                    onProperty=Relation(id="has_contract_with"),
-                    allValuesFrom=Relation(id="Company"),
-                )
-            ),
-        ]
-        | Annotated[DualIncome, OWL.intersectionOf(["Contractor", "Employee"])]
+    antd_contractor = Annotated[
+        Contractor,
+        OWL.equivalentClass(
+            value=OWL.Restriction(
+                id="ContractorRestriction",
+                onProperty=Relation(id="has_contract_with"),
+                allValuesFrom=Relation(id="Company"),
+            )
+        ),
+    ]
+
+    antd_di = Annotated[DualIncome, OWL.intersectionOf(["Contractor", "Employee"])]
+    ontology = (
+        Person | Employee | Manager | Department | Company | antd_contractor | antd_di
     )
+
+    metadata = BaseMetaData(
+        id="TestOntology", comment="Ontology used for testing", versionInfo="1.1.0"
+    )
+    onto = Pydontology(ontology, metadata)
     return onto
 
 

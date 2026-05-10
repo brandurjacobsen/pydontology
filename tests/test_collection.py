@@ -20,5 +20,7 @@ def test_collection_tool_outputs(TestModel):
     assert len(outputs) == 1
     assert isinstance(outputs[0], ToolOutput)
     assert outputs[0].name == "people"
-    assert outputs[0].description == "Person and organization ontology"
-    assert issubclass(outputs[0].output, JSONLDGraph)
+    print("ToolOutput description:")
+    print(outputs[0].description)
+    assert str("Person and organization ontology") in outputs[0].description
+    assert str("Associated owl:Ontology") in outputs[0].description

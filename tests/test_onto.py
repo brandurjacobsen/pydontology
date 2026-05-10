@@ -11,10 +11,7 @@ from pydontology.pydontology import BaseContext, JSONLDGraph
 def onto_graph(TestModel):
     """Fixture providing the generated ontology graph"""
 
-    onto_meta = BaseMetaData(
-        id="TestOntology", comment="Ontology used for testing", versionInfo="1.0.2"
-    )
-    return TestModel.ontology_graph(onto_meta=onto_meta)
+    return TestModel.ontology_graph()
 
 
 @pytest.fixture

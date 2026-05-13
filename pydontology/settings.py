@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     # Attempt to use internal typemap of Python types to xsd types to set rdf:type for properties
     TYPE_AS_RDF_TYPE: bool = True
 
+<<<<<<< HEAD
+=======
+    # Serialize scalar literals as typed values in JSON-LD data graphs
+    LITERALS_AS_TYPEVAL: bool = False
+
+>>>>>>> origin/main
     # Require that Entity class fields can resolve to specific Python type
     # and that redefined properties have same Python type
     TYPE_STRICT_MODE: bool = True

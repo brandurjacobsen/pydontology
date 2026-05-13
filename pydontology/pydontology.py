@@ -3,6 +3,7 @@ import warnings
 from copy import deepcopy
 from inspect import get_annotations, isclass
 from types import NoneType, UnionType
+<<<<<<< HEAD
 from typing import Annotated, Any, List, Literal, Optional, Union, get_args, get_origin
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, create_model
@@ -11,16 +12,37 @@ from pydantic.fields import FieldInfo
 from .api import APIAnnotation
 from .models import (
     BaseContext,
+=======
+from typing import Annotated, Any, List, Union, get_args, get_origin
+
+from pydantic import BaseModel, Field, create_model
+from pydantic.fields import FieldInfo
+
+from .models import (
+    BaseContext,
+    BaseMetaData,
+>>>>>>> origin/main
     Entity,
     JSONLDGraph,
     Relation,
     _NodeShape,
+<<<<<<< HEAD
     _PropertyShape,
 )
 from .owl import OWLAnnotation, RDFList
+=======
+    _OntologyClass,
+    _OntologyProperty,
+    _PropertyShape,
+)
+from .owl import OWLAnnotation
+>>>>>>> origin/main
 from .rdfs import RDFSAnnotation
 from .settings import Settings
 from .shacl import SHACLAnnotation
+from .types import TYPE_MAP
+
+# _OntologyClass.model_rebuild()
 
 TYPE_MAP = {
     "str": "xsd:string",
@@ -37,6 +59,7 @@ class DuplicatePropertyError(Exception):
     """Raised when fields/properties are redefined erroneously"""
 
 
+<<<<<<< HEAD
 class _OntologyClass(BaseModel):
     """Represents an RDFS/OWL class in an ontology graph"""
 
@@ -123,13 +146,15 @@ class _OntologyProperty(BaseModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
 
+=======
+>>>>>>> origin/main
 class Pydontology:
     type_map = TYPE_MAP
 
     def __init__(self, ontology: UnionType):
         self.ontology = ontology
         # Get default settings for ontology_graph and shacl_graph methods
-        self.cfg = Settings()
+        self._apply_settings(Settings())
 
         # Construct a dict that maps Entity class names to class metadata
         self._cls_db = dict()
@@ -138,7 +163,11 @@ class Pydontology:
         self._prop_db = dict()
 
         origin = get_origin(ontology)
+<<<<<<< HEAD
         if origin is Annotated:
+=======
+        if origin is Annotated:  # E.g. one annotated class
+>>>>>>> origin/main
             components = [ontology]
         elif origin is Union or origin is UnionType:
             components = get_args(ontology)
@@ -167,7 +196,11 @@ class Pydontology:
                 if self.cfg.TYPE_STRICT_MODE:
                     if field_type not in self.type_map and field_type != "Relation":
                         raise ValueError(
+<<<<<<< HEAD
                             f"Field {field_name} has type {field_type} which is not a Relation, or in the type map (Setting: TYPE_STRICT_MODE)"
+=======
+                            f"Field '{field_name}' was resolved as type '{field_type}' which is not a Relation, nor in the type map (Setting: TYPE_STRICT_MODE)"
+>>>>>>> origin/main
                         )
 
                 # Fields are identified by alias (if present), otherwise by name in the self._prop_db dict.
@@ -195,6 +228,7 @@ class Pydontology:
                 else:
                     self._prop_db[field_name] = field_map
 
+<<<<<<< HEAD
     def _get_field_type(self, field_info: FieldInfo) -> str | None:
         """Resolve field type to one specific (optional) Python type as string or None"""
         annotation = field_info.annotation
@@ -211,6 +245,41 @@ class Pydontology:
             else:
                 return None
         else:
+=======
+    def _apply_settings(self, settings: Settings) -> None:
+        """Apply Settings to runtime behavior, including Entity serialization."""
+        self.cfg = settings
+        # These flags control JSON-LD data serialization of Entity instances.
+        Entity._serialize_literals_as_typeval = settings.LITERALS_AS_TYPEVAL
+        Entity._type_strict_mode = settings.TYPE_STRICT_MODE
+
+    def _get_field_type(self, field_info: FieldInfo) -> str | None:
+        """Attempt to resolve field type to one specific Python type or builtin class name as string else None"""
+
+        try:
+            annotation = field_info.annotation
+            if annotation is None:
+                return None
+            origin = get_origin(annotation)
+            if origin is None:
+                return annotation.__name__
+            elif origin is Union or origin is UnionType:
+                args = get_args(annotation)
+                if len(args) > 3:
+                    return None
+                if len(args) > 2 and NoneType not in args:
+                    return None
+                for a in args:
+                    if a is NoneType:
+                        continue
+                    if a.__name__ == "List" or a.__name__ == "list":
+                        aargs = get_args(a)
+                        if type(aargs[0]) is UnionType or type(aargs[0]) is Union:
+                            return None
+                        return aargs[0].__name__
+                    return a.__name__
+        except AttributeError:
+>>>>>>> origin/main
             return None
 
     def _handle_duplicate_fields(self, class_name, field_id, field_type, field_info):
@@ -380,7 +449,7 @@ class Pydontology:
             if len(field_info["metadata"]) > 1:
                 if self.cfg.SHOW_WARNINGS:
                     warnings.warn(
-                        f"OWL/RDFS annotations will be concatenated for '{field_name}' property since it is defined in multiple classe",
+                        f"OWL/RDFS annotations will be concatenated/added for '{field_name}' property since it is defined in multiple classe",
                         UserWarning,
                     )
             self._add_property_annotations(
@@ -390,13 +459,19 @@ class Pydontology:
         return ontology_props
 
     def ontology_graph(
-        self, context: BaseContext = BaseContext(), settings: Settings = Settings()
+        self,
+        context: BaseContext = BaseContext(),
+        settings: Settings = Settings(),
+        onto_meta: BaseMetaData | None = None,
     ):
         """Generate ontology graph"""
-        self.cfg = settings
+        self._apply_settings(settings)
         onto_classes = self._create_ontology_classes()
         onto_props = self._create_ontology_properties()
-        return JSONLDGraph(context=context, graph=[*onto_classes, *onto_props])  # pyright: ignore
+        return JSONLDGraph(
+            context=context,  # pyright: ignore
+            graph=[onto_meta, *onto_classes, *onto_props],  # pyright: ignore
+        )
 
     def _add_shacl_annotations(
         self, prop_shape: _PropertyShape, annotations: List
@@ -555,8 +630,7 @@ class Pydontology:
         self, context: BaseContext = BaseContext(), settings: Settings = Settings()
     ):
         """Generate SHACL graph"""
-
-        self.cfg = settings
+        self._apply_settings(settings)
         shacl_shapes = self._create_node_shapes()
         return JSONLDGraph(context=context, graph=shacl_shapes)  # pyright: ignore
 
@@ -975,7 +1049,7 @@ class Pydontology:
                 new_fields[name] = (new_type, field.default)
 
         New = create_model(
-            f"{model.__name__}NoAlias",
+            model.__name__,
             __base__=model,
             **new_fields,
         )
@@ -983,12 +1057,18 @@ class Pydontology:
         cache[model] = New
         return New
 
-    def schema_graph(self, context: BaseContext = BaseContext()) -> type[JSONLDGraph]:
+    def schema_graph(
+        self, context: BaseContext = BaseContext(), settings: Settings = Settings()
+    ) -> type[JSONLDGraph]:
         """
-        Makes a JSONLDGraph class from the ontology for making JSON schemas
+        Creates a JSONLDGraph subclass that holds ontology classes in the default graph.
+
+        This class is specifically for LLM structured output, as it strips aliases
+        from the ontology classes, which cause errors when using e.g. Pydantic AI.
         """
+        self._apply_settings(settings)
         return create_model(
-            "PydontologyModel",
+            "PydontologySchema",
             context=(
                 BaseContext,
                 Field(
@@ -1002,6 +1082,36 @@ class Pydontology:
             graph=(
                 List[self._strip_aliases(self.ontology)],
                 Field(
+                    json_schema_extra={
+                        "name": "@graph",
+                        "description": "Default json-ld graph",
+                    },
+                ),
+            ),
+            __base__=JSONLDGraph,
+        )
+
+    def jsonld_graph(
+        self, context: BaseContext = BaseContext(), settings: Settings = Settings()
+    ) -> type[JSONLDGraph]:
+        self._apply_settings(self.cfg)
+        return create_model(
+            "PydontologyModel",
+            context=(
+                BaseContext,
+                Field(
+                    alias="@context",
+                    default=context,
+                    json_schema_extra={
+                        "name": "@context",
+                        "description": "JSON-LD context",
+                    },
+                ),
+            ),
+            graph=(
+                List[self.ontology],
+                Field(
+                    alias="@graph",
                     json_schema_extra={
                         "name": "@graph",
                         "description": "Default json-ld graph",

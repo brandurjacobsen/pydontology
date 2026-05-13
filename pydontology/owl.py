@@ -1,19 +1,8 @@
-from typing import List, Literal, Optional, Self, Tuple
+from typing import List
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.dataclasses import dataclass
 
-from .models import Relation
-
-
-class RDFList(BaseModel):
-    """An ordered RDF list structure (collection)"""
-
-    list: Tuple["Relation | OWLAnnotation.Restriction", ...] = Field(alias="@list")
-
-    model_config = ConfigDict(
-        populate_by_name=True, serialize_by_alias=True, frozen=True
-    )
+from .models import RDFList, Relation, Restriction
 
 
 class OWLAnnotation:
@@ -23,62 +12,15 @@ class OWLAnnotation:
     These annotations are used in the construction of the ontology graph.
     """
 
-    class Restriction(BaseModel):
-        """Model for use in applying OWL restrictions"""
-
-        type: Literal["owl:Restriction"] = Field(
-            alias="@type", default="owl:Restriction"
-        )
-        onProperty: Relation = Field(alias="owl:onProperty")
-        hasValue: Optional[str | Relation] = Field(alias="owl:hasValue", default=None)
-        someValuesFrom: Optional[Relation] = Field(
-            alias="owl:someValuesFrom", default=None
-        )
-        allValuesFrom: Optional[Relation] = Field(
-            alias="owl:allValuesFrom", default=None
-        )
-        cardinality: Optional[int] = Field(alias="owl:cardinality", default=None)
-        minCardinality: Optional[int] = Field(alias="owl:minCardinality", default=None)
-        maxCardinality: Optional[int] = Field(alias="owl:maxCardinality", default=None)
-
-        @model_validator(mode="after")
-        def mutually_exclusive(self) -> Self:
-            """Ensure only one restriction type is specified at a time."""
-            restriction_fields = [
-                "hasValue",
-                "someValuesFrom",
-                "allValuesFrom",
-                "cardinality",
-                "minCardinality",
-                "maxCardinality",
-            ]
-
-            # List of optional fields populated
-            populated_fields = [
-                field
-                for field in restriction_fields
-                if self.__getattribute__(field) is not None
-            ]
-
-            if len(populated_fields) > 1:
-                raise ValueError(
-                    f"Only one restriction type can be specified. Found: {populated_fields}"
-                )
-
-            if len(populated_fields) == 0:
-                raise ValueError("At least one restriction type must be specified")
-
-            return self
-
-        model_config = ConfigDict(
-            populate_by_name=True, serialize_by_alias=True, frozen=True
-        )
+    # We want to to use OWL restrictions as OWLAnnotation.Restriction
+    # Is this the way to do it?
+    Restriction = Restriction
 
     @dataclass(frozen=True)
     class EQUIVALENT_CLASS:
         """Dataclass that holds owl:equivalentClass annotation for a class"""
 
-        value: "Relation | OWLAnnotation.Restriction"
+        value: Relation | Restriction
 
     @dataclass(frozen=True)
     class INTERSECTION_OF:
@@ -153,7 +95,11 @@ class OWLAnnotation:
 
     @staticmethod
     def intersectionOf(
+<<<<<<< HEAD
         value: List["str | Relation | OWLAnnotation.Restriction"],
+=======
+        value: List[str | Relation | Restriction],
+>>>>>>> origin/main
     ) -> RDFList:
         """
         OWL intersectionOf annotation.
@@ -168,8 +114,13 @@ class OWLAnnotation:
         """
 
         lst = tuple(
+<<<<<<< HEAD
             [Relation(id=item) if isinstance(item, str) else item for item in value]
         )  # pyright: ignore
+=======
+            [Relation(id=item) if isinstance(item, str) else item for item in value]  # pyright: ignore
+        )
+>>>>>>> origin/main
         return OWLAnnotation.INTERSECTION_OF(value=RDFList(list=lst))  # pyright: ignore
 
     @staticmethod

@@ -1,8 +1,12 @@
 from pydantic import HttpUrl
 from pydantic.dataclasses import dataclass
 
+<<<<<<< HEAD
 from .models import Relation
 from .owl import OWLAnnotation
+=======
+from .models import Relation, Restriction
+>>>>>>> origin/main
 
 
 class RDFSAnnotation:
@@ -46,7 +50,11 @@ class RDFSAnnotation:
     class SUB_CLASS_OF:
         """Dataclass that holds rdfs:subClassOf annotation for a class."""
 
+<<<<<<< HEAD
         value: Relation | OWLAnnotation.Restriction
+=======
+        value: Relation | Restriction
+>>>>>>> origin/main
 
     @dataclass(frozen=True)
     class SEE_ALSO:
@@ -147,7 +155,11 @@ class RDFSAnnotation:
         return RDFSAnnotation.LABEL(value=value)
 
     @staticmethod
+<<<<<<< HEAD
     def subClassOf(value: str | Relation | OWLAnnotation.Restriction) -> SUB_CLASS_OF:
+=======
+    def subClassOf(value: str | Relation | Restriction) -> SUB_CLASS_OF:
+>>>>>>> origin/main
         """
         RDFS subClassOf annotation.
 

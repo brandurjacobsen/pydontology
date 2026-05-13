@@ -60,14 +60,8 @@ def test_ontology_classes_present(rdf_graph, vocab_namespace):
     assert (VOCAB.Department, RDF.type, RDFS.Class) in rdf_graph
     assert (VOCAB.Company, RDF.type, RDFS.Class) in rdf_graph
 
-<<<<<<< HEAD
-    # Count total classes (should be exactly 6)
-    classes = list(rdf_graph.subjects(RDF.type, RDFS.Class))
-    assert len(classes) == 6
-=======
     classes = list(rdf_graph.subjects(RDF.type, RDFS.Class))
     assert len(classes) == 7
->>>>>>> origin/main
 
 
 def test_ontology_inheritance(rdf_graph, vocab_namespace):
@@ -105,12 +99,7 @@ def test_ontology_properties_present(rdf_graph, vocab_namespace):
     datatype_props = list(rdf_graph.subjects(RDF.type, OWL.DatatypeProperty))
     all_props = object_props + datatype_props
 
-<<<<<<< HEAD
-    # Should have exactly 13 properties
-    assert len(all_props) == 13
-=======
     assert len(all_props) == 15
->>>>>>> origin/main
 
     # Verify each expected property exists
     assert VOCAB.name in all_props
@@ -168,20 +157,8 @@ def test_ontology_inverse_of_property(rdf_graph, vocab_namespace):
     assert (VOCAB.vice_head, OWL.inverseOf, VOCAB.vice_head_of) in rdf_graph
 
 
-<<<<<<< HEAD
-def test_ontology_equivalent_property(rdf_graph, vocab_namespace):
-    """Test that equivalent properties are correctly annotated"""
-    VOCAB = vocab_namespace
-
-    # Check related_project property is equivalent to another property
-    # This test is not applicable as equivalentProperty is not used in TestModel
-    pass
-
-    """Test that inverse functional properties are correctly annotated"""
-=======
 def test_ontology_inverse_functional_property(rdf_graph, vocab_namespace):
     """Test that owl:InverseFunctionalProperty shows up as expected"""
->>>>>>> origin/main
     VOCAB = vocab_namespace
 
     # Check employee_id property is inverse functional

@@ -3,16 +3,6 @@ import warnings
 from copy import deepcopy
 from inspect import get_annotations, isclass
 from types import NoneType, UnionType
-<<<<<<< HEAD
-from typing import Annotated, Any, List, Literal, Optional, Union, get_args, get_origin
-
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, create_model
-from pydantic.fields import FieldInfo
-
-from .api import APIAnnotation
-from .models import (
-    BaseContext,
-=======
 from typing import Annotated, Any, List, Union, get_args, get_origin
 
 from pydantic import BaseModel, Field, create_model
@@ -21,22 +11,15 @@ from pydantic.fields import FieldInfo
 from .models import (
     BaseContext,
     BaseMetaData,
->>>>>>> origin/main
     Entity,
     JSONLDGraph,
     Relation,
     _NodeShape,
-<<<<<<< HEAD
-    _PropertyShape,
-)
-from .owl import OWLAnnotation, RDFList
-=======
     _OntologyClass,
     _OntologyProperty,
     _PropertyShape,
 )
 from .owl import OWLAnnotation
->>>>>>> origin/main
 from .rdfs import RDFSAnnotation
 from .settings import Settings
 from .shacl import SHACLAnnotation
@@ -59,95 +42,6 @@ class DuplicatePropertyError(Exception):
     """Raised when fields/properties are redefined erroneously"""
 
 
-<<<<<<< HEAD
-class _OntologyClass(BaseModel):
-    """Represents an RDFS/OWL class in an ontology graph"""
-
-    id: str = Field(alias="@id", description="Class IRI")
-    type: Literal["rdfs:Class", "owl:Class"] = Field(
-        default="rdfs:Class",
-        alias="@type",
-        description="The RDF type.",
-    )
-    label: Optional[str] = Field(
-        alias="rdfs:label", default=None, description="Human-readable label"
-    )
-    comment: Optional[str] = Field(
-        default=None, alias="rdfs:comment", description="Class description"
-    )
-    subClassOf: Optional[List[Relation | OWLAnnotation.Restriction]] = Field(
-        default=None, alias="rdfs:subClassOf", description="Parent class(es)"
-    )
-    seeAlso: Optional[HttpUrl] = Field(
-        default=None, alias="rdfs:seeAlso", description="Link to additional information"
-    )
-    isDefinedBy: Optional[HttpUrl] = Field(
-        default=None, alias="rdfs:isDefinedBy", description="Link to definition"
-    )
-    equivalentClass: Optional[List[Relation | OWLAnnotation.Restriction]] = Field(
-        default=None,
-        alias="owl:equivalentClass",
-        description="Members of this class are also members of the other",
-    )
-    intersectionOf: Optional[RDFList] = Field(
-        default=None, alias="owl:intersectionOf", description=""
-    )
-
-    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
-
-
-class _OntologyProperty(BaseModel):
-    """Represents an OWL property in an ontology graph."""
-
-    id: str = Field(alias="@id", description="Property IRI")
-    type: List[
-        # How can I add the values of TYPE_MAP to the literals AI?
-        Literal[
-            "owl:ObjectProperty",
-            "owl:DatatypeProperty",
-            "owl:TransitiveProperty",
-            "owl:SymmetricProperty",
-            "owl:FunctionalProperty",
-            "owl:InverseFunctionalProperty",
-            "owl:InverseProperty",
-            *TYPE_MAP.values(),
-        ]
-    ] = Field(alias="@type")
-    label: Optional[str] = Field(alias="rdfs:label", description="Human-readable label")
-    domain: Optional[Relation] = Field(
-        default=None, alias="rdfs:domain", description="Domain class IRI"
-    )
-    range: Optional[Relation] = Field(
-        default=None, alias="rdfs:range", description="Range class or datatype IRI"
-    )
-    comment: Optional[str] = Field(
-        default=None, alias="rdfs:comment", description="Property description"
-    )
-    subPropertyOf: Optional[Relation] = Field(
-        default=None, alias="rdfs:subPropertyOf", description="IRI of super-property"
-    )
-    seeAlso: Optional[HttpUrl] = Field(
-        default=None, alias="rdfs:seeAlso", description="Link to additional information"
-    )
-    isDefinedBy: Optional[HttpUrl] = Field(
-        default=None, alias="rdfs:isDefinedBy", description="Link to definition"
-    )
-    equivalentProperty: Optional[Relation] = Field(
-        default=None,
-        alias="owl:equivalentProperty",
-        description="IRI of equivalent property",
-    )
-    inverseOf: Optional[Relation] = Field(
-        default=None,
-        alias="owl:inverseOf",
-        description="Property is the inverse of another property",
-    )
-
-    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
-
-
-=======
->>>>>>> origin/main
 class Pydontology:
     type_map = TYPE_MAP
 
@@ -163,11 +57,7 @@ class Pydontology:
         self._prop_db = dict()
 
         origin = get_origin(ontology)
-<<<<<<< HEAD
-        if origin is Annotated:
-=======
         if origin is Annotated:  # E.g. one annotated class
->>>>>>> origin/main
             components = [ontology]
         elif origin is Union or origin is UnionType:
             components = get_args(ontology)
@@ -196,11 +86,7 @@ class Pydontology:
                 if self.cfg.TYPE_STRICT_MODE:
                     if field_type not in self.type_map and field_type != "Relation":
                         raise ValueError(
-<<<<<<< HEAD
-                            f"Field {field_name} has type {field_type} which is not a Relation, or in the type map (Setting: TYPE_STRICT_MODE)"
-=======
                             f"Field '{field_name}' was resolved as type '{field_type}' which is not a Relation, nor in the type map (Setting: TYPE_STRICT_MODE)"
->>>>>>> origin/main
                         )
 
                 # Fields are identified by alias (if present), otherwise by name in the self._prop_db dict.
@@ -228,24 +114,6 @@ class Pydontology:
                 else:
                     self._prop_db[field_name] = field_map
 
-<<<<<<< HEAD
-    def _get_field_type(self, field_info: FieldInfo) -> str | None:
-        """Resolve field type to one specific (optional) Python type as string or None"""
-        annotation = field_info.annotation
-        if annotation is None:
-            return None
-
-        origin = get_origin(annotation)
-        if origin is None:
-            return annotation.__name__
-        elif origin is Union or origin is UnionType:
-            args = get_args(annotation)
-            if len(args) == 2 and NoneType in args:
-                return args[0].__name__ if args[0] is not NoneType else args[1].__name__
-            else:
-                return None
-        else:
-=======
     def _apply_settings(self, settings: Settings) -> None:
         """Apply Settings to runtime behavior, including Entity serialization."""
         self.cfg = settings
@@ -279,7 +147,6 @@ class Pydontology:
                         return aargs[0].__name__
                     return a.__name__
         except AttributeError:
->>>>>>> origin/main
             return None
 
     def _handle_duplicate_fields(self, class_name, field_id, field_type, field_info):

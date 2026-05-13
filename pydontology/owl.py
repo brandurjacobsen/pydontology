@@ -95,11 +95,7 @@ class OWLAnnotation:
 
     @staticmethod
     def intersectionOf(
-<<<<<<< HEAD
-        value: List["str | Relation | OWLAnnotation.Restriction"],
-=======
         value: List[str | Relation | Restriction],
->>>>>>> origin/main
     ) -> RDFList:
         """
         OWL intersectionOf annotation.
@@ -114,13 +110,8 @@ class OWLAnnotation:
         """
 
         lst = tuple(
-<<<<<<< HEAD
-            [Relation(id=item) if isinstance(item, str) else item for item in value]
-        )  # pyright: ignore
-=======
             [Relation(id=item) if isinstance(item, str) else item for item in value]  # pyright: ignore
         )
->>>>>>> origin/main
         return OWLAnnotation.INTERSECTION_OF(value=RDFList(list=lst))  # pyright: ignore
 
     @staticmethod

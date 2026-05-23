@@ -106,15 +106,12 @@ def test_property_shapes_count(sh_rdf_graph, vocab_namespace):
     person_properties = list(sh_rdf_graph.objects(VOCAB.PersonShape, SH.property))
     assert len(person_properties) == 3
 
-<<<<<<< HEAD
     # EmployeeShape should have 5 properties
     employee_properties = list(rdf_graph.objects(VOCAB.EmployeeShape, SH.property))
     assert len(employee_properties) == 5
-=======
     # EmployeeShape should have 4 properties
     employee_properties = list(sh_rdf_graph.objects(VOCAB.EmployeeShape, SH.property))
     assert len(employee_properties) == 4
->>>>>>> origin/main
 
     # ManagerShape should have 2 properties (no SHACL annotation but two Relations):
     manager_properties = list(sh_rdf_graph.objects(VOCAB.ManagerShape, SH.property))

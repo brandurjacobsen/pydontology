@@ -1,13 +1,12 @@
-from .api import APIAnnotation
-
+from .api import APIAnnotation, APIFactory
+from .owl import OWLAnnotation
 from .pydontology import (
     BaseContext,
     BaseMetaData,
     Entity,
+    Pydontology,
     Relation,
 )
-from .owl import OWLAnnotation
-from .pydontology import Pydontology
 from .rdfs import RDFSAnnotation
 from .settings import Settings
 from .shacl import SHACLAnnotation
@@ -22,5 +21,6 @@ __all__ = [
     "OWLAnnotation",
     "SHACLAnnotation",
     "APIAnnotation",
+    "APIFactory",
     "Settings",
 ]

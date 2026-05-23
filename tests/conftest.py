@@ -3,6 +3,7 @@ from typing import Annotated, List, Optional
 import pytest
 from pydantic import Field
 
+from pydontology.api import APIAnnotation as API
 from pydontology.models import Entity, Relation
 from pydontology.owl import (
     OWLAnnotation as OWL,

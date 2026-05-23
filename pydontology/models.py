@@ -157,7 +157,7 @@ class BaseMetaData(BaseModel):
     comment: Optional[str] = Field(alias="rdfs:comment", default=None)
     label: Optional[str] = Field(alias="rdfs:label", default=None)
     versionInfo: Optional[str] = Field(alias="owl:versionInfo", default=None)
-    imports: Optional[Relation] = Field(alias="owl:imports", default=None)
+    imports: Optional[List[Relation]] = Field(alias="owl:imports", default=None)
     seeAlso: Optional[HttpUrl] = Field(alias="rdfs:seeAlso", default=None)
     isDefinedBy: Optional[HttpUrl] = Field(alias="owl:isDefinedBy", default=None)
     priorVersion: Optional[Relation] = Field(alias="owl:priorVersion", default=None)

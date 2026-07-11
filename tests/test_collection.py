@@ -172,3 +172,62 @@ def test_collection_ontology_graph_duplicate_ids():
         ValueError, match="Duplicate @id values found in ontology graph"
     ):
         collection.ontology_graph()
+
+
+def test_collection_register_from_folder_uses_metadata(tmp_path):
+    module_path = tmp_path / "people.py"
+    module_path.write_text(
+        '"""People module."""\n'
+        "from pydontology.models import BaseMetaData, Entity\n"
+        "from pydontology.pydontology import Pydontology\n\n"
+        "class Person(Entity):\n"
+        "    \"\"\"Person entity.\"\"\"\n\n"
+        "    name: str\n\n"
+        "ONTOLOGY = Pydontology(\n"
+        "    Person,\n"
+        "    BaseMetaData(id=\"http://example.com/onto#People\", comment=\"People ontology\"),\n"
+        ")\n"
+    )
+
+    collection = PydontologyCollection()
+    registered = collection.register_from_folder(tmp_path)
+
+    assert registered == ["People"]
+    assert len(collection._sub_ontologies) == 1
+    assert collection._sub_ontologies[0].name == "People"
+    assert collection._sub_ontologies[0].description == "People ontology"
+
+
+def test_collection_register_from_folder_no_instances(tmp_path):
+    module_path = tmp_path / "empty.py"
+    module_path.write_text(
+        "from pydontology.models import Entity\n\n"
+        "class Empty(Entity):\n"
+        "    value: str\n"
+    )
+
+    collection = PydontologyCollection()
+
+    with pytest.raises(
+        ValueError, match="No Pydontology instances found in"
+    ):
+        collection.register_from_folder(tmp_path)
+
+
+def test_collection_register_from_folder_multiple_instances(tmp_path):
+    module_path = tmp_path / "multi.py"
+    module_path.write_text(
+        "from pydontology.models import Entity\n"
+        "from pydontology.pydontology import Pydontology\n\n"
+        "class Alpha(Entity):\n"
+        "    value: str\n\n"
+        "class Beta(Entity):\n"
+        "    value: str\n\n"
+        "onto_a = Pydontology(Alpha)\n"
+        "onto_b = Pydontology(Beta)\n"
+    )
+
+    collection = PydontologyCollection()
+    registered = collection.register_from_folder(tmp_path)
+
+    assert registered == ["multi_onto_a", "multi_onto_b"]

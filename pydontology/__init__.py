@@ -7,7 +7,6 @@ from .models import (
 )
 from .owl import OWLAnnotation
 from .pydontology import Pydontology
-from .collection import PydontologyCollection
 from .rdfs import RDFSAnnotation
 from .settings import Settings
 from .shacl import SHACLAnnotation
@@ -18,7 +17,6 @@ __all__ = [
     "Entity",
     "Relation",
     "Pydontology",
-    "PydontologyCollection",
     "RDFSAnnotation",
     "OWLAnnotation",
     "SHACLAnnotation",

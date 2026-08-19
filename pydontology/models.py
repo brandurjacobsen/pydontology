@@ -1,3 +1,4 @@
+from uuid import uuid4
 from types import NoneType, UnionType
 from typing import (
     Annotated,
@@ -18,9 +19,11 @@ from pydantic import (
     ConfigDict,
     Field,
     HttpUrl,
+    UUID4,
     computed_field,
     model_serializer,
     model_validator,
+    field_validator
 )
 
 from .types import TYPE_SET, infer_xsd_type
@@ -510,14 +513,16 @@ class JSONLDGraph(BaseModel):
 
     context: BaseContext = Field(
         default=BaseContext(),
-        alias="@context",
+        serialization_alias="@context",
         title="@context",
         description="JSON-LD context",
     )
 
+    id: UUID4 = Field(serialization_alias="@id", default_factory=uuid4)
+
     graph: List[Any] = Field(
         default=[],
-        alias="@graph",
+        serialization_alias="@graph",
         title="@graph",
         description="Default or named graph",
     )

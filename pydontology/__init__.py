@@ -3,6 +3,7 @@ from .models import (
     BaseMetaData,
     Entity,
     Relation,
+    JSONLDGraph,
 )
 from .owl import OWLAnnotation
 from .pydontology import Pydontology
@@ -20,4 +21,5 @@ __all__ = [
     "OWLAnnotation",
     "SHACLAnnotation",
     "Settings",
+    "JSONLDGraph",
 ]

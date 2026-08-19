@@ -11,16 +11,13 @@ from pydontology.pydontology import BaseContext, JSONLDGraph
 def onto_graph(TestModel):
     """Fixture providing the generated ontology graph"""
 
-    onto_meta = BaseMetaData(
-        id="TestOntology", comment="Ontology used for testing", versionInfo="1.0.2"
-    )
-    return TestModel.ontology_graph(onto_meta=onto_meta)
+    return TestModel.ontology_graph()
 
 
 @pytest.fixture
 def onto_graph_json(onto_graph):
     """Fixture returing the ontology graph as json-ld"""
-    return onto_graph.model_dump_json(exclude_none=True)
+    return onto_graph.model_dump_json(exclude_none=True, exclude="id")
 
 
 @pytest.fixture

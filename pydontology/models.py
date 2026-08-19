@@ -23,7 +23,6 @@ from pydantic import (
     computed_field,
     model_serializer,
     model_validator,
-    field_validator
 )
 
 from .types import TYPE_SET, infer_xsd_type
@@ -33,19 +32,19 @@ from .validators import val_no_whitespace
 class BaseContext(BaseModel):
     """Base json-ld context model"""
 
-    version: float = Field(alias="@version", default=1.1)
+    version: float = Field(serialization_alias="@version", default=1.1)
     vocab: str = Field(
-        alias="@vocab",
+        serialization_alias="@vocab",
         default="http://example.com/vocab/",
         description="Prefix of properties, values of @type, and values of terms that are relative.",
     )
     base: str = Field(
-        alias="@base",
+        serialization_alias="@base",
         default="http://example.com/vocab/",
         description="Prefix of relative IRIs.",
     )
     language: Optional[str] = Field(
-        alias="@language", default="en", description="BCP47 default language identifier"
+        serialization_alias="@language", default="en", description="BCP47 default language identifier"
     )
     sh: Literal["http://www.w3.org/ns/shacl#"] = Field(
         default="http://www.w3.org/ns/shacl#"
@@ -66,7 +65,7 @@ class Relation(BaseModel):
     """This class should be the type of Entity attributes for them to be considered as IRIs."""
 
     id: Annotated[str, AfterValidator(val_no_whitespace)] = Field(
-        alias="@id", title="@id", description="IRI", min_length=1
+        serialization_alias="@id", title="@id", description="IRI", min_length=1
     )
     model_config = ConfigDict(
         populate_by_name=True, serialize_by_alias=True, frozen=True
@@ -76,8 +75,8 @@ class Relation(BaseModel):
 class TypeVal(BaseModel):
     """Class that serializes as an RDF typed value literal"""
 
-    value: Any = Field(alias="@value", description="Value of RDF literal")
-    type: Any = Field(alias="@type", description="XML schema type of RDF literal")
+    value: Any = Field(serialization_alias="@value", description="Value of RDF literal")
+    type: Any = Field(serialization_alias="@type", description="XML schema type of RDF literal")
 
     model_config = ConfigDict(
         populate_by_name=True, serialize_by_alias=True, frozen=True
@@ -88,15 +87,15 @@ class Restriction(BaseModel):
     """Model defining OWL Restrictions for use with owl:equivalentClass, owl:intersectionOf, etc.."""
 
     id: Optional[str] = Field(
-        alias="@id", default=None, description="Optional restriction IRI"
+        serialization_alias="@id", default=None, description="Optional restriction IRI"
     )
-    type: Literal["owl:Restriction"] = Field(alias="@type", default="owl:Restriction")
-    onProperty: Relation = Field(alias="owl:onProperty")
-    someValuesFrom: Optional[Relation] = Field(alias="owl:someValuesFrom", default=None)
-    allValuesFrom: Optional[Relation] = Field(alias="owl:allValuesFrom", default=None)
-    cardinality: Optional[int] = Field(alias="owl:cardinality", default=None)
-    minCardinality: Optional[int] = Field(alias="owl:minCardinality", default=None)
-    maxCardinality: Optional[int] = Field(alias="owl:maxCardinality", default=None)
+    type: Literal["owl:Restriction"] = Field(serialization_alias="@type", default="owl:Restriction")
+    onProperty: Relation = Field(serialization_alias="owl:onProperty")
+    someValuesFrom: Optional[Relation] = Field(serialization_alias="owl:someValuesFrom", default=None)
+    allValuesFrom: Optional[Relation] = Field(serialization_alias="owl:allValuesFrom", default=None)
+    cardinality: Optional[int] = Field(serialization_alias="owl:cardinality", default=None)
+    minCardinality: Optional[int] = Field(serialization_alias="owl:minCardinality", default=None)
+    maxCardinality: Optional[int] = Field(serialization_alias="owl:maxCardinality", default=None)
 
     @model_validator(mode="after")
     def mutually_exclusive(self) -> Self:
@@ -134,7 +133,7 @@ class Restriction(BaseModel):
 class RDFList(BaseModel):
     """An ordered RDF list structure (collection)"""
 
-    list: Tuple[Relation | Restriction, ...] = Field(alias="@list")
+    list: Tuple[Relation | Restriction, ...] = Field(serialization_alias="@list")
 
     model_config = ConfigDict(
         populate_by_name=True, serialize_by_alias=True, frozen=True
@@ -144,8 +143,8 @@ class RDFList(BaseModel):
 class AllDifferent(BaseModel):
     """The OWL AllDifferent class"""
 
-    type: Literal["owl:AllDifferent"] = Field(alias="@type", default="owl:AllDifferent")
-    distinctMembers: RDFList = Field(alias="owl:distinctMembers")
+    type: Literal["owl:AllDifferent"] = Field(serialization_alias="@type", default="owl:AllDifferent")
+    distinctMembers: RDFList = Field(serialization_alias="owl:distinctMembers")
 
     model_config = ConfigDict(
         populate_by_name=True, serialize_by_alias=True, frozen=True
@@ -155,20 +154,20 @@ class AllDifferent(BaseModel):
 class BaseMetaData(BaseModel):
     """The base class for a owl:Ontology class"""
 
-    id: str = Field(alias="@id", description="IRI of ontology meta-data")
-    type: Literal["owl:Ontology"] = Field(alias="@type", default="owl:Ontology")
-    comment: Optional[str] = Field(alias="rdfs:comment", default=None)
-    label: Optional[str] = Field(alias="rdfs:label", default=None)
-    versionInfo: Optional[str] = Field(alias="owl:versionInfo", default=None)
-    imports: Optional[List[Relation]] = Field(alias="owl:imports", default=None)
-    seeAlso: Optional[HttpUrl] = Field(alias="rdfs:seeAlso", default=None)
-    isDefinedBy: Optional[HttpUrl] = Field(alias="owl:isDefinedBy", default=None)
-    priorVersion: Optional[Relation] = Field(alias="owl:priorVersion", default=None)
+    id: str = Field(serialization_alias="@id", description="IRI of ontology meta-data")
+    type: Literal["owl:Ontology"] = Field(serialization_alias="@type", default="owl:Ontology")
+    comment: Optional[str] = Field(serialization_alias="rdfs:comment", default=None)
+    label: Optional[str] = Field(serialization_alias="rdfs:label", default=None)
+    versionInfo: Optional[str] = Field(serialization_alias="owl:versionInfo", default=None)
+    imports: Optional[List[Relation]] = Field(serialization_alias="owl:imports", default=None)
+    seeAlso: Optional[HttpUrl] = Field(serialization_alias="rdfs:seeAlso", default=None)
+    isDefinedBy: Optional[HttpUrl] = Field(serialization_alias="owl:isDefinedBy", default=None)
+    priorVersion: Optional[Relation] = Field(serialization_alias="owl:priorVersion", default=None)
     backwardCompatibleWith: Optional[Relation] = Field(
-        alias="owl:backwardCompatibleWith", default=None
+        serialization_alias="owl:backwardCompatibleWith", default=None
     )
     incompatibleWith: Optional[Relation] = Field(
-        alias="owl:incompatibleWith", default=None
+        serialization_alias="owl:incompatibleWith", default=None
     )
 
     model_config = ConfigDict(
@@ -186,18 +185,18 @@ class Entity(BaseModel):
     _type_strict_mode: bool = True
 
     id: Annotated[str, AfterValidator(val_no_whitespace)] = Field(
-        alias="@id", description="IRI", title="@id", min_length=1
+        serialization_alias="@id", description="IRI", title="@id", min_length=1
     )
 
     sameAs: Optional[Relation | List[Relation]] = Field(
         default=None,
-        alias="owl:sameAs",
+        serialization_alias="owl:sameAs",
         description="Same individual(s)",
     )
 
     differentFrom: Optional[Relation | List[Relation]] = Field(
         default=None,
-        alias="owl:differentFrom",
+        serialization_alias="owl:differentFrom",
         description="Different individual(s)",
     )
 
@@ -298,34 +297,34 @@ class Entity(BaseModel):
 class _OntologyClass(BaseModel):
     """Represents an RDFS/OWL class in an ontology graph"""
 
-    id: str = Field(alias="@id", description="Class IRI")
+    id: str = Field(serialization_alias="@id", description="Class IRI")
     type: Literal["rdfs:Class", "owl:Class"] = Field(
         default="rdfs:Class",
-        alias="@type",
+        serialization_alias="@type",
         description="The RDF type.",
     )
     label: Optional[str] = Field(
-        alias="rdfs:label", default=None, description="Human-readable label"
+        serialization_alias="rdfs:label", default=None, description="Human-readable label"
     )
     comment: Optional[str] = Field(
-        default=None, alias="rdfs:comment", description="Class description"
+        default=None, serialization_alias="rdfs:comment", description="Class description"
     )
     subClassOf: Optional[List[Relation | Restriction]] = Field(
-        default=None, alias="rdfs:subClassOf", description="Parent class(es)"
+        default=None, serialization_alias="rdfs:subClassOf", description="Parent class(es)"
     )
     seeAlso: Optional[HttpUrl] = Field(
-        default=None, alias="rdfs:seeAlso", description="Link to additional information"
+        default=None, serialization_alias="rdfs:seeAlso", description="Link to additional information"
     )
     isDefinedBy: Optional[HttpUrl] = Field(
-        default=None, alias="rdfs:isDefinedBy", description="Link to definition"
+        default=None, serialization_alias="rdfs:isDefinedBy", description="Link to definition"
     )
     equivalentClass: Optional[List[Relation | Restriction]] = Field(
         default=None,
-        alias="owl:equivalentClass",
+        serialization_alias="owl:equivalentClass",
         description="Members of this class are also members of the other",
     )
     intersectionOf: Optional[RDFList] = Field(
-        default=None, alias="owl:intersectionOf", description=""
+        default=None, serialization_alias="owl:intersectionOf", description=""
     )
 
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
@@ -334,7 +333,7 @@ class _OntologyClass(BaseModel):
 class _OntologyProperty(BaseModel):
     """Represents an OWL property in an ontology graph."""
 
-    id: str = Field(alias="@id", description="Property IRI")
+    id: str = Field(serialization_alias="@id", description="Property IRI")
     type: List[
         Literal[
             "owl:ObjectProperty",
@@ -346,34 +345,34 @@ class _OntologyProperty(BaseModel):
             "owl:InverseProperty",
             *TYPE_SET,
         ]
-    ] = Field(alias="@type")
-    label: Optional[str] = Field(alias="rdfs:label", description="Human-readable label")
+    ] = Field(serialization_alias="@type")
+    label: Optional[str] = Field(serialization_alias="rdfs:label", description="Human-readable label")
     domain: Optional[Relation] = Field(
-        default=None, alias="rdfs:domain", description="Domain class IRI"
+        default=None, serialization_alias="rdfs:domain", description="Domain class IRI"
     )
     range: Optional[Relation] = Field(
-        default=None, alias="rdfs:range", description="Range class or datatype IRI"
+        default=None, serialization_alias="rdfs:range", description="Range class or datatype IRI"
     )
     comment: Optional[str] = Field(
-        default=None, alias="rdfs:comment", description="Property description"
+        default=None, serialization_alias="rdfs:comment", description="Property description"
     )
     subPropertyOf: Optional[Relation] = Field(
-        default=None, alias="rdfs:subPropertyOf", description="IRI of super-property"
+        default=None, serialization_alias="rdfs:subPropertyOf", description="IRI of super-property"
     )
     seeAlso: Optional[HttpUrl] = Field(
-        default=None, alias="rdfs:seeAlso", description="Link to additional information"
+        default=None, serialization_alias="rdfs:seeAlso", description="Link to additional information"
     )
     isDefinedBy: Optional[HttpUrl] = Field(
-        default=None, alias="rdfs:isDefinedBy", description="Link to definition"
+        default=None, serialization_alias="rdfs:isDefinedBy", description="Link to definition"
     )
     equivalentProperty: Optional[Relation] = Field(
         default=None,
-        alias="owl:equivalentProperty",
+        serialization_alias="owl:equivalentProperty",
         description="IRI of equivalent property",
     )
     inverseOf: Optional[Relation] = Field(
         default=None,
-        alias="owl:inverseOf",
+        serialization_alias="owl:inverseOf",
         description="Property is the inverse of another property",
     )
 
@@ -383,103 +382,103 @@ class _OntologyProperty(BaseModel):
 class _PropertyShape(BaseModel):
     """Represents a SHACL property shape in a SHACL graph."""
 
-    id: str = Field(alias="@id", description="Property shape IRI")
-    type: Literal["sh:PropertyShape"] = Field(default="sh:PropertyShape", alias="@type")
-    path: Relation = Field(alias="sh:path", description="Property path")
+    id: str = Field(serialization_alias="@id", description="Property shape IRI")
+    type: Literal["sh:PropertyShape"] = Field(default="sh:PropertyShape", serialization_alias="@type")
+    path: Relation = Field(serialization_alias="sh:path", description="Property path")
 
     # Value Type Constraint Components
     shclass: Optional[Relation] = Field(
-        default=None, alias="sh:class", description="Expected class"
+        default=None, serialization_alias="sh:class", description="Expected class"
     )
     datatype: Optional[Relation] = Field(
-        default=None, alias="sh:datatype", description="Expected datatype"
+        default=None, serialization_alias="sh:datatype", description="Expected datatype"
     )
     nodeKind: Optional[Relation] = Field(
-        default=None, alias="sh:nodeKind", description="Node kind constraint"
+        default=None, serialization_alias="sh:nodeKind", description="Node kind constraint"
     )
 
     # Cardinality Constraint Components
     minCount: Optional[int] = Field(
-        default=None, alias="sh:minCount", ge=0, description="Minimum cardinality"
+        default=None, serialization_alias="sh:minCount", ge=0, description="Minimum cardinality"
     )
     maxCount: Optional[int] = Field(
-        default=None, alias="sh:maxCount", ge=0, description="Maximum cardinality"
+        default=None, serialization_alias="sh:maxCount", ge=0, description="Maximum cardinality"
     )
 
     # Value Range Constraint Components
     minInclusive: Optional[float] = Field(
-        default=None, alias="sh:minInclusive", description="Minimum inclusive value"
+        default=None, serialization_alias="sh:minInclusive", description="Minimum inclusive value"
     )
     maxInclusive: Optional[float] = Field(
-        default=None, alias="sh:maxInclusive", description="Maximum inclusive value"
+        default=None, serialization_alias="sh:maxInclusive", description="Maximum inclusive value"
     )
     minExclusive: Optional[float] = Field(
-        default=None, alias="sh:minExclusive", description="Minimum exclusive value"
+        default=None, serialization_alias="sh:minExclusive", description="Minimum exclusive value"
     )
     maxExclusive: Optional[float] = Field(
-        default=None, alias="sh:maxExclusive", description="Maximum exclusive value"
+        default=None, serialization_alias="sh:maxExclusive", description="Maximum exclusive value"
     )
 
     # String-based Constraint Components
     pattern: Optional[str] = Field(
-        default=None, alias="sh:pattern", description="Pattern constraint"
+        default=None, serialization_alias="sh:pattern", description="Pattern constraint"
     )
     minLength: Optional[int] = Field(
-        default=None, alias="sh:minLength", description="Minimum length"
+        default=None, serialization_alias="sh:minLength", description="Minimum length"
     )
     maxLength: Optional[int] = Field(
-        default=None, alias="sh:maxLength", description="Maximum length"
+        default=None, serialization_alias="sh:maxLength", description="Maximum length"
     )
     languageIn: Optional[List[str]] = Field(
-        default=None, alias="sh:languageIn", description="List of allowed language tags"
+        default=None, serialization_alias="sh:languageIn", description="List of allowed language tags"
     )
     uniqueLang: Optional[bool] = Field(
         default=None,
-        alias="sh:uniqueLang",
+        serialization_alias="sh:uniqueLang",
         description="Whether language tags must be unique",
     )
 
     # Property Pair Constraint Components
     equals: Optional[Relation] = Field(
-        default=None, alias="sh:equals", description="Property path with equal values"
+        default=None, serialization_alias="sh:equals", description="Property path with equal values"
     )
     disjoint: Optional[Relation] = Field(
         default=None,
-        alias="sh:disjoint",
+        serialization_alias="sh:disjoint",
         description="Property path with disjoint values",
     )
     lessThan: Optional[Relation] = Field(
         default=None,
-        alias="sh:lessThan",
+        serialization_alias="sh:lessThan",
         description="Property path with greater values",
     )
     lessThanOrEquals: Optional[Relation] = Field(
         default=None,
-        alias="sh:lessThanOrEquals",
+        serialization_alias="sh:lessThanOrEquals",
         description="Property path with greater or equal values",
     )
 
     ## Other Constraint Components
     hasValue: Optional[str | int | float | bool] = Field(
-        default=None, alias="sh:hasValue", description="Required value"
+        default=None, serialization_alias="sh:hasValue", description="Required value"
     )
     shIn: Optional[List[str | int | float | bool]] = Field(
-        default=None, alias="sh:in", description="List of allowed values"
+        default=None, serialization_alias="sh:in", description="List of allowed values"
     )
 
     # Validation parameter constructs
     severity: Optional[Relation] = Field(
         default=None,
-        alias="sh:severity",
+        serialization_alias="sh:severity",
         description="Severity of constraint violation",
     )
 
     # Non validating constructs
     name: Optional[str] = Field(
-        default=None, alias="sh:name", description="Human-readable name"
+        default=None, serialization_alias="sh:name", description="Human-readable name"
     )
     description: Optional[str] = Field(
-        default=None, alias="sh:description", description="Property shape description"
+        default=None, serialization_alias="sh:description", description="Property shape description"
     )
 
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
@@ -488,18 +487,18 @@ class _PropertyShape(BaseModel):
 class _NodeShape(BaseModel):
     """Represents a SHACL node shape in a SHACL graph."""
 
-    id: str = Field(alias="@id", description="Node shape IRI")
-    type: Literal["sh:NodeShape"] = Field(default="sh:NodeShape", alias="@type")
-    targetClass: Relation = Field(alias="sh:targetClass", description="Target class")
+    id: str = Field(serialization_alias="@id", description="Node shape IRI")
+    type: Literal["sh:NodeShape"] = Field(default="sh:NodeShape", serialization_alias="@type")
+    targetClass: Relation = Field(serialization_alias="sh:targetClass", description="Target class")
     property: List[_PropertyShape] = Field(
-        default_factory=list, alias="sh:property", description="Property shapes"
+        default_factory=list, serialization_alias="sh:property", description="Property shapes"
     )
     closed: Optional[bool] = Field(
-        default=None, alias="sh:closed", description="Whether shape is closed"
+        default=None, serialization_alias="sh:closed", description="Whether shape is closed"
     )
     ignoredProperties: Optional[List[Relation]] = Field(
         default=None,
-        alias="sh:ignoredProperties",
+        serialization_alias="sh:ignoredProperties",
         description="Properties to ignore when closed",
     )
 
@@ -527,12 +526,13 @@ class JSONLDGraph(BaseModel):
         description="Default or named graph",
     )
 
-    def all_different(self, toggle: bool) -> None:
+    @classmethod
+    def all_different(cls, toggle: bool) -> None:
         """Includes the owl:AllDifferent class in the serialization
 
         All individuals in the graph are then seen as distinct members
         """
-        self._all_different = toggle
+        cls._all_different = toggle
 
     @model_serializer(mode="wrap")
     def _serialize_as_all_different(self, handler):

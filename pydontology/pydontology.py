@@ -44,7 +44,7 @@ class Pydontology:
         # Construct a dict that maps Entity class names to class metadata
         self._cls_db = dict()
 
-        # Construct a dict that maps field names/aliases to field metadata
+        # Construct a dict that maps field names/serializationaliases to field metadata
         self._prop_db = dict()
 
         origin = get_origin(ontology)
@@ -79,14 +79,14 @@ class Pydontology:
                             f"Field '{field_name}' was resolved as type '{field_type}' which is not a Relation, nor in the type map (Setting: TYPE_STRICT_MODE)"
                         )
 
-                # Fields are identified by alias (if present), otherwise by name in the self._prop_db dict.
+                # Fields are identified by serializationalias (if present), otherwise by name in the self._prop_db dict.
                 # If an ontology class redefines a previously identified property (according to the above),
                 # then the Python type needs to be identical, while e.g. default, description, title,
                 # examples and SHACL annotation can vary.
 
-                if field_info.alias is not None and field_info.alias in self._prop_db:
+                if field_info.serialization_alias is not None and field_info.serialization_alias in self._prop_db:
                     field_map = self._handle_duplicate_fields(
-                        class_name, field_info.alias, field_type, field_info
+                        class_name, field_info.serialization_alias, field_type, field_info
                     )
                 elif field_name in self._prop_db:
                     field_map = self._handle_duplicate_fields(
@@ -99,8 +99,8 @@ class Pydontology:
                         "description": [field_info.description],
                         "metadata": [field_info.metadata],
                     }
-                if field_info.alias is not None:
-                    self._prop_db[field_info.alias] = field_map
+                if field_info.serialization_alias is not None:
+                    self._prop_db[field_info.serialization_alias] = field_map
                 else:
                     self._prop_db[field_name] = field_map
 
@@ -494,109 +494,6 @@ class Pydontology:
         shacl_shapes = self._create_node_shapes()
         return JSONLDGraph(context=context, graph=shacl_shapes)  # pyright: ignore
 
-    def _strip_type(self, tp: Any, cache: dict[type, type]) -> Any:
-        origin = get_origin(tp)
-        args = get_args(tp)
-
-        # Basemodel
-        if origin is None:
-            if isinstance(tp, type) and issubclass(tp, BaseModel):
-                return self._strip_model(tp, cache)
-            return tp
-
-        # Containers
-        if origin in (list, set, tuple, frozenset):
-            return origin[tuple(self._strip_type(a, cache) for a in args)]  # pyright: ignore
-
-        # Dict
-        if origin is dict:
-            k, v = args
-            return dict[self._strip_type(k, cache), self._strip_type(v, cache)]
-
-        # Union (incl. | syntax)
-        if origin is Union:
-            return Union[tuple(self._strip_type(a, cache) for a in args)]
-
-        return tp
-
-    def _strip_aliases(self, tp: Any, cache: dict[type, type] | None = None) -> Any:
-        """
-        Returns an equivalent type with all Pydantic aliases removed.
-
-        Accepts BaseModel, Union, or arbitrary nested type.
-        """
-        if cache is None:
-            cache = {}
-        return self._strip_type(tp, cache)
-
-    def _strip_model(
-        self, model: type[BaseModel], cache: dict[type, type]
-    ) -> type[BaseModel]:
-        if model in cache:
-            return cache[model]
-
-        new_fields = {}
-
-        for name, field in model.model_fields.items():
-            info: FieldInfo = deepcopy(field)
-
-            # Remove alias-related metadata
-            info.alias = None
-            info.validation_alias = None
-            info.serialization_alias = None
-
-            new_type = self._strip_type(field.annotation, cache)
-
-            if field.is_required():
-                new_fields[name] = (new_type, info)
-            else:
-                new_fields[name] = (new_type, field.default)
-
-        New = create_model(
-            model.__name__,
-            __base__=model,
-            **new_fields,
-        )
-
-        cache[model] = New
-        return New
-
-    def schema_graph(
-        self,
-        name: str = "PydontologySchema",
-        context: BaseContext = BaseContext(),
-        settings: Settings = Settings(),
-    ) -> type[JSONLDGraph]:
-        """
-        Creates a JSONLDGraph subclass that holds ontology classes in the default graph.
-
-        This class is specifically for LLM structured output, as it strips aliases
-        from the ontology classes, which cause errors when using e.g. Pydantic AI.
-        """
-        self._apply_settings(settings)
-        return create_model(
-            name,
-            context=(
-                BaseContext,
-                Field(
-                    default=context,
-                    json_schema_extra={
-                        "name": "@context",
-                        "description": "JSON-LD context",
-                    },
-                ),
-            ),
-            graph=(
-                List[self._strip_aliases(self.ontology)],
-                Field(
-                    json_schema_extra={
-                        "name": "@graph",
-                        "description": "Default json-ld graph",
-                    },
-                ),
-            ),
-            __base__=JSONLDGraph,
-        )
 
     def jsonld_graph(
         self,
@@ -610,7 +507,7 @@ class Pydontology:
             context=(
                 BaseContext,
                 Field(
-                    alias="@context",
+                    serialization_alias="@context",
                     default=context,
                     json_schema_extra={
                         "name": "@context",
@@ -621,7 +518,7 @@ class Pydontology:
             graph=(
                 List[self.ontology],
                 Field(
-                    alias="@graph",
+                    serialization_alias="@graph",
                     json_schema_extra={
                         "name": "@graph",
                         "description": "Default json-ld graph",

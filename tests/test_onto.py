@@ -17,7 +17,7 @@ def onto_graph(TestModel):
 @pytest.fixture
 def onto_graph_json(onto_graph):
     """Fixture returing the ontology graph as json-ld"""
-    return onto_graph.model_dump_json(exclude_none=True)
+    return onto_graph.model_dump_json(exclude_none=True, exclude="id")
 
 
 @pytest.fixture

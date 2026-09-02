@@ -1,4 +1,3 @@
-from uuid import uuid4
 from types import NoneType, UnionType
 from typing import (
     Annotated,
@@ -43,8 +42,11 @@ class BaseContext(BaseModel):
         default="http://example.com/vocab/",
         description="Prefix of relative IRIs.",
     )
+    # Defaults to None: a default @language in the context would make every
+    # string in the document a language-tagged literal (e.g. "en"), which
+    # breaks e.g. sh:datatype xsd:string constraints. Set explicitly if wanted.
     language: Optional[str] = Field(
-        serialization_alias="@language", default="en", description="BCP47 default language identifier"
+        serialization_alias="@language", default=None, description="BCP47 default language identifier"
     )
     sh: Literal["http://www.w3.org/ns/shacl#"] = Field(
         default="http://www.w3.org/ns/shacl#"
@@ -346,7 +348,9 @@ class _OntologyProperty(BaseModel):
             *TYPE_SET,
         ]
     ] = Field(serialization_alias="@type")
-    label: Optional[str] = Field(serialization_alias="rdfs:label", description="Human-readable label")
+    label: Optional[str] = Field(
+        default=None, serialization_alias="rdfs:label", description="Human-readable label"
+    )
     domain: Optional[Relation] = Field(
         default=None, serialization_alias="rdfs:domain", description="Domain class IRI"
     )
@@ -517,7 +521,12 @@ class JSONLDGraph(BaseModel):
         description="JSON-LD context",
     )
 
-    id: UUID4 = Field(serialization_alias="@id", default_factory=uuid4)
+    # Optional graph IRI. Defaults to None so serialized documents are plain
+    # (unnamed) JSON-LD graphs; a top-level @id would otherwise make the whole
+    # document a named graph (with an empty default graph) when parsed.
+    id: Optional[str | UUID4] = Field(
+        serialization_alias="@id", default=None, description="Optional IRI of the graph"
+    )
 
     graph: List[Any] = Field(
         default=[],

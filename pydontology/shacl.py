@@ -1,4 +1,4 @@
-from typing import Annotated, List
+from typing import Annotated, List, Tuple
 
 from pydantic.dataclasses import dataclass
 from pydantic.functional_validators import AfterValidator
@@ -98,9 +98,14 @@ class SHACLAnnotation:
 
     @dataclass(frozen=True)
     class LANGUAGE_IN:
-        """Dataclass that holds sh:languageIn annotation for a property."""
+        """Dataclass that holds sh:languageIn annotation for a property.
 
-        value: List[str]
+        value is a tuple (not list) so that the frozen dataclass stays
+        hashable, which is required for use in Annotated metadata of
+        PEP 604 unions (e.g. class unions passed to Pydontology).
+        """
+
+        value: Tuple[str, ...]
 
     @dataclass(frozen=True)
     class UNIQUE_LANG:
@@ -136,15 +141,24 @@ class SHACLAnnotation:
     # Other Constraint Components
     @dataclass(frozen=True)
     class CLOSED:
-        """Dataclass that holds sh:closed annotation for a property."""
+        """Dataclass that holds sh:closed annotation for a node shape.
+
+        Node-shape construct: give as a class-level annotation,
+        e.g. Annotated[MyClass, SHACLAnnotation.closed(True)].
+        """
 
         value: bool
 
     @dataclass(frozen=True)
     class IGNORED_PROPERTIES:
-        """Dataclass that holds sh:ignoredProperties annotation for a property."""
+        """Dataclass that holds sh:ignoredProperties annotation for a node shape.
 
-        value: List[str]
+        Node-shape construct: give as a class-level annotation,
+        e.g. Annotated[MyClass, SHACLAnnotation.ignoredProperties([...])].
+        value is a tuple (not list) so the frozen dataclass stays hashable.
+        """
+
+        value: Tuple[str, ...]
 
     @dataclass(frozen=True)
     class HAS_VALUE:
@@ -154,9 +168,12 @@ class SHACLAnnotation:
 
     @dataclass(frozen=True)
     class IN:
-        """Dataclass that holds sh:in annotation for a property."""
+        """Dataclass that holds sh:in annotation for a property.
 
-        value: List[str | int | float | bool]
+        value is a tuple (not list) so the frozen dataclass stays hashable.
+        """
+
+        value: Tuple[str | int | float | bool, ...]
 
     # Validation parameters
     @dataclass(frozen=True)
@@ -384,7 +401,7 @@ class SHACLAnnotation:
         Returns:
             SHACLAnnotation.LANGUAGE_IN (dataclass)
         """
-        return SHACLAnnotation.LANGUAGE_IN(value)
+        return SHACLAnnotation.LANGUAGE_IN(tuple(value))
 
     @staticmethod
     def uniqueLang(value: bool) -> UNIQUE_LANG:
@@ -470,7 +487,7 @@ class SHACLAnnotation:
     # Other Constraint Components
     @staticmethod
     def closed(value: bool) -> CLOSED:
-        """SHACL closed annotation.
+        """SHACL closed annotation (node-shape construct, class-level).
 
         Specifies that a shape is closed, meaning that the focus node must not have any properties
         other than those explicitly declared in the shape (and optionally those listed in sh:ignoredProperties).
@@ -478,7 +495,7 @@ class SHACLAnnotation:
         A shape has at most one value for sh:closed.
 
         Args:
-            value (bool): True if the shape is closed, False otherwise
+            value (bool): True if shape is closed, False otherwise
 
         Returns:
             SHACLAnnotation.CLOSED (dataclass)
@@ -487,7 +504,7 @@ class SHACLAnnotation:
 
     @staticmethod
     def ignoredProperties(value: List[str]) -> IGNORED_PROPERTIES:
-        """SHACL ignoredProperties annotation.
+        """SHACL ignoredProperties annotation (node-shape construct, class-level).
 
         Specifies a list of properties that are ignored when checking if a closed shape is satisfied.
         The values of sh:ignoredProperties in a shape are lists of property paths.
@@ -499,7 +516,7 @@ class SHACLAnnotation:
         Returns:
             SHACLAnnotation.IGNORED_PROPERTIES (dataclass)
         """
-        return SHACLAnnotation.IGNORED_PROPERTIES(value)
+        return SHACLAnnotation.IGNORED_PROPERTIES(tuple(value))
 
     @staticmethod
     def hasValue(value: str | int | float | bool) -> HAS_VALUE:

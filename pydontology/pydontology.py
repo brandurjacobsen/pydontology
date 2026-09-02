@@ -22,7 +22,7 @@ from .owl import OWLAnnotation
 from .rdfs import RDFSAnnotation
 from .settings import Settings
 from .shacl import SHACLAnnotation
-from .types import TYPE_MAP
+from .types import TYPE_MAP, TYPE_SET
 
 # _OntologyClass.model_rebuild()
 
@@ -283,6 +283,28 @@ class Pydontology:
             elif isinstance(meta, OWLAnnotation.SYMMETRIC_PROPERTY):
                 if meta.value:
                     prop_def.type.append("owl:SymmetricProperty")
+
+        # An explicit owl:ObjectProperty / owl:DatatypeProperty declaration
+        # (last one wins) overrides the base type inferred from the field type.
+        # Applied after the loop so property characteristics are preserved
+        # regardless of annotation order.
+        explicit_type = None
+        for meta in annotations:
+            if isinstance(meta, OWLAnnotation.OBJECT_PROPERTY) and meta.value:
+                explicit_type = "owl:ObjectProperty"
+            elif isinstance(meta, OWLAnnotation.DATATYPE_PROPERTY) and meta.value:
+                explicit_type = "owl:DatatypeProperty"
+        if explicit_type is not None:
+            kept = [
+                t
+                for t in prop_def.type
+                if t not in ("owl:ObjectProperty", "owl:DatatypeProperty")
+            ]
+            # An xsd rdf:type is only meaningful on a datatype property
+            if explicit_type == "owl:ObjectProperty":
+                kept = [t for t in kept if t not in TYPE_SET]
+            prop_def.type = [explicit_type, *kept]
+
         return prop_def
 
     def _create_ontology_properties(self) -> List[_OntologyProperty]:
@@ -391,7 +413,7 @@ class Pydontology:
             elif isinstance(meta, SHACLAnnotation.MAX_LENGTH):
                 prop_shape.maxLength = meta.value
             elif isinstance(meta, SHACLAnnotation.LANGUAGE_IN):
-                prop_shape.languageIn = meta.value
+                prop_shape.languageIn = list(meta.value)
             elif isinstance(meta, SHACLAnnotation.UNIQUE_LANG):
                 prop_shape.uniqueLang = meta.value
 
@@ -406,13 +428,8 @@ class Pydontology:
                 prop_shape.lessThanOrEquals = Relation(id=meta.value)  # pyright: ignore
 
             # Other Constraint Components
-            elif isinstance(meta, SHACLAnnotation.CLOSED):
-                prop_shape.closed = meta.value
-            elif isinstance(meta, SHACLAnnotation.IGNORED_PROPERTIES):
-                prop_shape.ignoredProperties = [
-                    Relation(id=prop)  # pyright: ignore
-                    for prop in meta.value
-                ]
+            # (SHACLAnnotation.CLOSED / IGNORED_PROPERTIES are node-shape
+            # constructs handled in _add_node_shape_annotations)
             elif isinstance(meta, SHACLAnnotation.HAS_VALUE):
                 prop_shape.hasValue = meta.value
             # elif isinstance(meta, SHACLAnnotation.IN):
@@ -469,11 +486,17 @@ class Pydontology:
                 create_prop_shape = True
 
             # If no shacl annotations are in metadata and no default settings
-            # imply a property shape is needed, then don't create property shape
+            # imply a property shape is needed, then don't create property shape.
+            # CLOSED/IGNORED_PROPERTIES are node-shape constructs and must not
+            # trigger creation of a (nearly empty) property shape.
             if (
                 not any(
                     [
                         type(sh).__qualname__.startswith("SHACLAnnotation.")
+                        and not isinstance(
+                            sh,
+                            (SHACLAnnotation.CLOSED, SHACLAnnotation.IGNORED_PROPERTIES),
+                        )
                         for sh in field_info["metadata"][idx]
                     ]
                 )
@@ -488,14 +511,40 @@ class Pydontology:
 
         return prop_shapes
 
+    def _add_node_shape_annotations(
+        self, node_shape: _NodeShape, annotations: List
+    ) -> _NodeShape:
+        """Apply class-level SHACL annotations (node-shape constructs) to a node shape.
+
+        E.g. Annotated[MyClass, SH.closed(True)]
+        """
+        for meta in annotations:
+            if isinstance(meta, SHACLAnnotation.CLOSED):
+                node_shape.closed = meta.value
+            elif isinstance(meta, SHACLAnnotation.IGNORED_PROPERTIES):
+                node_shape.ignoredProperties = [
+                    Relation(id=prop) for prop in meta.value
+                ]
+        return node_shape
+
     def _create_node_shapes(self) -> List[_NodeShape]:
         node_shapes = []
-        for class_name in self._cls_db.keys():
+        for class_name, class_info in self._cls_db.items():
             property_shapes = self._create_property_shapes(class_name)
+            class_metadata = class_info["metadata"] or []
 
-            # property_shapes is of lengt 0 if there are not SHACL annotations
-            # in which case we continue
-            if len(property_shapes) == 0:
+            # sh:closed / sh:ignoredProperties are node-shape constructs given
+            # as class-level annotations; a node shape is needed for them even
+            # if the class has no property shapes
+            has_node_annotations = any(
+                isinstance(
+                    m, (SHACLAnnotation.CLOSED, SHACLAnnotation.IGNORED_PROPERTIES)
+                )
+                for m in class_metadata
+            )
+
+            # No property shapes and no node-shape annotations -> no node shape
+            if len(property_shapes) == 0 and not has_node_annotations:
                 continue
 
             node_fields = {
@@ -505,6 +554,7 @@ class Pydontology:
             }
 
             node_shape = _NodeShape.model_validate(node_fields)
+            node_shape = self._add_node_shape_annotations(node_shape, class_metadata)
             node_shapes.append(node_shape)
         return node_shapes
 
@@ -523,7 +573,7 @@ class Pydontology:
         context: BaseContext = BaseContext(),
         settings: Settings = Settings(),
     ) -> type[JSONLDGraph]:
-        self._apply_settings(self.cfg)
+        self._apply_settings(settings)
         return create_model(
             name,
             context=(
@@ -549,3 +599,12 @@ class Pydontology:
             ),
             __base__=JSONLDGraph,
         )
+
+    def schema_graph(
+        self,
+        name: str = "PydontologyModel",
+        context: BaseContext = BaseContext(),
+        settings: Settings = Settings(),
+    ) -> type[JSONLDGraph]:
+        """Backward-compatible alias for jsonld_graph() (pre-rename name)."""
+        return self.jsonld_graph(name=name, context=context, settings=settings)

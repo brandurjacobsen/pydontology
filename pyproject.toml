@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 name = "pydontology"
 version = "1.1.0"
 dependencies = ["pydantic>=2.12"]
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 authors = [
   {name = "Brandur K. Jacobse", email = "brandurjacobsen@gmail.com"}
 ]

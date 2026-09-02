@@ -1,10 +1,10 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import BaseModel, ConfigDict
 
 
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file_encoding="utf-8", env_prefix="PYDONTOLOGY_"
-    )
+class Settings(BaseModel):
+    """Controls the default behaviors of graph generation."""
+
+    model_config = ConfigDict(frozen=True)
 
     # Whether to show user warnings
     SHOW_WARNINGS: bool = True

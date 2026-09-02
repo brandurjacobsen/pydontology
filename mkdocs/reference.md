@@ -66,7 +66,7 @@ Pydontology currently supports the following subset of SHACL (Core) constructs v
 - **Value Range Constraints**: `sh:minInclusive`, `sh:maxInclusive`, `sh:minExclusive`, `sh:maxExclusive`
 - **String-based Constraints**: `sh:pattern`, `sh:minLength`, `sh:maxLength`, `sh:languageIn`, `sh:uniqueLang`
 - **Property Pair Constraints**: `sh:equals`, `sh:disjoint`, `sh:lessThan`, `sh:lessThanOrEquals`
-- **Other Constraints**: `sh:closed`, `sh:ignoredProperties`, `sh:hasValue`
+- **Other Constraints**: `sh:closed`, `sh:ignoredProperties` (node-shape constructs, given as class-level annotations, e.g. `Annotated[MyClass, SHACLAnnotation.closed(True)]`), `sh:hasValue`
 - **Validation Parameters**: `sh:severity`
 - **Documentation**: `sh:name`, `sh:description`
 

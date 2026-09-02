@@ -17,11 +17,12 @@ in which case the value is interpreted as an IRI.
 
 Once the ontology classes are defined, an instance of the [Pydontology] class can be instantiated with the union of ontology classes as an argument.
 
-Pydontology provides the methods: [ontology_graph] and [shacl_graph] to generate the ontology graph and shacl graph respectively, as a (populated) JSONLDGraph instance, ready for parsing by rdflib after serialization.
+Pydontology provides the methods: [ontology_graph] and [shacl_graph] to generate the ontology graph and shacl graph respectively, as a (populated) JSONLDGraph instance, ready for parsing by rdflib after serialization. The method [jsonld_graph] (backward-compatible alias: [schema_graph]) builds a Pydantic model of a JSON-LD data graph; its JSON schema (via `model_json_schema()`) can e.g. be passed to LLMs for structured output.
 
 [Pydontology]: reference.md#pydontology.pydontology.Pydontology
 [ontology_graph]: reference.md#pydontology.pydontology.Pydontology.ontology_graph
 [shacl_graph]: reference.md#pydontology.pydontology.Pydontology.shacl_graph
+[jsonld_graph]: reference.md#pydontology.pydontology.Pydontology.jsonld_graph
 [schema_graph]: reference.md#pydontology.pydontology.Pydontology.schema_graph
 [Entity]: reference.md#pydontology.pydontology.Entity
 [Relation]: reference.md#pydontology.pydontology.Relation
@@ -108,13 +109,13 @@ These will appear in the ontology graph and SHACL graph.
 
 Inherited ontology classes will per default have RDFS subClassOf property set to be the parent class, or owl:Thing class if inheriting from Entity(multiple inheritance is currently not implemented when defining classes, but can be achieved by annotating the inherited class after the definition).
 
-The RDFS domain of an ontology property is per default set to be the class wherein the property is defined, unless the property is defined in multiple ontology classes, in which cass the user will receive a UserWarning.
+The RDFS domain of an ontology property is per default set to be the class wherein the property is defined, unless the property is defined in multiple ontology classes, in which case the user will receive a UserWarning.
 
 The default annotation behaviour (and whether to show warnings) can be controlled via the [Settings] class, which [ontology_graph] and [shacl_graph] accept as an optional parameter.
 
 The model can then be created by instantiating the [Pydontology] class with the ontology,
 and the ontology graph and SHACL graph can be created using the [ontology_graph] and [shacl_graph] methods.
-A json (json-ld) schema can be made the usual Pydantic way (see below).
+A JSON schema for a JSON-LD data graph is obtained from the [jsonld_graph] model via Pydantic's `model_json_schema()` (see below).
 ~~~
 import json
 
@@ -126,7 +127,7 @@ ontog_json = ontog.model_dump_json(indent=2, exclude_none=True)
 shaclg = pydonto.shacl_graph()
 shaclg_json = shaclg.model_dump_json(indent=2, exclude_none=True)
 
-schemag = pydonto.schema_graph()
+schemag = pydonto.jsonld_graph()  # schema_graph() is a backward-compatible alias
 schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
 ~~~
 
@@ -138,7 +139,6 @@ Output of `print(ontog_json)`:
     "@version": 1.1,
     "@vocab": "http://example.com/vocab/",
     "@base": "http://example.com/vocab/",
-    "@language": "en",
     "sh": "http://www.w3.org/ns/shacl#",
     "xsd": "http://www.w3.org/2001/XMLSchema#",
     "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
@@ -272,7 +272,6 @@ Output of `print(shaclg_json)`:
     "@version": 1.1,
     "@vocab": "http://example.com/vocab/",
     "@base": "http://example.com/vocab/",
-    "@language": "en",
     "sh": "http://www.w3.org/ns/shacl#",
     "xsd": "http://www.w3.org/2001/XMLSchema#",
     "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
@@ -444,7 +443,7 @@ Output of `print(schemag_json)`:
               "type": "null"
             }
           ],
-          "default": "en",
+          "default": null,
           "description": "BCP47 default language identifier",
           "title": "@Language"
         },
@@ -680,7 +679,6 @@ Output of `print(schemag_json)`:
         "@version": 1.1,
         "@vocab": "http://example.com/vocab/",
         "@base": "http://example.com/vocab/",
-        "@language": "en",
         "sh": "http://www.w3.org/ns/shacl#",
         "xsd": "http://www.w3.org/2001/XMLSchema#",
         "rdfs": "http://www.w3.org/2000/01/rdf-schema#",

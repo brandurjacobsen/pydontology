@@ -12,14 +12,14 @@
 - `Pydontology(ontology_union)` builds internal class/property registries.
 - `ontology_graph()` emits a JSON-LD graph of classes and properties.
 - `shacl_graph()` emits SHACL node/property shapes from annotations and defaults.
-- `schema_graph()` builds a JSON schema model compatible with JSON-LD.
+- `jsonld_graph()` (alias `schema_graph()`) builds a JSON-LD data graph model; its `model_json_schema()` is the JSON schema.
 
 ## Key APIs (use these first)
 - `Entity`: base class for ontology classes; provides `@id` and `@type`.
 - `Relation`: IRI wrapper for object properties.
 - `Pydontology`: orchestrates graph generation.
 - `Settings`: controls default behaviors (labels, comments, domains, types, warnings).
-- `ontology_graph()`, `shacl_graph()`, `schema_graph()` on `Pydontology`.
+- `ontology_graph()`, `shacl_graph()`, `jsonld_graph()` (alias `schema_graph()`) on `Pydontology`.
 
 ## Defaults and behaviors (Settings)
 - Class label/comment: class name and docstring by default.

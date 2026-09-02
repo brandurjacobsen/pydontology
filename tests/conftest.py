@@ -164,14 +164,23 @@ def TestModel():
 def data_graph(TestModel):
     data_graph_model = TestModel.jsonld_graph()
 
+    # acquaintance/has_contract_with are required fields (no defaults) on the
+    # test model, and employees/managers need a manager to satisfy the
+    # minCount(1) on EmployeeShape.manager under rdfs inference.
     p1 = Person(
         id="Jane",
         name="Jane Doe",
         age=27,
         knows=Relation(id="John"),
+        acquaintance=None,
+        has_contract_with=Relation(id="ACME"),
     )
     p2 = Person(
-        id="John", name="John Doe", age=45, has_contract_with=Relation(id="ACME")
+        id="John",
+        name="John Doe",
+        age=45,
+        acquaintance=None,
+        has_contract_with=Relation(id="ACME"),
     )
     e1 = Employee(
         id="JaneDoe",
@@ -179,30 +188,42 @@ def data_graph(TestModel):
         employee_id="E000",
         age=27,
         sameAs=[Relation(id="Jane")],
+        manager=Relation(id="Bud"),
         department=Relation(id="Accounting"),
         company=Relation(id="ACME"),
+        acquaintance=None,
+        has_contract_with=Relation(id="ACME"),
     )
     e2 = Employee(
         id="Mariella",
         name="Mariella Munez",
         employee_id="E001",
         differentFrom=Relation(id="JaneDoe"),
+        manager=Relation(id="Rex"),
         department=Relation(id="Production"),
         company=Relation(id="ACME"),
+        acquaintance=None,
+        has_contract_with=Relation(id="ACME"),
     )
     m1 = Manager(
         id="Bud",
         name="Bud Weizer",
         employee_id="E002",
+        manager=Relation(id="Rex"),
         department=Relation(id="Management"),
         company=Relation(id="EMCA"),
+        acquaintance=None,
+        has_contract_with=Relation(id="EMCA"),
     )
     m2 = Manager(
         id="Rex",
         name="Rex Vega",
         employee_id="E003",
+        manager=Relation(id="Bud"),
         department=Relation(id="Management"),
         company=Relation(id="ACME"),
+        acquaintance=None,
+        has_contract_with=Relation(id="ACME"),
     )
 
     c1 = Company(id="ACME", name="ACME", ceo=Relation(id="Rex"))

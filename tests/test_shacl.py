@@ -1,8 +1,12 @@
+import json
+from typing import Annotated
+
 import pytest
 from pyshacl import validate
 from rdflib import RDF, Dataset, Namespace
 from rdflib.namespace import SH, XSD
 
+from pydontology import Entity, Pydontology, SHACLAnnotation
 from pydontology.pydontology import BaseContext, JSONLDGraph
 
 
@@ -102,21 +106,22 @@ def test_property_shapes_count(sh_rdf_graph, vocab_namespace):
     """Test that node shapes have correct number of property shapes"""
     VOCAB = vocab_namespace
 
-    # PersonShape should have 3 properties
+    # PersonShape should have 6 properties (one per field; Relation fields
+    # get a shape via the RELATION_AS_NODEKIND_IRI default setting)
     person_properties = list(sh_rdf_graph.objects(VOCAB.PersonShape, SH.property))
-    assert len(person_properties) == 3
+    assert len(person_properties) == 6
 
     # EmployeeShape should have 4 properties
     employee_properties = list(sh_rdf_graph.objects(VOCAB.EmployeeShape, SH.property))
     assert len(employee_properties) == 4
 
-    # ManagerShape should have 2 properties (no SHACL annotation but two Relations):
+    # ManagerShape should have 2 properties (no SHACL annotations but two Relations):
     manager_properties = list(sh_rdf_graph.objects(VOCAB.ManagerShape, SH.property))
     assert len(manager_properties) == 2
 
-    # DepartmentShape should have 1 property: name, head, vice_head
+    # DepartmentShape should have 4 properties: name, company, head, vice_head
     dept_properties = list(sh_rdf_graph.objects(VOCAB.DepartmentShape, SH.property))
-    assert len(dept_properties) == 3
+    assert len(dept_properties) == 4
 
 
 def test_datatype_constraints(sh_rdf_graph, vocab_namespace):
@@ -437,3 +442,35 @@ def test_pyshacl_detects_string_length_violation(shacl_graph_json):
 #    )
 #
 #    assert conforms, f"Validation failed: {results_text}"
+
+
+def test_node_shape_closed_and_ignored_properties():
+    """sh:closed / sh:ignoredProperties are class-level (node shape) annotations"""
+
+    class ClosedThing(Entity):
+        name: str = "x"
+
+    class BareClosed(Entity):
+        pass
+
+    ontology = (
+        Annotated[
+            ClosedThing,
+            SHACLAnnotation.closed(True),
+            SHACLAnnotation.ignoredProperties(["skippable"]),
+        ]
+        | Annotated[BareClosed, SHACLAnnotation.closed(True)]
+    )
+    onto = Pydontology(ontology)
+    doc = json.loads(onto.shacl_graph().model_dump_json(exclude_none=True))
+    by_id = {node["@id"]: node for node in doc["@graph"]}
+
+    shape = by_id["ClosedThingShape"]
+    assert shape["sh:closed"] is True
+    assert shape["sh:ignoredProperties"] == [{"@id": "skippable"}]
+
+    # A node shape is created for node-shape annotations even with no
+    # property shapes
+    bare = by_id["BareClosedShape"]
+    assert bare["sh:closed"] is True
+    assert bare["sh:property"] == []

@@ -1,6 +1,10 @@
+import json
+from typing import Annotated
+
 import pytest
 from rdflib import OWL, RDF, RDFS, Dataset, Namespace
 
+from pydontology import Entity, OWLAnnotation, Pydontology, Relation, Settings
 from pydontology.models import BaseMetaData
 from pydontology.pydontology import BaseContext, JSONLDGraph
 
@@ -17,7 +21,7 @@ def onto_graph(TestModel):
 @pytest.fixture
 def onto_graph_json(onto_graph):
     """Fixture returing the ontology graph as json-ld"""
-    return onto_graph.model_dump_json(exclude_none=True, exclude="id")
+    return onto_graph.model_dump_json(exclude_none=True)
 
 
 @pytest.fixture
@@ -332,3 +336,34 @@ def test_dual_income_is_intersection(rdf_graph, vocab_namespace):
 def test_subproperty_of(rdf_graph, vocab_namespace):
     VOCAB = vocab_namespace
     assert (VOCAB.acquaintance, RDFS.subPropertyOf, VOCAB.knows) in rdf_graph
+
+
+def test_settings_without_field_labels(TestModel):
+    """Regression: FIELD_NAME_AS_LABEL=False must not raise (label is optional)"""
+    graph = TestModel.ontology_graph(settings=Settings(FIELD_NAME_AS_LABEL=False))
+    assert isinstance(graph, JSONLDGraph)
+
+
+def test_graph_documents_are_not_named_graphs(TestModel):
+    """Regression: graphs must not carry a random top-level @id, which would
+    make the serialized document a named JSON-LD graph (empty default graph)"""
+    for graph in (TestModel.ontology_graph(), TestModel.shacl_graph()):
+        doc = json.loads(graph.model_dump_json(exclude_none=True))
+        assert "@id" not in doc
+
+
+def test_explicit_property_type_annotations():
+    """owl:objectProperty / owl:datatypeProperty override the inferred base type"""
+
+    class Thing(Entity):
+        literal: Annotated[str, OWLAnnotation.objectProperty(True)] = "x"
+        iri: Annotated[Relation, OWLAnnotation.datatypeProperty(True)]
+
+    onto = Pydontology(Thing)
+    doc = json.loads(onto.ontology_graph().model_dump_json(exclude_none=True))
+    by_id = {node["@id"]: node for node in doc["@graph"]}
+
+    # literal field declared object property: xsd rdf:type is dropped
+    assert by_id["literal"]["@type"] == ["owl:ObjectProperty"]
+    # relation field declared datatype property
+    assert by_id["iri"]["@type"] == ["owl:DatatypeProperty"]

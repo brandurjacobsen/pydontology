@@ -31,6 +31,39 @@ class DuplicatePropertyError(Exception):
     """Raised when fields/properties are redefined erroneously"""
 
 
+def _base_types(annotation) -> set | None:
+    """Reduce an annotation to the set of concrete types it may hold.
+
+    Recurses through unions (both typing.Union and PEP 604 'X | Y'), drops
+    None/Optional members, and unwraps one level of container (list, List,
+    set, frozenset, tuple). Returns None when the annotation cannot be reduced
+    to concrete types (e.g. dict[str, int], or a union of several different
+    container element types).
+    """
+    if annotation is None or annotation is NoneType:
+        return set()
+    origin = get_origin(annotation)
+    if origin in (Union, UnionType):
+        # Every union member must reduce to concrete types; the result is
+        # their union. 'Optional[X]' is just 'X | None', so it reduces to X.
+        result = set()
+        for arg in get_args(annotation):
+            part = _base_types(arg)
+            if part is None:
+                return None
+            result |= part
+        return result
+    if origin in (list, set, frozenset, tuple):
+        # Unwrap a single-element container, e.g. list[Relation] -> Relation.
+        # Ellipsis is dropped to handle variable-length tuples (tuple[X, ...]).
+        args = [a for a in get_args(annotation) if a is not Ellipsis]
+        return _base_types(args[0]) if len(args) == 1 else None
+    if origin is not None:
+        return None  # some other generic alias, e.g. dict[str, int]
+    # A plain type (builtin, Entity subclass, Relation, ...)
+    return {annotation} if isinstance(annotation, type) else None
+
+
 class Pydontology:
     type_map = TYPE_MAP
 
@@ -74,7 +107,9 @@ class Pydontology:
                 field_type = self._get_field_type(field_info)
 
                 if self.cfg.TYPE_STRICT_MODE:
-                    if field_type not in self.type_map and field_type != "Relation":
+                    # field_type is a type object (or None); it must be Relation
+                    # or a known literal type from the type map
+                    if field_type is not Relation and field_type not in self.type_map:
                         raise ValueError(
                             f"Field '{field_name}' was resolved as type '{field_type}' which is not a Relation, nor in the type map (Setting: TYPE_STRICT_MODE)"
                         )
@@ -111,33 +146,19 @@ class Pydontology:
         Entity._serialize_literals_as_typeval = settings.LITERALS_AS_TYPEVAL
         Entity._type_strict_mode = settings.TYPE_STRICT_MODE
 
-    def _get_field_type(self, field_info: FieldInfo) -> str | None:
-        """Attempt to resolve field type to one specific Python type or builtin class name as string else None"""
+    def _get_field_type(self, field_info: FieldInfo):
+        """Resolve a field annotation to a single concrete Python type.
 
-        try:
-            annotation = field_info.annotation
-            if annotation is None:
-                return None
-            origin = get_origin(annotation)
-            if origin is None:
-                return annotation.__name__
-            elif origin is Union or origin is UnionType:
-                args = get_args(annotation)
-                if len(args) > 3:
-                    return None
-                if len(args) > 2 and NoneType not in args:
-                    return None
-                for a in args:
-                    if a is NoneType:
-                        continue
-                    if a.__name__ == "List" or a.__name__ == "list":
-                        aargs = get_args(a)
-                        if type(aargs[0]) is UnionType or type(aargs[0]) is Union:
-                            return None
-                        return aargs[0].__name__
-                    return a.__name__
-        except AttributeError:
+        Returns the type object itself (callers compare by identity, e.g.
+        `field_type is Relation`) or None when the annotation is ambiguous
+        (a union of several different types) or unresolvable.
+        Pydantic has already stripped Annotated metadata from
+        field_info.annotation, so no Annotated handling is needed here.
+        """
+        types = _base_types(field_info.annotation)
+        if types is None or len(types) != 1:
             return None
+        return types.pop()
 
     def _handle_duplicate_fields(self, class_name, field_id, field_type, field_info):
         if (
@@ -270,7 +291,8 @@ class Pydontology:
         for field_name, field_info in self._prop_db.items():
             prop_fields = dict()
             prop_fields["id"] = field_name
-            if field_info["field_type"] == "Relation":
+            # field_type is a type object; identity-check against Relation
+            if field_info["field_type"] is Relation:
                 prop_fields["type"] = ["owl:ObjectProperty"]
             else:
                 prop_fields["type"] = ["owl:DatatypeProperty"]
@@ -432,7 +454,7 @@ class Pydontology:
 
             create_prop_shape = False
             if (
-                field_info["field_type"] == "Relation"
+                field_info["field_type"] is Relation
                 and self.cfg.RELATION_AS_NODEKIND_IRI
             ):
                 prop_shape.nodeKind = Relation(id="sh:IRI")  # pyright: ignore

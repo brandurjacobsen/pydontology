@@ -79,6 +79,16 @@ class TypeVal(BaseModel):
 
     value: Any = Field(serialization_alias="@value", description="Value of RDF literal")
     type: Any = Field(serialization_alias="@type", description="XML schema type of RDF literal")
+    model_config = ConfigDict(
+        populate_by_name=True, serialize_by_alias=True, frozen=True
+    )
+
+
+class LangStr(BaseModel):
+    """Class that serializes as an RDF language tagged literal, which must be of type xsd:string"""
+
+    value: str = Field(serialization_alias="@value", description="Value of xsd:string literal")
+    language: str = Field(serialization_alias="@language", description="BCP47 language tag, with or without region specifier")
 
     model_config = ConfigDict(
         populate_by_name=True, serialize_by_alias=True, frozen=True

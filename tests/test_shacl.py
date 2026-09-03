@@ -6,7 +6,7 @@ from pyshacl import validate
 from rdflib import RDF, Dataset, Namespace
 from rdflib.namespace import SH, XSD
 
-from pydontology import Entity, Pydontology, SHACLAnnotation
+from pydontology import Entity, LangStr, Pydontology, SHACLAnnotation
 from pydontology.pydontology import BaseContext, JSONLDGraph
 
 
@@ -474,3 +474,89 @@ def test_node_shape_closed_and_ignored_properties():
     bare = by_id["BareClosedShape"]
     assert bare["sh:closed"] is True
     assert bare["sh:property"] == []
+
+
+def _language_in_ontology():
+    class Named(Entity):
+        name: Annotated[LangStr, SHACLAnnotation.languageIn(["en", "fr"])]
+
+    return Pydontology(Named)
+
+
+def test_language_in_rejects_unknown_tag():
+    """languageIn must reject tags that are not in the known BCP47 list"""
+    with pytest.raises(ValueError):
+        SHACLAnnotation.languageIn(["en", "xx-YY"])
+
+
+def test_language_in_serialized_as_rdf_list():
+    """sh:languageIn must be serialized as an RDF list, not a bare JSON array"""
+    onto = _language_in_ontology()
+    doc = json.loads(onto.shacl_graph().model_dump_json(exclude_none=True))
+    node_shape = next(node for node in doc["@graph"] if node["@id"] == "NamedShape")
+    prop_shape = node_shape["sh:property"][0]
+    assert prop_shape["sh:languageIn"] == {"@list": ["en", "fr"]}
+
+    # rdflib must parse it as an actual RDF list (rdf:first / rdf:rest chain)
+    g = Dataset()
+    g.parse(data=onto.shacl_graph().model_dump_json(exclude_none=True), format="json-ld")
+    head = g.value(Namespace(BaseContext().vocab).NamedShape_name, SH.languageIn)
+    items = []
+    while head != RDF.nil:
+        items.append(str(g.value(head, RDF.first)))
+        head = g.value(head, RDF.rest)
+    assert items == ["en", "fr"]
+
+
+def test_pyshacl_language_in_accepts_allowed_tag():
+    """Data with a language tag in the sh:languageIn list conforms"""
+    onto = _language_in_ontology()
+    shacl_ds = Dataset()
+    shacl_ds.parse(
+        data=onto.shacl_graph().model_dump_json(exclude_none=True), format="json-ld"
+    )
+    data_ds = Dataset()
+    data_ds.parse(
+        data="""
+        {
+            "@context": {"@vocab": "http://example.com/vocab/", "@base": "http://example.com/vocab/"},
+            "@graph": [
+                {"@id": "n1", "@type": "Named", "name": {"@value": "hi", "@language": "en"}}
+            ]
+        }
+        """,
+        format="json-ld",
+    )
+
+    conforms, results_graph, results_text = validate(
+        data_ds, shacl_graph=shacl_ds, inference="rdfs", abort_on_first=False
+    )
+
+    assert conforms, f"Validation failed: {results_text}"
+
+
+def test_pyshacl_language_in_rejects_other_tag():
+    """Data with a language tag outside the sh:languageIn list is a violation"""
+    onto = _language_in_ontology()
+    shacl_ds = Dataset()
+    shacl_ds.parse(
+        data=onto.shacl_graph().model_dump_json(exclude_none=True), format="json-ld"
+    )
+    data_ds = Dataset()
+    data_ds.parse(
+        data="""
+        {
+            "@context": {"@vocab": "http://example.com/vocab/", "@base": "http://example.com/vocab/"},
+            "@graph": [
+                {"@id": "n1", "@type": "Named", "name": {"@value": "hallo", "@language": "de"}}
+            ]
+        }
+        """,
+        format="json-ld",
+    )
+
+    conforms, results_graph, results_text = validate(
+        data_ds, shacl_graph=shacl_ds, inference="rdfs", abort_on_first=False
+    )
+
+    assert not conforms, "Validation should fail for disallowed language tag"

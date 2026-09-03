@@ -3,7 +3,9 @@ from typing import Annotated, List, Tuple
 from pydantic.dataclasses import dataclass
 from pydantic.functional_validators import AfterValidator
 
+from .models import RDFList
 from .validators import (
+    val_bcp47,
     val_datatype,
     val_no_whitespace,
     val_node_kind,
@@ -100,12 +102,10 @@ class SHACLAnnotation:
     class LANGUAGE_IN:
         """Dataclass that holds sh:languageIn annotation for a property.
 
-        value is a tuple (not list) so that the frozen dataclass stays
-        hashable, which is required for use in Annotated metadata of
-        PEP 604 unions (e.g. class unions passed to Pydontology).
+        The value is an RDFList, since sh:languageIn takes an RDF list of language tags.
         """
 
-        value: Tuple[str, ...]
+        value: RDFList
 
     @dataclass(frozen=True)
     class UNIQUE_LANG:
@@ -392,7 +392,7 @@ class SHACLAnnotation:
         """SHACL languageIn annotation.
 
         Specifies that the language tag of RDF literals must be one of the given language tags.
-        The values of sh:languageIn in a shape are lists of language tags (e.g., ["en", "fr", "de"]).
+        The value of sh:languageIn in a shape is an RDF list of language tags (e.g., ["en", "fr", "de"]).
         A shape has at most one value for sh:languageIn.
 
         Args:
@@ -400,8 +400,12 @@ class SHACLAnnotation:
 
         Returns:
             SHACLAnnotation.LANGUAGE_IN (dataclass)
+
+        Raises:
+            ValueError: If a language tag is not a known BCP47 tag
         """
-        return SHACLAnnotation.LANGUAGE_IN(tuple(value))
+        tags = [val_bcp47(tag) for tag in value]
+        return SHACLAnnotation.LANGUAGE_IN(value=RDFList(list=tuple(tags)))
 
     @staticmethod
     def uniqueLang(value: bool) -> UNIQUE_LANG:

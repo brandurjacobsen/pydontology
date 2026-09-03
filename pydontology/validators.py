@@ -1,5 +1,24 @@
 import string
 
+from .bcp47 import BCP47
+
+
+def val_bcp47(input: str):
+    """Custom field validator, that checks that string is a known BCP47 language tag
+
+    Args:
+        input (str): String to validate as BCP47 language tag
+
+    Returns:
+        str: Validated input
+
+    Raises:
+        ValueError
+    """
+    if input not in BCP47:
+        raise ValueError(f"String must be one of {BCP47}")
+    return input
+
 
 def val_no_whitespace(input: str):
     """Custom field validator, that checks that string contains no whitespace

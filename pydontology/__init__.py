@@ -2,6 +2,7 @@ from .models import (
     BaseContext,
     BaseMetaData,
     Entity,
+    LangStr,
     Relation,
     JSONLDGraph,
 )
@@ -15,6 +16,7 @@ __all__ = [
     "BaseContext",
     "BaseMetaData",
     "Entity",
+    "LangStr",
     "Relation",
     "Pydontology",
     "RDFSAnnotation",

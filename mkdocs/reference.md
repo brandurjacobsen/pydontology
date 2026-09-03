@@ -1,6 +1,7 @@
 ## Core classes and methods
 ::: pydontology.pydontology.Entity
 ::: pydontology.pydontology.Relation
+::: pydontology.pydontology.LangStr
 ::: pydontology.pydontology.Pydontology
 
 ## Controlling behaviour

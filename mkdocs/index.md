@@ -14,6 +14,7 @@ The package exposes, amongst others, the classes [Entity] and [Relation], which 
 Entity serves as the base class for ontology classes.
 A field of an Entity class is considered to be an RDF literal, unless the attribute is of type Relation, 
 in which case the value is interpreted as an IRI.
+A field of type [LangStr] is serialized as an RDF language tagged literal, whose BCP47 language tag must be one of a fixed list of known tags.
 
 Once the ontology classes are defined, an instance of the [Pydontology] class can be instantiated with the union of ontology classes as an argument.
 
@@ -26,6 +27,7 @@ Pydontology provides the methods: [ontology_graph] and [shacl_graph] to generate
 [schema_graph]: reference.md#pydontology.pydontology.Pydontology.schema_graph
 [Entity]: reference.md#pydontology.pydontology.Entity
 [Relation]: reference.md#pydontology.pydontology.Relation
+[LangStr]: reference.md#pydontology.pydontology.LangStr
 [Settings]: reference.md#pydontology.settings.Settings
 
 [RDFSAnnotation.range]: reference.md#pydontology.rdfs.RDFSAnnotation.range

@@ -96,7 +96,7 @@ class OWLAnnotation:
     @staticmethod
     def intersectionOf(
         value: List[str | Relation | Restriction],
-    ) -> RDFList:
+    ) -> INTERSECTION_OF:
         """
         OWL intersectionOf annotation.
 

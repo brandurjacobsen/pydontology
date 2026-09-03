@@ -25,7 +25,7 @@ from pydantic import (
 )
 
 from .types import TYPE_SET, infer_xsd_type
-from .validators import val_no_whitespace
+from .validators import val_bcp47, val_no_whitespace
 
 
 class BaseContext(BaseModel):
@@ -88,7 +88,10 @@ class LangStr(BaseModel):
     """Class that serializes as an RDF language tagged literal, which must be of type xsd:string"""
 
     value: str = Field(serialization_alias="@value", description="Value of xsd:string literal")
-    language: str = Field(serialization_alias="@language", description="BCP47 language tag, with or without region specifier")
+    language: Annotated[str, AfterValidator(val_bcp47)] = Field(
+        serialization_alias="@language",
+        description="BCP47 language tag, with or without region specifier",
+    )
 
     model_config = ConfigDict(
         populate_by_name=True, serialize_by_alias=True, frozen=True
@@ -145,7 +148,7 @@ class Restriction(BaseModel):
 class RDFList(BaseModel):
     """An ordered RDF list structure (collection)"""
 
-    list: Tuple[Relation | Restriction, ...] = Field(serialization_alias="@list")
+    list: Tuple[Relation | Restriction | str, ...] = Field(serialization_alias="@list")
 
     model_config = ConfigDict(
         populate_by_name=True, serialize_by_alias=True, frozen=True
@@ -251,13 +254,15 @@ class Entity(BaseModel):
             return False
         if cls._annotation_contains_type(field_info.annotation, TypeVal):
             return False
+        if cls._annotation_contains_type(field_info.annotation, LangStr):
+            return False
         return True
 
     def _wrap_serialized_value(self, raw_value, serialized_value, field_name: str):
         """Wrap scalar values as TypeVal; recurse into lists and honor strict mode."""
         if raw_value is None:
             return serialized_value
-        if isinstance(raw_value, (Relation, TypeVal)):
+        if isinstance(raw_value, (Relation, TypeVal, LangStr)):
             return serialized_value
         if isinstance(raw_value, list):
             if not isinstance(serialized_value, list):
@@ -443,7 +448,7 @@ class _PropertyShape(BaseModel):
     maxLength: Optional[int] = Field(
         default=None, serialization_alias="sh:maxLength", description="Maximum length"
     )
-    languageIn: Optional[List[str]] = Field(
+    languageIn: Optional[RDFList] = Field(
         default=None, serialization_alias="sh:languageIn", description="List of allowed language tags"
     )
     uniqueLang: Optional[bool] = Field(

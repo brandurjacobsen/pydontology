@@ -12,6 +12,7 @@ from .models import (
     BaseMetaData,
     Entity,
     JSONLDGraph,
+    LangStr,
     Relation,
     _NodeShape,
     _OntologyClass,
@@ -107,11 +108,15 @@ class Pydontology:
                 field_type = self._get_field_type(field_info)
 
                 if self.cfg.TYPE_STRICT_MODE:
-                    # field_type is a type object (or None); it must be Relation
-                    # or a known literal type from the type map
-                    if field_type is not Relation and field_type not in self.type_map:
+                    # field_type is a type object (or None); it must be Relation,
+                    # LangStr, or a known literal type from the type map
+                    if (
+                        field_type is not Relation
+                        and field_type is not LangStr
+                        and field_type not in self.type_map
+                    ):
                         raise ValueError(
-                            f"Field '{field_name}' was resolved as type '{field_type}' which is not a Relation, nor in the type map (Setting: TYPE_STRICT_MODE)"
+                            f"Field '{field_name}' was resolved as type '{field_type}' which is not a Relation, a LangStr, nor in the type map (Setting: TYPE_STRICT_MODE)"
                         )
 
                 # Fields are identified by serializationalias (if present), otherwise by name in the self._prop_db dict.
@@ -413,7 +418,7 @@ class Pydontology:
             elif isinstance(meta, SHACLAnnotation.MAX_LENGTH):
                 prop_shape.maxLength = meta.value
             elif isinstance(meta, SHACLAnnotation.LANGUAGE_IN):
-                prop_shape.languageIn = list(meta.value)
+                prop_shape.languageIn = meta.value
             elif isinstance(meta, SHACLAnnotation.UNIQUE_LANG):
                 prop_shape.uniqueLang = meta.value
 

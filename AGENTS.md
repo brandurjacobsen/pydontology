@@ -8,6 +8,7 @@
 ## Core mental model
 - Define ontology classes by subclassing `Entity` from `pydontology/models.py`.
 - Use `Relation` for IRI-valued fields; other fields are treated as literals.
+- Use `LangStr` for language-tagged literal fields (value + BCP47 tag from `pydontology/bcp47.py`); it is whitelisted alongside `Relation` under `TYPE_STRICT_MODE` and is exempt from TypeVal wrapping.
 - Add annotations via `typing.Annotated` using `RDFSAnnotation`, `OWLAnnotation`, `SHACLAnnotation`.
 - `Pydontology(ontology_union)` builds internal class/property registries.
 - `ontology_graph()` emits a JSON-LD graph of classes and properties.
@@ -17,6 +18,7 @@
 ## Key APIs (use these first)
 - `Entity`: base class for ontology classes; provides `@id` and `@type`.
 - `Relation`: IRI wrapper for object properties.
+- `LangStr`: language-tagged literal wrapper (value + BCP47 language tag).
 - `Pydontology`: orchestrates graph generation.
 - `Settings`: controls default behaviors (labels, comments, domains, types, warnings).
 - `ontology_graph()`, `shacl_graph()`, `jsonld_graph()` (alias `schema_graph()`) on `Pydontology`.
@@ -26,7 +28,8 @@
 - Property label/comment: field name and description by default.
 - Domain: origin class by default unless property defined in multiple classes.
 - Subclassing: parent class or `owl:Thing` default when inheriting from `Entity`.
-- Type strictness: field types must resolve to a concrete type or `Relation`.
+- Type strictness: field types must resolve to a concrete type, `Relation`, or `LangStr`.
+- LangStr fields yield `owl:DatatypeProperty` with no `xsd:*` rdf:type and no default SHACL property shape (language-tagged literals carry are implicitly xsd:string).
 - Type map: Python types map to `xsd:*` (see `TYPE_MAP` in `pydontology/pydontology.py`).
 
 ## Supported constructs

@@ -15,8 +15,8 @@ from .models import (
     LangStr,
     Relation,
     _NodeShape,
-    _OntologyClass,
-    _OntologyProperty,
+    OntologyClass,
+    OntologyProperty,
     _PropertyShape,
 )
 from .owl import OWLAnnotation
@@ -24,8 +24,6 @@ from .rdfs import RDFSAnnotation
 from .settings import Settings
 from .shacl import SHACLAnnotation
 from .types import TYPE_MAP, TYPE_SET
-
-# _OntologyClass.model_rebuild()
 
 
 class DuplicatePropertyError(Exception):
@@ -144,6 +142,9 @@ class Pydontology:
                 else:
                     self._prop_db[field_name] = field_map
 
+        self.classes: list[OntologyClass] = self._create_ontology_classes()
+        self.properties: list[OntologyProperty] = self._create_ontology_properties()
+
     def _apply_settings(self, settings: Settings) -> None:
         """Apply Settings to runtime behavior, including Entity serialization."""
         self.cfg = settings
@@ -201,8 +202,8 @@ class Pydontology:
             raise TypeError(f"Unexpected type {type(origin)} in ontology")
 
     def _add_class_annotations(
-        self, class_def: _OntologyClass, annotations: List
-    ) -> _OntologyClass:
+        self, class_def: OntologyClass, annotations: List
+    ) -> OntologyClass:
         """Add class annotations to ontology class"""
         for meta in annotations:
             if isinstance(meta, RDFSAnnotation.COMMENT):
@@ -225,8 +226,8 @@ class Pydontology:
 
         return class_def
 
-    def _create_ontology_classes(self) -> List[_OntologyClass]:
-        """Create ontology classes using _OntologyClass class"""
+    def _create_ontology_classes(self) -> List[OntologyClass]:
+        """Create ontology classes using OntologyClass class"""
 
         ontology_classes = []
         for class_name, class_info in self._cls_db.items():
@@ -244,7 +245,7 @@ class Pydontology:
                         Relation(id=self.cfg.SUBCLASS_OF_DEFAULT)  # pyright: ignore
                     ]
 
-            class_def = _OntologyClass.model_validate(class_fields)
+            class_def = OntologyClass.model_validate(class_fields)
 
             if class_info["metadata"] is not None:
                 class_def = self._add_class_annotations(
@@ -254,8 +255,8 @@ class Pydontology:
         return ontology_classes
 
     def _add_property_annotations(
-        self, prop_def: _OntologyProperty, annotations: List
-    ) -> _OntologyProperty:
+        self, prop_def: OntologyProperty, annotations: List
+    ) -> OntologyProperty:
         """Add property annotations to ontology property"""
         for meta in annotations:
             if isinstance(meta, RDFSAnnotation.COMMENT):
@@ -312,8 +313,8 @@ class Pydontology:
 
         return prop_def
 
-    def _create_ontology_properties(self) -> List[_OntologyProperty]:
-        """Create ontology properties using _OntologyProperty class"""
+    def _create_ontology_properties(self) -> List[OntologyProperty]:
+        """Create ontology properties using OntologyProperty class"""
         ontology_props = []
         for field_name, field_info in self._prop_db.items():
             prop_fields = dict()
@@ -351,7 +352,7 @@ class Pydontology:
                 else:
                     prop_fields["comment"] = field_info["description"][0]
 
-            prop_def = _OntologyProperty.model_validate(prop_fields)
+            prop_def = OntologyProperty.model_validate(prop_fields)
             if len(field_info["metadata"]) > 1:
                 if self.cfg.SHOW_WARNINGS:
                     warnings.warn(

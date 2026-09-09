@@ -311,7 +311,7 @@ class Entity(BaseModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
 
-class _OntologyClass(BaseModel):
+class OntologyClass(BaseModel):
     """Represents an RDFS/OWL class in an ontology graph"""
 
     id: str = Field(serialization_alias="@id", description="Class IRI")
@@ -347,7 +347,7 @@ class _OntologyClass(BaseModel):
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
 
-class _OntologyProperty(BaseModel):
+class OntologyProperty(BaseModel):
     """Represents an OWL property in an ontology graph."""
 
     id: str = Field(serialization_alias="@id", description="Property IRI")

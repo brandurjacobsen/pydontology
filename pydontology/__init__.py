@@ -3,6 +3,8 @@ from .models import (
     BaseMetaData,
     Entity,
     LangStr,
+    OntologyClass,
+    OntologyProperty,
     Relation,
     JSONLDGraph,
 )
@@ -17,6 +19,8 @@ __all__ = [
     "BaseMetaData",
     "Entity",
     "LangStr",
+    "OntologyClass",
+    "OntologyProperty",
     "Relation",
     "Pydontology",
     "RDFSAnnotation",

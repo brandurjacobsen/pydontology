@@ -3,10 +3,9 @@ from typing import Optional
 
 import pytest
 from pydantic import Field, ValidationError
-from rdflib import Dataset, Namespace
+from rdflib import Dataset
 
 from pydontology import Entity, LangStr, Pydontology, Settings
-from pydontology.pydontology import BaseContext
 
 
 class Named(Entity):
@@ -92,16 +91,15 @@ def test_langstr_serializes_as_language_tagged_literal(onto):
     assert doc["nick"] == {"@value": "J", "@language": "en-GB"}
 
 
-def test_langstr_data_graph_parses_to_language_tagged_literal(onto):
-    graph_model = onto.jsonld_graph()
+def test_langstr_data_graph_parses_to_language_tagged_literal(onto, test_context, vocab_namespace):
+    graph_model = onto.jsonld_graph(context=test_context)
     person = Named(id="P1", name=LangStr(value="Jane", language="en"))
     data_graph = graph_model(graph=[person])
 
     ds = Dataset().parse(
         data=data_graph.model_dump_json(exclude_none=True), format="json-ld"
     )
-    vocab = Namespace(BaseContext().vocab)
-    literal = list(ds.objects(vocab.P1, vocab.name))[0]
+    literal = list(ds.objects(vocab_namespace.P1, vocab_namespace.name))[0]
     assert str(literal) == "Jane"
     assert literal.language == "en"
 

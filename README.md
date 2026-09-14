@@ -115,6 +115,8 @@ The RDFS domain of an ontology property is per default set to be the class where
 
 The default annotation behaviour (and whether to show warnings) can be controlled via the [Settings] class, which [ontology_graph] and [shacl_graph] accept as an optional parameter.
 
+Note that [ontology_graph], [shacl_graph], and [jsonld_graph] accept an optional `context` parameter (a [BaseContext]). By default no `@vocab` or `@base` is emitted in the JSON-LD `@context`, so the IRIs in the graph (e.g. class and property ids) remain relative. Consumers such as rdflib will then resolve them against the local working directory; pass an explicit `context=BaseContext(vocab="...", base="...")` if the IRIs should be expanded to a specific namespace.
+
 The model can then be created by instantiating the [Pydontology] class with the ontology,
 and the ontology graph and SHACL graph can be created using the [ontology_graph] and [shacl_graph] methods.
 A JSON schema for a JSON-LD data graph is obtained from the [jsonld_graph] model via Pydantic's `model_json_schema()` (see below).
@@ -139,8 +141,6 @@ Output of `print(ontog_json)`:
 {
   "@context": {
     "@version": 1.1,
-    "@vocab": "http://example.com/vocab/",
-    "@base": "http://example.com/vocab/",
     "sh": "http://www.w3.org/ns/shacl#",
     "xsd": "http://www.w3.org/2001/XMLSchema#",
     "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
@@ -272,8 +272,6 @@ Output of `print(shaclg_json)`:
 {
   "@context": {
     "@version": 1.1,
-    "@vocab": "http://example.com/vocab/",
-    "@base": "http://example.com/vocab/",
     "sh": "http://www.w3.org/ns/shacl#",
     "xsd": "http://www.w3.org/2001/XMLSchema#",
     "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
@@ -425,16 +423,30 @@ Output of `print(schemag_json)`:
           "type": "number"
         },
         "@vocab": {
-          "default": "http://example.com/vocab/",
-          "description": "Prefix of properties, values of @type, and values of terms that are relative.",
-          "title": "@Vocab",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Prefix of properties, values of @type, and values of terms that are relative. Defaults to None, in which case relative IRIs in the document are left unresolved and consumers must supply a base or use absolute IRIs.",
+          "title": "@Vocab"
         },
         "@base": {
-          "default": "http://example.com/vocab/",
-          "description": "Prefix of relative IRIs.",
-          "title": "@Base",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Prefix of relative IRIs. Defaults to None, in which case relative IRIs in the document are left unresolved and consumers must supply a base or use absolute IRIs.",
+          "title": "@Base"
         },
         "@language": {
           "anyOf": [
@@ -679,8 +691,6 @@ Output of `print(schemag_json)`:
       "$ref": "#/$defs/BaseContext",
       "default": {
         "@version": 1.1,
-        "@vocab": "http://example.com/vocab/",
-        "@base": "http://example.com/vocab/",
         "sh": "http://www.w3.org/ns/shacl#",
         "xsd": "http://www.w3.org/2001/XMLSchema#",
         "rdfs": "http://www.w3.org/2000/01/rdf-schema#",

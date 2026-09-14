@@ -2,18 +2,35 @@ from typing import Annotated, List, Optional
 
 import pytest
 from pydantic import Field
+from rdflib import Namespace
 
 from pydontology.models import BaseMetaData, Entity, Relation
 from pydontology.owl import (
     OWLAnnotation as OWL,
 )
-from pydontology.pydontology import Pydontology
+from pydontology.pydontology import BaseContext, Pydontology
 from pydontology.rdfs import (
     RDFSAnnotation as RDFS,
 )
 from pydontology.shacl import (
     SHACLAnnotation as SH,
 )
+
+# Explicit vocabulary used by the tests. BaseContext no longer assumes one by
+# default, so every graph fixture passes it in via the test_context fixture.
+TEST_VOCAB = "http://example.com/vocab/"
+
+
+@pytest.fixture
+def test_context():
+    """Fixture providing a BaseContext with an explicit vocab and base"""
+    return BaseContext(vocab=TEST_VOCAB, base=TEST_VOCAB)
+
+
+@pytest.fixture
+def vocab_namespace(test_context):
+    """Fixture providing the vocabulary namespace"""
+    return Namespace(test_context.vocab)
 
 
 class Person(Entity):
@@ -161,8 +178,8 @@ def TestModel():
 
 
 @pytest.fixture
-def data_graph(TestModel):
-    data_graph_model = TestModel.jsonld_graph()
+def data_graph(TestModel, test_context):
+    data_graph_model = TestModel.jsonld_graph(context=test_context)
 
     # acquaintance/has_contract_with are required fields (no defaults) on the
     # test model, and employees/managers need a manager to satisfy the

@@ -2,20 +2,20 @@ import json
 from typing import Annotated
 
 import pytest
-from rdflib import OWL, RDF, RDFS, Dataset, Namespace
+from rdflib import OWL, RDF, RDFS, Dataset
 
 from pydontology import Entity, OWLAnnotation, Pydontology, Relation, Settings
 from pydontology.models import BaseMetaData
-from pydontology.pydontology import BaseContext, JSONLDGraph
+from pydontology.pydontology import JSONLDGraph
 
-# See conftest.py for TestModel definition
+# See conftest.py for TestModel, test_context, and vocab_namespace definitions
 
 
 @pytest.fixture
-def onto_graph(TestModel):
+def onto_graph(TestModel, test_context):
     """Fixture providing the generated ontology graph"""
 
-    return TestModel.ontology_graph()
+    return TestModel.ontology_graph(context=test_context)
 
 
 @pytest.fixture
@@ -30,12 +30,6 @@ def rdf_graph(onto_graph_json):
 
     ds = Dataset().parse(data=onto_graph_json, format="json-ld")
     return ds
-
-
-@pytest.fixture
-def vocab_namespace():
-    """Fixture providing the vocabulary namespace"""
-    return Namespace(BaseContext().vocab)
 
 
 def test_returns_jsonld_graph(onto_graph):

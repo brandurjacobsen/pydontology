@@ -32,15 +32,19 @@ class BaseContext(BaseModel):
     """Base json-ld context model"""
 
     version: float = Field(serialization_alias="@version", default=1.1)
-    vocab: str = Field(
+    vocab: Optional[str] = Field(
         serialization_alias="@vocab",
-        default="http://example.com/vocab/",
-        description="Prefix of properties, values of @type, and values of terms that are relative.",
+        default=None,
+        description="Prefix of properties, values of @type, and values of terms that are relative. "
+        "Defaults to None, in which case relative IRIs in the document are left unresolved "
+        "and consumers must supply a base or use absolute IRIs.",
     )
-    base: str = Field(
+    base: Optional[str] = Field(
         serialization_alias="@base",
-        default="http://example.com/vocab/",
-        description="Prefix of relative IRIs.",
+        default=None,
+        description="Prefix of relative IRIs. Defaults to None, in which case relative "
+        "IRIs in the document are left unresolved and consumers must supply a base "
+        "or use absolute IRIs.",
     )
     # Defaults to None: a default @language in the context would make every
     # string in the document a language-tagged literal (e.g. "en"), which
@@ -60,6 +64,14 @@ class BaseContext(BaseModel):
     owl: Literal["http://www.w3.org/2002/07/owl#"] = Field(
         default="http://www.w3.org/2002/07/owl#"
     )
+
+    @model_serializer(mode="wrap")
+    def _serialize_without_none(self, handler):
+        # Drop unset optional entries (e.g. @vocab, @base, @language) so they
+        # are never emitted as null, which JSON-LD consumers parse differently
+        # from omission.
+        return {k: v for k, v in handler(self).items() if v is not None}
+
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
 

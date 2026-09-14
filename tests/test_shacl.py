@@ -3,17 +3,17 @@ from typing import Annotated
 
 import pytest
 from pyshacl import validate
-from rdflib import RDF, Dataset, Namespace
+from rdflib import RDF, Dataset
 from rdflib.namespace import SH, XSD
 
 from pydontology import Entity, LangStr, Pydontology, SHACLAnnotation
-from pydontology.pydontology import BaseContext, JSONLDGraph
+from pydontology.pydontology import JSONLDGraph
 
 
 @pytest.fixture
-def shacl_graph(TestModel):
+def shacl_graph(TestModel, test_context):
     """Fixture providing the generated SHACL graph"""
-    return TestModel.shacl_graph()
+    return TestModel.shacl_graph(context=test_context)
 
 
 @pytest.fixture
@@ -23,25 +23,12 @@ def shacl_graph_json(shacl_graph):
 
 
 @pytest.fixture
-def default_context():
-    "Fixture returning the default context used in custom jsonld documents below"
-    context = BaseContext().model_dump_json(exclude_none=True, indent=2)
-    return context
-
-
-@pytest.fixture
 def sh_rdf_graph(shacl_graph_json):
     """Fixture returning the SHACL graph as an rdflib Graph"""
     ds = Dataset()
     ds.parse(data=shacl_graph_json, format="json-ld")
 
     return ds
-
-
-@pytest.fixture
-def vocab_namespace():
-    """Fixture providing the vocabulary namespace"""
-    return Namespace(BaseContext().vocab)
 
 
 def test_shacl_graph_returns_jsonld_graph(shacl_graph):
@@ -489,18 +476,21 @@ def test_language_in_rejects_unknown_tag():
         SHACLAnnotation.languageIn(["en", "xx-YY"])
 
 
-def test_language_in_serialized_as_rdf_list():
+def test_language_in_serialized_as_rdf_list(test_context, vocab_namespace):
     """sh:languageIn must be serialized as an RDF list, not a bare JSON array"""
     onto = _language_in_ontology()
-    doc = json.loads(onto.shacl_graph().model_dump_json(exclude_none=True))
+    doc = json.loads(onto.shacl_graph(context=test_context).model_dump_json(exclude_none=True))
     node_shape = next(node for node in doc["@graph"] if node["@id"] == "NamedShape")
     prop_shape = node_shape["sh:property"][0]
     assert prop_shape["sh:languageIn"] == {"@list": ["en", "fr"]}
 
     # rdflib must parse it as an actual RDF list (rdf:first / rdf:rest chain)
     g = Dataset()
-    g.parse(data=onto.shacl_graph().model_dump_json(exclude_none=True), format="json-ld")
-    head = g.value(Namespace(BaseContext().vocab).NamedShape_name, SH.languageIn)
+    g.parse(
+        data=onto.shacl_graph(context=test_context).model_dump_json(exclude_none=True),
+        format="json-ld",
+    )
+    head = g.value(vocab_namespace.NamedShape_name, SH.languageIn)
     items = []
     while head != RDF.nil:
         items.append(str(g.value(head, RDF.first)))
@@ -508,12 +498,13 @@ def test_language_in_serialized_as_rdf_list():
     assert items == ["en", "fr"]
 
 
-def test_pyshacl_language_in_accepts_allowed_tag():
+def test_pyshacl_language_in_accepts_allowed_tag(test_context):
     """Data with a language tag in the sh:languageIn list conforms"""
     onto = _language_in_ontology()
     shacl_ds = Dataset()
     shacl_ds.parse(
-        data=onto.shacl_graph().model_dump_json(exclude_none=True), format="json-ld"
+        data=onto.shacl_graph(context=test_context).model_dump_json(exclude_none=True),
+        format="json-ld",
     )
     data_ds = Dataset()
     data_ds.parse(
@@ -535,12 +526,13 @@ def test_pyshacl_language_in_accepts_allowed_tag():
     assert conforms, f"Validation failed: {results_text}"
 
 
-def test_pyshacl_language_in_rejects_other_tag():
+def test_pyshacl_language_in_rejects_other_tag(test_context):
     """Data with a language tag outside the sh:languageIn list is a violation"""
     onto = _language_in_ontology()
     shacl_ds = Dataset()
     shacl_ds.parse(
-        data=onto.shacl_graph().model_dump_json(exclude_none=True), format="json-ld"
+        data=onto.shacl_graph(context=test_context).model_dump_json(exclude_none=True),
+        format="json-ld",
     )
     data_ds = Dataset()
     data_ds.parse(

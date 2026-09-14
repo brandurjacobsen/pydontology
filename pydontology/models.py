@@ -565,9 +565,9 @@ class JSONLDGraph(BaseModel):
             return data
 
         # Include AllDifferent class in graph with graph individuals in 'distinctMembers' RDF collection.
-        rdf_list = [Relation(id=i["@id"]) for i in data["@graph"]]  # pyright: ignore
+        rdf_list = (Relation(id=i["@id"]) for i in data["@graph"])  # pyright: ignore
         data["@graph"].append(
-            AllDifferent(distinctMembers=RDFList(list=tuple(rdf_list)))  # pyright: ignore
+            AllDifferent(distinctMembers=RDFList(list=rdf_list))  # pyright: ignore
         )
         return data
 

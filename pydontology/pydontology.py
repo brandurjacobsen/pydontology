@@ -67,8 +67,8 @@ class Pydontology:
     type_map = TYPE_MAP
 
     def __init__(self, ontology: UnionType, metadata: BaseMetaData | None = None):
-        self.ontology = ontology
-        self.metadata = metadata
+        self.ontology: UnionType = ontology
+        self.metadata: BaseMetaData | None = metadata
 
         # Get default settings for ontology_graph and shacl_graph methods
         self._apply_settings(Settings())
@@ -373,7 +373,7 @@ class Pydontology:
 
         onto_classes = self._create_ontology_classes()
         onto_props = self._create_ontology_properties()
-        graph = [*onto_classes, *onto_props]
+        graph: List[OntologyClass | OntologyProperty | BaseMetaData] = [*onto_classes, *onto_props]
 
         if self.metadata is not None:
             graph.append(self.metadata)

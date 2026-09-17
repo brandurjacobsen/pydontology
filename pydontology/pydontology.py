@@ -101,7 +101,7 @@ class Pydontology:
 
             # We use 'get_annotations' and not 'model_fields' because we only
             # want to process fields defined in the current class, not inherited fields
-            for field_name in get_annotations(cls).keys():
+            for field_name in get_annotations(cls):
                 field_info = cls.model_fields[field_name]
                 field_type = self._get_field_type(field_info)
 
@@ -114,12 +114,18 @@ class Pydontology:
                     and field_type not in self.type_map
                 ):
                     raise ValueError(
-                        f"Field '{field_name}' was resolved as type '{field_type}' which is not a Relation, a LangStr, nor in the type map (Setting: TYPE_STRICT_MODE)"
+                        (
+                            f"Field '{field_name}' was resolved as type '{field_type}' "
+                            "which is not a Relation, a LangStr, nor in the type map "
+                            "(Setting: TYPE_STRICT_MODE)"
+                        )
                     )
 
-                # Fields are identified by serializationalias (if present), otherwise by name in the self._prop_db dict.
-                # If an ontology class redefines a previously identified property (according to the above),
-                # then the Python type needs to be identical, while e.g. default, description, title,
+                # Fields are identified by serializationalias (if present),
+                # otherwise by name in the self._prop_db dict.
+                # If an ontology class redefines a previously identified property
+                # (according to the above), then the Python type needs to be identical,
+                # while e.g. default, description, title,
                 # examples and SHACL annotation can vary.
 
                 if (

@@ -358,6 +358,6 @@ def test_explicit_property_type_annotations():
     by_id = {node["@id"]: node for node in doc["@graph"]}
 
     # literal field declared object property: xsd rdf:type is dropped
-    assert by_id["literal"]["@type"] == ["owl:ObjectProperty"]
+    assert by_id["ex:literal"]["@type"] == ["owl:ObjectProperty"]
     # relation field declared datatype property
-    assert by_id["iri"]["@type"] == ["owl:DatatypeProperty"]
+    assert by_id["ex:iri"]["@type"] == ["owl:DatatypeProperty"]

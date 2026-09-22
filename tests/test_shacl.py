@@ -452,13 +452,13 @@ def test_node_shape_closed_and_ignored_properties():
     doc = json.loads(onto.shacl_graph().model_dump_json(exclude_none=True))
     by_id = {node["@id"]: node for node in doc["@graph"]}
 
-    shape = by_id["ClosedThingShape"]
+    shape = by_id["ex:ClosedThingShape"]
     assert shape["sh:closed"] is True
-    assert shape["sh:ignoredProperties"] == [{"@id": "skippable"}]
+    assert shape["sh:ignoredProperties"] == [{"@id": "ex:skippable"}]
 
     # A node shape is created for node-shape annotations even with no
     # property shapes
-    bare = by_id["BareClosedShape"]
+    bare = by_id["ex:BareClosedShape"]
     assert bare["sh:closed"] is True
     assert bare["sh:property"] == []
 
@@ -480,7 +480,7 @@ def test_language_in_serialized_as_rdf_list(test_context, vocab_namespace):
     """sh:languageIn must be serialized as an RDF list, not a bare JSON array"""
     onto = _language_in_ontology()
     doc = json.loads(onto.shacl_graph(context=test_context).model_dump_json(exclude_none=True))
-    node_shape = next(node for node in doc["@graph"] if node["@id"] == "NamedShape")
+    node_shape = next(node for node in doc["@graph"] if node["@id"] == "ex:NamedShape")
     prop_shape = node_shape["sh:property"][0]
     assert prop_shape["sh:languageIn"] == {"@list": ["en", "fr"]}
 

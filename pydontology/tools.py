@@ -12,19 +12,20 @@ except ImportError as e:
         "pydontology.tools requires jinja2. Install it with `pip install pydontology[tools]`."
     ) from e
 
+from .iri import qualify_iri
 from .models import OntologyClass, OntologyProperty, RDFList, Relation, Restriction
 from .pydontology import Pydontology
 
 
 def _relation_id(value: Relation | Restriction | str | None) -> str | None:
-    """Reduce a Relation, Restriction, or str to a plain IRI string."""
+    """Reduce a Relation, Restriction, or str to a plain (qualified) IRI string."""
     if value is None:
         return None
     if isinstance(value, Relation):
-        return value.id
+        return qualify_iri(value.id)
     if isinstance(value, Restriction):
-        return value.id or "owl:Restriction"
-    return str(value)
+        return qualify_iri(value.id) if value.id else "owl:Restriction"
+    return qualify_iri(str(value))
 
 
 def _relation_ids(values: list[Relation | Restriction | str]) -> list[str] | None:
@@ -139,6 +140,27 @@ DEFAULT_TEMPLATES: dict[str, str] = {
 }
 
 
+def _local_name(iri: str) -> str | None:
+    """Return the local part of a compact IRI (e.g. 'Employee' for 'ex:Employee')."""
+    if ":" not in iri:
+        return None
+    tail = iri.rsplit(":", 1)[1]
+    if "/" in tail or "#" in tail:
+        return None
+    return tail or None
+
+
+def _index(objs):
+    """Index ontology nodes by full IRI and, when possible, by local name."""
+    index = {}
+    for obj in objs:
+        index[obj.id] = obj
+        local = _local_name(obj.id)
+        if local:
+            index.setdefault(local, obj)
+    return index
+
+
 def llm_tools(
     onto: Pydontology,
     templates: dict[str, str] | None = None,
@@ -158,8 +180,8 @@ def llm_tools(
         if unknown:
             raise ValueError(f"Unknown template key(s): {sorted(unknown)}")
 
-    class_index = {c.id: c for c in onto.classes}
-    property_index = {p.id: p for p in onto.properties}
+    class_index = _index(onto.classes)
+    property_index = _index(onto.properties)
 
     merged = {**DEFAULT_TEMPLATES, **templates} if templates else DEFAULT_TEMPLATES
     env = jinja2.Environment(trim_blocks=True, lstrip_blocks=True, autoescape=False)

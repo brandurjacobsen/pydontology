@@ -16,9 +16,9 @@ def test_get_class_description(TestModel):
     tools = llm_tools(TestModel)
     out = tools["get_class_description"]("Employee")
     assert "Class: Employee" in out
-    assert "IRI: Employee" in out
+    assert "IRI: ex:Employee" in out
     assert "An employee, subclass of Person" in out
-    assert "Subclass of: Person" in out
+    assert "Subclass of: ex:Person" in out
 
 
 def test_get_class_description_base_class(TestModel):
@@ -32,19 +32,19 @@ def test_get_class_description_base_class(TestModel):
 def test_get_class_description_intersection(TestModel):
     tools = llm_tools(TestModel)
     out = tools["get_class_description"]("DualIncome")
-    assert "Intersection of: Contractor, Employee" in out
+    assert "Intersection of: ex:Contractor, ex:Employee" in out
 
 
 def test_get_property_description(TestModel):
     tools = llm_tools(TestModel)
     out = tools["get_property_description"]("manager")
     assert "Property: manager" in out
-    assert "IRI: manager" in out
+    assert "IRI: ex:manager" in out
     assert "owl:ObjectProperty" in out
     assert "owl:TransitiveProperty" in out
     assert "Link to manager" in out
-    assert "Domain: Employee" in out
-    assert "Range: Manager" in out
+    assert "Domain: ex:Employee" in out
+    assert "Range: ex:Manager" in out
 
 
 def test_get_property_description_symmetric(TestModel):
@@ -53,7 +53,7 @@ def test_get_property_description_symmetric(TestModel):
     assert "owl:ObjectProperty" in out
     assert "owl:SymmetricProperty" in out
     assert "A friend or colleague" in out
-    assert "Domain: Person" in out
+    assert "Domain: ex:Person" in out
     # No RDFS.range annotation -> no Range line (and no Jinja 'range' global leak)
     assert "Range:" not in out
 
@@ -74,7 +74,7 @@ def test_not_found(TestModel):
 
 def test_custom_template(TestModel):
     tools = llm_tools(TestModel, templates={"class": "{{ id }}!"})
-    assert tools["get_class_description"]("Person") == "Person!"
+    assert tools["get_class_description"]("Person") == "ex:Person!"
     # The property template should remain the default
     assert "Property: manager" in tools["get_property_description"]("manager")
 

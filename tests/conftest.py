@@ -23,8 +23,14 @@ TEST_VOCAB = "http://example.com/vocab/"
 
 @pytest.fixture
 def test_context():
-    """Fixture providing a BaseContext with an explicit vocab and base"""
-    return BaseContext(vocab=TEST_VOCAB, base=TEST_VOCAB)
+    """Fixture providing a BaseContext with an explicit vocab and base.
+
+    The 'ex' prefix mapping mirrors Settings.DEFAULT_PREFIX ('ex:') so that
+    generated compact IRIs such as 'ex:Person' expand back to TEST_VOCAB.
+    """
+    return BaseContext(
+        vocab=TEST_VOCAB, base=TEST_VOCAB, prefixes={"ex": TEST_VOCAB}
+    )
 
 
 @pytest.fixture
@@ -54,7 +60,7 @@ class Person(Entity):
         Optional[Relation | list[Relation]], OWL.symmetricProperty(True)
     ] = Field(default=None, description="A friend or colleague")
     acquaintance: Annotated[
-        Optional[List[Relation] | Relation], RDFS.subPropertyOf(Relation(id="knows"))
+        Optional[List[Relation] | Relation], RDFS.subPropertyOf(Relation(id="ex:knows"))
     ]
     works_for: Annotated[Optional[Relation], OWL.equivalentProperty("works_at")] = (
         Field(default=None)

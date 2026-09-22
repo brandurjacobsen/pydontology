@@ -1,3 +1,4 @@
+from .iri import AnyIri, IriRef
 from .models import (
     BaseContext,
     BaseMetaData,
@@ -15,6 +16,8 @@ from .settings import Settings
 from .shacl import SHACLAnnotation
 
 __all__ = [
+    "AnyIri",
+    "IriRef",
     "BaseContext",
     "BaseMetaData",
     "Entity",

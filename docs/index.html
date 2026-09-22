@@ -85,6 +85,10 @@
               <ul class="nav flex-column">
               </ul>
             </li>
+            <li class="nav-item" data-bs-level="2"><a href="#documentation" class="nav-link">Documentation</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
             <li class="nav-item" data-bs-level="2"><a href="#example" class="nav-link">Example</a>
               <ul class="nav flex-column">
               </ul>
@@ -110,9 +114,10 @@
 <p>The package exposes, amongst others, the classes <a href="reference/#pydontology.pydontology.Entity">Entity</a> and <a href="reference/#pydontology.pydontology.Relation">Relation</a>, which inherit Pydantic's BaseModel.
 Entity serves as the base class for ontology classes.
 A field of an Entity class is considered to be an RDF literal, unless the attribute is of type Relation, 
-in which case the value is interpreted as an IRI.</p>
+in which case the value is interpreted as an IRI.
+A field of type <a href="reference/#pydontology.pydontology.LangStr">LangStr</a> is serialized as an RDF language tagged literal, whose BCP47 language tag must be one of a fixed list of known tags.</p>
 <p>Once the ontology classes are defined, an instance of the <a href="reference/#pydontology.pydontology.Pydontology">Pydontology</a> class can be instantiated with the union of ontology classes as an argument.</p>
-<p>Pydontology provides the methods: <a href="reference/#pydontology.pydontology.Pydontology.ontology_graph">ontology_graph</a> and <a href="reference/#pydontology.pydontology.Pydontology.shacl_graph">shacl_graph</a> to generate the ontology graph and shacl graph respectively, as a (populated) JSONLDGraph instance, ready for parsing by rdflib after serialization.</p>
+<p>Pydontology provides the methods: <a href="reference/#pydontology.pydontology.Pydontology.ontology_graph">ontology_graph</a> and <a href="reference/#pydontology.pydontology.Pydontology.shacl_graph">shacl_graph</a> to generate the ontology graph and shacl graph respectively, as a (populated) JSONLDGraph instance, ready for parsing by rdflib after serialization. The method <a href="reference/#pydontology.pydontology.Pydontology.jsonld_graph">jsonld_graph</a> (backward-compatible alias: <a href="reference/#pydontology.pydontology.Pydontology.schema_graph">schema_graph</a>) builds a Pydantic model of a JSON-LD data graph; its JSON schema (via <code>model_json_schema()</code>) can e.g. be passed to LLMs for structured output.</p>
 <h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">#</a></h2>
 <p>This package is currently distributed via <a href="https://test.pypi.org/project/pydontology/">TestPyPi</a>. </p>
 <p>To install in a Python virtual environment, run the following commands in a terminal, in a directory of your chosing: </p>
@@ -123,6 +128,8 @@ pip install --upgrade pip  # Optional
 pip install pydantic  # Required
 pip install -i https://test.pypi.org/simple/ pydontology
 </code></pre>
+<h2 id="documentation">Documentation<a class="headerlink" href="#documentation" title="Permanent link">#</a></h2>
+<p>Documentation is built using mkdocs and hosted using Github Pages here: <a href="https://brandurjacobsen.github.io/pydontology/">https://brandurjacobsen.github.io/pydontology/</a></p>
 <h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">#</a></h2>
 <pre><code>from typing import Annotated, Optional
 
@@ -180,22 +187,27 @@ ontology = Person | Annotated[Employee, OWL.equivalentClass(&quot;Worker&quot;)]
 <p>Note the use of typing.Annotated above to annotate properties and Entity classes with RDFS, OWL constructs.
 These will appear in the ontology graph and SHACL graph.</p>
 <p>Inherited ontology classes will per default have RDFS subClassOf property set to be the parent class, or owl:Thing class if inheriting from Entity(multiple inheritance is currently not implemented when defining classes, but can be achieved by annotating the inherited class after the definition).</p>
-<p>The RDFS domain of an ontology property is per default set to be the class wherein the property is defined, unless the property is defined in multiple ontology classes, in which cass the user will receive a UserWarning.</p>
+<p>The RDFS domain of an ontology property is per default set to be the class wherein the property is defined, unless the property is defined in multiple ontology classes, in which case the user will receive a UserWarning.</p>
 <p>The default annotation behaviour (and whether to show warnings) can be controlled via the <a href="reference/#pydontology.settings.Settings">Settings</a> class, which <a href="reference/#pydontology.pydontology.Pydontology.ontology_graph">ontology_graph</a> and <a href="reference/#pydontology.pydontology.Pydontology.shacl_graph">shacl_graph</a> accept as an optional parameter.</p>
+<p>Note that <a href="reference/#pydontology.pydontology.Pydontology.ontology_graph">ontology_graph</a>, <a href="reference/#pydontology.pydontology.Pydontology.shacl_graph">shacl_graph</a>, and <a href="reference/#pydontology.pydontology.Pydontology.jsonld_graph">jsonld_graph</a> accept an optional <code>context</code> parameter (a [BaseContext]). By default no <code>@vocab</code> or <code>@base</code> is emitted in the JSON-LD <code>@context</code>. Relative names (class names, property names, annotation values) are qualified using the compact prefix from <code>Settings.DEFAULT_PREFIX</code> (default <code>"ex:"</code>), so class and property ids are emitted as e.g. <code>ex:Person</code>. Set <code>Settings.DEFAULT_PREFIX_NS</code> to the namespace IRI behind that prefix and Pydontology injects the corresponding mapping (e.g. <code>"ex": "http://example.com/vocab/"</code>) into the emitted <code>@context</code>, so consumers such as rdflib expand the compact IRIs. To deliberately keep bare relative names, set <code>DEFAULT_PREFIX=None</code>, in which case every property must carry an explicit <code>serialization_alias</code> or IRI.</p>
 <p>The model can then be created by instantiating the <a href="reference/#pydontology.pydontology.Pydontology">Pydontology</a> class with the ontology,
 and the ontology graph and SHACL graph can be created using the <a href="reference/#pydontology.pydontology.Pydontology.ontology_graph">ontology_graph</a> and <a href="reference/#pydontology.pydontology.Pydontology.shacl_graph">shacl_graph</a> methods.
-A json (json-ld) schema can be made the usual Pydantic way (see below).</p>
+A JSON schema for a JSON-LD data graph is obtained from the <a href="reference/#pydontology.pydontology.Pydontology.jsonld_graph">jsonld_graph</a> model via Pydantic's <code>model_json_schema()</code> (see below).</p>
 <pre><code>import json
 
 pydonto = Pydontology(ontology)
 
-ontog = pydonto.ontology_graph()
+# Declare the namespace behind the &quot;ex:&quot; prefix so @context can expand it
+context = BaseContext(vocab=&quot;http://example.com/vocab/&quot;, base=&quot;http://example.com/vocab/&quot;)
+settings = Settings(DEFAULT_PREFIX_NS=&quot;http://example.com/vocab/&quot;)
+
+ontog = pydonto.ontology_graph(context=context, settings=settings)
 ontog_json = ontog.model_dump_json(indent=2, exclude_none=True)
 
-shaclg = pydonto.shacl_graph()
+shaclg = pydonto.shacl_graph(context=context, settings=settings)
 shaclg_json = shaclg.model_dump_json(indent=2, exclude_none=True)
 
-schemag = pydonto.schema_graph()
+schemag = pydonto.jsonld_graph()  # schema_graph() is a backward-compatible alias
 schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
 </code></pre>
 <p>Output of <code>print(ontog_json)</code>:</p>
@@ -204,130 +216,142 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
     &quot;@version&quot;: 1.1,
     &quot;@vocab&quot;: &quot;http://example.com/vocab/&quot;,
     &quot;@base&quot;: &quot;http://example.com/vocab/&quot;,
-    &quot;@language&quot;: &quot;en&quot;,
     &quot;sh&quot;: &quot;http://www.w3.org/ns/shacl#&quot;,
     &quot;xsd&quot;: &quot;http://www.w3.org/2001/XMLSchema#&quot;,
     &quot;rdfs&quot;: &quot;http://www.w3.org/2000/01/rdf-schema#&quot;,
-    &quot;owl&quot;: &quot;http://www.w3.org/2002/07/owl#&quot;
+    &quot;owl&quot;: &quot;http://www.w3.org/2002/07/owl#&quot;,
+    &quot;ex&quot;: &quot;http://example.com/vocab/&quot;
   },
   &quot;@graph&quot;: [
     {
-      &quot;@id&quot;: &quot;Person&quot;,
+      &quot;@id&quot;: &quot;ex:Person&quot;,
       &quot;@type&quot;: &quot;rdfs:Class&quot;,
       &quot;rdfs:label&quot;: &quot;Person&quot;,
       &quot;rdfs:comment&quot;: &quot;A person class&quot;,
-      &quot;rdfs:subClassOf&quot;: {
-        &quot;@id&quot;: &quot;owl:Thing&quot;
-      }
+      &quot;rdfs:subClassOf&quot;: [
+        {
+          &quot;@id&quot;: &quot;owl:Thing&quot;
+        }
+      ]
     },
     {
-      &quot;@id&quot;: &quot;Employee&quot;,
+      &quot;@id&quot;: &quot;ex:Employee&quot;,
       &quot;@type&quot;: &quot;rdfs:Class&quot;,
       &quot;rdfs:label&quot;: &quot;Employee&quot;,
       &quot;rdfs:comment&quot;: &quot;An employee class, inherits from Person&quot;,
-      &quot;rdfs:subClassOf&quot;: {
-        &quot;@id&quot;: &quot;Person&quot;
-      },
-      &quot;owl:equivalentClass&quot;: {
-        &quot;@id&quot;: &quot;Worker&quot;
-      }
+      &quot;rdfs:subClassOf&quot;: [
+        {
+          &quot;@id&quot;: &quot;ex:Person&quot;
+        }
+      ],
+      &quot;owl:equivalentClass&quot;: [
+        {
+          &quot;@id&quot;: &quot;ex:Worker&quot;
+        }
+      ]
     },
     {
-      &quot;@id&quot;: &quot;Manager&quot;,
+      &quot;@id&quot;: &quot;ex:Manager&quot;,
       &quot;@type&quot;: &quot;rdfs:Class&quot;,
       &quot;rdfs:label&quot;: &quot;Manager&quot;,
       &quot;rdfs:comment&quot;: &quot;A manager class, inherits from Employee&quot;,
-      &quot;rdfs:subClassOf&quot;: {
-        &quot;@id&quot;: &quot;Employee&quot;
-      }
+      &quot;rdfs:subClassOf&quot;: [
+        {
+          &quot;@id&quot;: &quot;ex:Employee&quot;
+        }
+      ]
     },
     {
-      &quot;@id&quot;: &quot;Department&quot;,
+      &quot;@id&quot;: &quot;ex:Department&quot;,
       &quot;@type&quot;: &quot;rdfs:Class&quot;,
       &quot;rdfs:label&quot;: &quot;Department&quot;,
       &quot;rdfs:comment&quot;: &quot;A department class&quot;,
-      &quot;rdfs:subClassOf&quot;: {
-        &quot;@id&quot;: &quot;owl:Thing&quot;
-      }
+      &quot;rdfs:subClassOf&quot;: [
+        {
+          &quot;@id&quot;: &quot;owl:Thing&quot;
+        }
+      ]
     },
     {
-      &quot;@id&quot;: &quot;name&quot;,
+      &quot;@id&quot;: &quot;ex:name&quot;,
       &quot;@type&quot;: [
-        &quot;owl:DatatypeProperty&quot;
+        &quot;owl:DatatypeProperty&quot;,
+        &quot;xsd:string&quot;
       ],
       &quot;rdfs:label&quot;: &quot;name&quot;,
       &quot;rdfs:comment&quot;: &quot;Person or department name&quot;
     },
     {
-      &quot;@id&quot;: &quot;age&quot;,
+      &quot;@id&quot;: &quot;ex:age&quot;,
       &quot;@type&quot;: [
         &quot;owl:DatatypeProperty&quot;,
+        &quot;xsd:integer&quot;,
         &quot;owl:FunctionalProperty&quot;
       ],
       &quot;rdfs:label&quot;: &quot;age&quot;,
       &quot;rdfs:domain&quot;: {
-        &quot;@id&quot;: &quot;Person&quot;
+        &quot;@id&quot;: &quot;ex:Person&quot;
       },
       &quot;rdfs:comment&quot;: &quot;Person's age&quot;
     },
     {
-      &quot;@id&quot;: &quot;employee_id&quot;,
+      &quot;@id&quot;: &quot;ex:employee_id&quot;,
       &quot;@type&quot;: [
         &quot;owl:DatatypeProperty&quot;,
+        &quot;xsd:string&quot;,
         &quot;owl:FunctionalProperty&quot;,
         &quot;owl:InverseFunctionalProperty&quot;
       ],
       &quot;rdfs:label&quot;: &quot;employee_id&quot;,
       &quot;rdfs:domain&quot;: {
-        &quot;@id&quot;: &quot;Employee&quot;
+        &quot;@id&quot;: &quot;ex:Employee&quot;
       },
       &quot;rdfs:comment&quot;: &quot;Employee ID&quot;
     },
     {
-      &quot;@id&quot;: &quot;has_manager&quot;,
+      &quot;@id&quot;: &quot;ex:has_manager&quot;,
       &quot;@type&quot;: [
         &quot;owl:ObjectProperty&quot;
       ],
       &quot;rdfs:label&quot;: &quot;has_manager&quot;,
       &quot;rdfs:domain&quot;: {
-        &quot;@id&quot;: &quot;Employee&quot;
+        &quot;@id&quot;: &quot;ex:Employee&quot;
       },
       &quot;rdfs:range&quot;: {
-        &quot;@id&quot;: &quot;Manager&quot;
+        &quot;@id&quot;: &quot;ex:Manager&quot;
       },
       &quot;rdfs:comment&quot;: &quot;Link to manager&quot;
     },
     {
-      &quot;@id&quot;: &quot;department&quot;,
+      &quot;@id&quot;: &quot;ex:department&quot;,
       &quot;@type&quot;: [
         &quot;owl:ObjectProperty&quot;
       ],
       &quot;rdfs:label&quot;: &quot;department&quot;,
       &quot;rdfs:domain&quot;: {
-        &quot;@id&quot;: &quot;Employee&quot;
+        &quot;@id&quot;: &quot;ex:Employee&quot;
       },
       &quot;rdfs:range&quot;: {
-        &quot;@id&quot;: &quot;Department&quot;
+        &quot;@id&quot;: &quot;ex:Department&quot;
       },
       &quot;rdfs:comment&quot;: &quot;Link to department&quot;
     },
     {
-      &quot;@id&quot;: &quot;heads&quot;,
+      &quot;@id&quot;: &quot;ex:heads&quot;,
       &quot;@type&quot;: [
         &quot;owl:ObjectProperty&quot;
       ],
       &quot;rdfs:label&quot;: &quot;heads&quot;,
       &quot;rdfs:domain&quot;: {
-        &quot;@id&quot;: &quot;Manager&quot;
+        &quot;@id&quot;: &quot;ex:Manager&quot;
       },
       &quot;rdfs:range&quot;: {
-        &quot;@id&quot;: &quot;Department&quot;
+        &quot;@id&quot;: &quot;ex:Department&quot;
       },
       &quot;rdfs:comment&quot;: &quot;Department that manager heads&quot;
     }
   ]
 }
-
 </code></pre>
 <p>Output of <code>print(shaclg_json)</code>:</p>
 <pre><code>{
@@ -335,25 +359,25 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
     &quot;@version&quot;: 1.1,
     &quot;@vocab&quot;: &quot;http://example.com/vocab/&quot;,
     &quot;@base&quot;: &quot;http://example.com/vocab/&quot;,
-    &quot;@language&quot;: &quot;en&quot;,
     &quot;sh&quot;: &quot;http://www.w3.org/ns/shacl#&quot;,
     &quot;xsd&quot;: &quot;http://www.w3.org/2001/XMLSchema#&quot;,
     &quot;rdfs&quot;: &quot;http://www.w3.org/2000/01/rdf-schema#&quot;,
-    &quot;owl&quot;: &quot;http://www.w3.org/2002/07/owl#&quot;
+    &quot;owl&quot;: &quot;http://www.w3.org/2002/07/owl#&quot;,
+    &quot;ex&quot;: &quot;http://example.com/vocab/&quot;
   },
   &quot;@graph&quot;: [
     {
-      &quot;@id&quot;: &quot;PersonShape&quot;,
+      &quot;@id&quot;: &quot;ex:PersonShape&quot;,
       &quot;@type&quot;: &quot;sh:NodeShape&quot;,
       &quot;sh:targetClass&quot;: {
-        &quot;@id&quot;: &quot;Person&quot;
+        &quot;@id&quot;: &quot;ex:Person&quot;
       },
       &quot;sh:property&quot;: [
         {
-          &quot;@id&quot;: &quot;PersonShape_name&quot;,
+          &quot;@id&quot;: &quot;ex:PersonShape_name&quot;,
           &quot;@type&quot;: &quot;sh:PropertyShape&quot;,
           &quot;sh:path&quot;: {
-            &quot;@id&quot;: &quot;name&quot;
+            &quot;@id&quot;: &quot;ex:name&quot;
           },
           &quot;sh:datatype&quot;: {
             &quot;@id&quot;: &quot;xsd:string&quot;
@@ -362,10 +386,10 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
           &quot;sh:description&quot;: &quot;Person's name&quot;
         },
         {
-          &quot;@id&quot;: &quot;PersonShape_age&quot;,
+          &quot;@id&quot;: &quot;ex:PersonShape_age&quot;,
           &quot;@type&quot;: &quot;sh:PropertyShape&quot;,
           &quot;sh:path&quot;: {
-            &quot;@id&quot;: &quot;age&quot;
+            &quot;@id&quot;: &quot;ex:age&quot;
           },
           &quot;sh:datatype&quot;: {
             &quot;@id&quot;: &quot;xsd:integer&quot;
@@ -376,17 +400,17 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
       ]
     },
     {
-      &quot;@id&quot;: &quot;EmployeeShape&quot;,
+      &quot;@id&quot;: &quot;ex:EmployeeShape&quot;,
       &quot;@type&quot;: &quot;sh:NodeShape&quot;,
       &quot;sh:targetClass&quot;: {
-        &quot;@id&quot;: &quot;Employee&quot;
+        &quot;@id&quot;: &quot;ex:Employee&quot;
       },
       &quot;sh:property&quot;: [
         {
-          &quot;@id&quot;: &quot;EmployeeShape_employee_id&quot;,
+          &quot;@id&quot;: &quot;ex:EmployeeShape_employee_id&quot;,
           &quot;@type&quot;: &quot;sh:PropertyShape&quot;,
           &quot;sh:path&quot;: {
-            &quot;@id&quot;: &quot;employee_id&quot;
+            &quot;@id&quot;: &quot;ex:employee_id&quot;
           },
           &quot;sh:datatype&quot;: {
             &quot;@id&quot;: &quot;xsd:string&quot;
@@ -397,13 +421,13 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
           &quot;sh:description&quot;: &quot;Employee ID&quot;
         },
         {
-          &quot;@id&quot;: &quot;EmployeeShape_has_manager&quot;,
+          &quot;@id&quot;: &quot;ex:EmployeeShape_has_manager&quot;,
           &quot;@type&quot;: &quot;sh:PropertyShape&quot;,
           &quot;sh:path&quot;: {
-            &quot;@id&quot;: &quot;has_manager&quot;
+            &quot;@id&quot;: &quot;ex:has_manager&quot;
           },
           &quot;sh:class&quot;: {
-            &quot;@id&quot;: &quot;Manager&quot;
+            &quot;@id&quot;: &quot;ex:Manager&quot;
           },
           &quot;sh:nodeKind&quot;: {
             &quot;@id&quot;: &quot;sh:IRI&quot;
@@ -412,10 +436,10 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
           &quot;sh:description&quot;: &quot;Link to manager&quot;
         },
         {
-          &quot;@id&quot;: &quot;EmployeeShape_department&quot;,
+          &quot;@id&quot;: &quot;ex:EmployeeShape_department&quot;,
           &quot;@type&quot;: &quot;sh:PropertyShape&quot;,
           &quot;sh:path&quot;: {
-            &quot;@id&quot;: &quot;department&quot;
+            &quot;@id&quot;: &quot;ex:department&quot;
           },
           &quot;sh:nodeKind&quot;: {
             &quot;@id&quot;: &quot;sh:IRI&quot;
@@ -426,17 +450,17 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
       ]
     },
     {
-      &quot;@id&quot;: &quot;ManagerShape&quot;,
+      &quot;@id&quot;: &quot;ex:ManagerShape&quot;,
       &quot;@type&quot;: &quot;sh:NodeShape&quot;,
       &quot;sh:targetClass&quot;: {
-        &quot;@id&quot;: &quot;Manager&quot;
+        &quot;@id&quot;: &quot;ex:Manager&quot;
       },
       &quot;sh:property&quot;: [
         {
-          &quot;@id&quot;: &quot;ManagerShape_heads&quot;,
+          &quot;@id&quot;: &quot;ex:ManagerShape_heads&quot;,
           &quot;@type&quot;: &quot;sh:PropertyShape&quot;,
           &quot;sh:path&quot;: {
-            &quot;@id&quot;: &quot;heads&quot;
+            &quot;@id&quot;: &quot;ex:heads&quot;
           },
           &quot;sh:nodeKind&quot;: {
             &quot;@id&quot;: &quot;sh:IRI&quot;
@@ -447,17 +471,17 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
       ]
     },
     {
-      &quot;@id&quot;: &quot;DepartmentShape&quot;,
+      &quot;@id&quot;: &quot;ex:DepartmentShape&quot;,
       &quot;@type&quot;: &quot;sh:NodeShape&quot;,
       &quot;sh:targetClass&quot;: {
-        &quot;@id&quot;: &quot;Department&quot;
+        &quot;@id&quot;: &quot;ex:Department&quot;
       },
       &quot;sh:property&quot;: [
         {
-          &quot;@id&quot;: &quot;DepartmentShape_name&quot;,
+          &quot;@id&quot;: &quot;ex:DepartmentShape_name&quot;,
           &quot;@type&quot;: &quot;sh:PropertyShape&quot;,
           &quot;sh:path&quot;: {
-            &quot;@id&quot;: &quot;name&quot;
+            &quot;@id&quot;: &quot;ex:name&quot;
           },
           &quot;sh:datatype&quot;: {
             &quot;@id&quot;: &quot;xsd:string&quot;
@@ -469,33 +493,19 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
     }
   ]
 }
-
 </code></pre>
 <p>Output of <code>print(schemag_json)</code>:</p>
-<pre><code>
-{
+<pre><code>{
   &quot;$defs&quot;: {
     &quot;BaseContext&quot;: {
-      &quot;description&quot;: &quot;Default context&quot;,
+      &quot;description&quot;: &quot;Base json-ld context model&quot;,
       &quot;properties&quot;: {
-        &quot;@version&quot;: {
+        &quot;version&quot;: {
           &quot;default&quot;: 1.1,
-          &quot;title&quot;: &quot;@Version&quot;,
+          &quot;title&quot;: &quot;Version&quot;,
           &quot;type&quot;: &quot;number&quot;
         },
-        &quot;@vocab&quot;: {
-          &quot;default&quot;: &quot;http://example.com/vocab/&quot;,
-          &quot;description&quot;: &quot;Prefix of properties, values of @type, and values of terms that are relative.&quot;,
-          &quot;title&quot;: &quot;@Vocab&quot;,
-          &quot;type&quot;: &quot;string&quot;
-        },
-        &quot;@base&quot;: {
-          &quot;default&quot;: &quot;http://example.com/vocab/&quot;,
-          &quot;description&quot;: &quot;Prefix of relative IRIs.&quot;,
-          &quot;title&quot;: &quot;@Base&quot;,
-          &quot;type&quot;: &quot;string&quot;
-        },
-        &quot;@language&quot;: {
+        &quot;vocab&quot;: {
           &quot;anyOf&quot;: [
             {
               &quot;type&quot;: &quot;string&quot;
@@ -504,9 +514,35 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
               &quot;type&quot;: &quot;null&quot;
             }
           ],
-          &quot;default&quot;: &quot;en&quot;,
+          &quot;default&quot;: null,
+          &quot;description&quot;: &quot;Prefix of properties, values of @type, and values of terms that are relative. Defaults to None, in which case relative IRIs in the document are left unresolved and consumers must supply a base or use absolute IRIs.&quot;,
+          &quot;title&quot;: &quot;Vocab&quot;
+        },
+        &quot;base&quot;: {
+          &quot;anyOf&quot;: [
+            {
+              &quot;type&quot;: &quot;string&quot;
+            },
+            {
+              &quot;type&quot;: &quot;null&quot;
+            }
+          ],
+          &quot;default&quot;: null,
+          &quot;description&quot;: &quot;Prefix of relative IRIs. Defaults to None, in which case relative IRIs in the document are left unresolved and consumers must supply a base or use absolute IRIs.&quot;,
+          &quot;title&quot;: &quot;Base&quot;
+        },
+        &quot;language&quot;: {
+          &quot;anyOf&quot;: [
+            {
+              &quot;type&quot;: &quot;string&quot;
+            },
+            {
+              &quot;type&quot;: &quot;null&quot;
+            }
+          ],
+          &quot;default&quot;: null,
           &quot;description&quot;: &quot;BCP47 default language identifier&quot;,
-          &quot;title&quot;: &quot;@Language&quot;
+          &quot;title&quot;: &quot;Language&quot;
         },
         &quot;sh&quot;: {
           &quot;const&quot;: &quot;http://www.w3.org/ns/shacl#&quot;,
@@ -531,6 +567,14 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
           &quot;default&quot;: &quot;http://www.w3.org/2002/07/owl#&quot;,
           &quot;title&quot;: &quot;Owl&quot;,
           &quot;type&quot;: &quot;string&quot;
+        },
+        &quot;prefixes&quot;: {
+          &quot;additionalProperties&quot;: {
+            &quot;type&quot;: &quot;string&quot;
+          },
+          &quot;description&quot;: &quot;Additional JSON-LD prefix mappings merged into @context&quot;,
+          &quot;title&quot;: &quot;Prefixes&quot;,
+          &quot;type&quot;: &quot;object&quot;
         }
       },
       &quot;title&quot;: &quot;BaseContext&quot;,
@@ -539,10 +583,49 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
     &quot;Department&quot;: {
       &quot;description&quot;: &quot;A department class&quot;,
       &quot;properties&quot;: {
-        &quot;@id&quot;: {
-          &quot;description&quot;: &quot;IRI (possibly relative)&quot;,
+        &quot;id&quot;: {
+          &quot;description&quot;: &quot;IRI&quot;,
+          &quot;minLength&quot;: 1,
           &quot;title&quot;: &quot;@id&quot;,
           &quot;type&quot;: &quot;string&quot;
+        },
+        &quot;sameAs&quot;: {
+          &quot;anyOf&quot;: [
+            {
+              &quot;$ref&quot;: &quot;#/$defs/Relation&quot;
+            },
+            {
+              &quot;items&quot;: {
+                &quot;$ref&quot;: &quot;#/$defs/Relation&quot;
+              },
+              &quot;type&quot;: &quot;array&quot;
+            },
+            {
+              &quot;type&quot;: &quot;null&quot;
+            }
+          ],
+          &quot;default&quot;: null,
+          &quot;description&quot;: &quot;Same individual(s)&quot;,
+          &quot;title&quot;: &quot;Sameas&quot;
+        },
+        &quot;differentFrom&quot;: {
+          &quot;anyOf&quot;: [
+            {
+              &quot;$ref&quot;: &quot;#/$defs/Relation&quot;
+            },
+            {
+              &quot;items&quot;: {
+                &quot;$ref&quot;: &quot;#/$defs/Relation&quot;
+              },
+              &quot;type&quot;: &quot;array&quot;
+            },
+            {
+              &quot;type&quot;: &quot;null&quot;
+            }
+          ],
+          &quot;default&quot;: null,
+          &quot;description&quot;: &quot;Different individual(s)&quot;,
+          &quot;title&quot;: &quot;Differentfrom&quot;
         },
         &quot;name&quot;: {
           &quot;description&quot;: &quot;Name of department&quot;,
@@ -551,7 +634,7 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
         }
       },
       &quot;required&quot;: [
-        &quot;@id&quot;,
+        &quot;id&quot;,
         &quot;name&quot;
       ],
       &quot;title&quot;: &quot;Department&quot;,
@@ -560,10 +643,49 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
     &quot;Employee&quot;: {
       &quot;description&quot;: &quot;An employee class, inherits from Person&quot;,
       &quot;properties&quot;: {
-        &quot;@id&quot;: {
-          &quot;description&quot;: &quot;IRI (possibly relative)&quot;,
+        &quot;id&quot;: {
+          &quot;description&quot;: &quot;IRI&quot;,
+          &quot;minLength&quot;: 1,
           &quot;title&quot;: &quot;@id&quot;,
           &quot;type&quot;: &quot;string&quot;
+        },
+        &quot;sameAs&quot;: {
+          &quot;anyOf&quot;: [
+            {
+              &quot;$ref&quot;: &quot;#/$defs/Relation&quot;
+            },
+            {
+              &quot;items&quot;: {
+                &quot;$ref&quot;: &quot;#/$defs/Relation&quot;
+              },
+              &quot;type&quot;: &quot;array&quot;
+            },
+            {
+              &quot;type&quot;: &quot;null&quot;
+            }
+          ],
+          &quot;default&quot;: null,
+          &quot;description&quot;: &quot;Same individual(s)&quot;,
+          &quot;title&quot;: &quot;Sameas&quot;
+        },
+        &quot;differentFrom&quot;: {
+          &quot;anyOf&quot;: [
+            {
+              &quot;$ref&quot;: &quot;#/$defs/Relation&quot;
+            },
+            {
+              &quot;items&quot;: {
+                &quot;$ref&quot;: &quot;#/$defs/Relation&quot;
+              },
+              &quot;type&quot;: &quot;array&quot;
+            },
+            {
+              &quot;type&quot;: &quot;null&quot;
+            }
+          ],
+          &quot;default&quot;: null,
+          &quot;description&quot;: &quot;Different individual(s)&quot;,
+          &quot;title&quot;: &quot;Differentfrom&quot;
         },
         &quot;name&quot;: {
           &quot;description&quot;: &quot;Person's name&quot;,
@@ -606,7 +728,7 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
         }
       },
       &quot;required&quot;: [
-        &quot;@id&quot;,
+        &quot;id&quot;,
         &quot;name&quot;,
         &quot;employee_id&quot;,
         &quot;department&quot;
@@ -617,10 +739,49 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
     &quot;Manager&quot;: {
       &quot;description&quot;: &quot;A manager class, inherits from Employee&quot;,
       &quot;properties&quot;: {
-        &quot;@id&quot;: {
-          &quot;description&quot;: &quot;IRI (possibly relative)&quot;,
+        &quot;id&quot;: {
+          &quot;description&quot;: &quot;IRI&quot;,
+          &quot;minLength&quot;: 1,
           &quot;title&quot;: &quot;@id&quot;,
           &quot;type&quot;: &quot;string&quot;
+        },
+        &quot;sameAs&quot;: {
+          &quot;anyOf&quot;: [
+            {
+              &quot;$ref&quot;: &quot;#/$defs/Relation&quot;
+            },
+            {
+              &quot;items&quot;: {
+                &quot;$ref&quot;: &quot;#/$defs/Relation&quot;
+              },
+              &quot;type&quot;: &quot;array&quot;
+            },
+            {
+              &quot;type&quot;: &quot;null&quot;
+            }
+          ],
+          &quot;default&quot;: null,
+          &quot;description&quot;: &quot;Same individual(s)&quot;,
+          &quot;title&quot;: &quot;Sameas&quot;
+        },
+        &quot;differentFrom&quot;: {
+          &quot;anyOf&quot;: [
+            {
+              &quot;$ref&quot;: &quot;#/$defs/Relation&quot;
+            },
+            {
+              &quot;items&quot;: {
+                &quot;$ref&quot;: &quot;#/$defs/Relation&quot;
+              },
+              &quot;type&quot;: &quot;array&quot;
+            },
+            {
+              &quot;type&quot;: &quot;null&quot;
+            }
+          ],
+          &quot;default&quot;: null,
+          &quot;description&quot;: &quot;Different individual(s)&quot;,
+          &quot;title&quot;: &quot;Differentfrom&quot;
         },
         &quot;name&quot;: {
           &quot;description&quot;: &quot;Person's name&quot;,
@@ -675,7 +836,7 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
         }
       },
       &quot;required&quot;: [
-        &quot;@id&quot;,
+        &quot;id&quot;,
         &quot;name&quot;,
         &quot;employee_id&quot;,
         &quot;department&quot;
@@ -686,10 +847,49 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
     &quot;Person&quot;: {
       &quot;description&quot;: &quot;A person class&quot;,
       &quot;properties&quot;: {
-        &quot;@id&quot;: {
-          &quot;description&quot;: &quot;IRI (possibly relative)&quot;,
+        &quot;id&quot;: {
+          &quot;description&quot;: &quot;IRI&quot;,
+          &quot;minLength&quot;: 1,
           &quot;title&quot;: &quot;@id&quot;,
           &quot;type&quot;: &quot;string&quot;
+        },
+        &quot;sameAs&quot;: {
+          &quot;anyOf&quot;: [
+            {
+              &quot;$ref&quot;: &quot;#/$defs/Relation&quot;
+            },
+            {
+              &quot;items&quot;: {
+                &quot;$ref&quot;: &quot;#/$defs/Relation&quot;
+              },
+              &quot;type&quot;: &quot;array&quot;
+            },
+            {
+              &quot;type&quot;: &quot;null&quot;
+            }
+          ],
+          &quot;default&quot;: null,
+          &quot;description&quot;: &quot;Same individual(s)&quot;,
+          &quot;title&quot;: &quot;Sameas&quot;
+        },
+        &quot;differentFrom&quot;: {
+          &quot;anyOf&quot;: [
+            {
+              &quot;$ref&quot;: &quot;#/$defs/Relation&quot;
+            },
+            {
+              &quot;items&quot;: {
+                &quot;$ref&quot;: &quot;#/$defs/Relation&quot;
+              },
+              &quot;type&quot;: &quot;array&quot;
+            },
+            {
+              &quot;type&quot;: &quot;null&quot;
+            }
+          ],
+          &quot;default&quot;: null,
+          &quot;description&quot;: &quot;Different individual(s)&quot;,
+          &quot;title&quot;: &quot;Differentfrom&quot;
         },
         &quot;name&quot;: {
           &quot;description&quot;: &quot;Person's name&quot;,
@@ -711,36 +911,33 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
         }
       },
       &quot;required&quot;: [
-        &quot;@id&quot;,
+        &quot;id&quot;,
         &quot;name&quot;
       ],
       &quot;title&quot;: &quot;Person&quot;,
       &quot;type&quot;: &quot;object&quot;
     },
     &quot;Relation&quot;: {
-      &quot;description&quot;: &quot;This class should be the type of Entity attributes for them to be considered as IRIs.&quot;,
+      &quot;description&quot;: &quot;A relation is a reference to an IRI&quot;,
       &quot;properties&quot;: {
-        &quot;@id&quot;: {
-          &quot;description&quot;: &quot;IRI (possibly relative)&quot;,
+        &quot;id&quot;: {
+          &quot;description&quot;: &quot;IRI&quot;,
           &quot;title&quot;: &quot;@id&quot;,
           &quot;type&quot;: &quot;string&quot;
         }
       },
       &quot;required&quot;: [
-        &quot;@id&quot;
+        &quot;id&quot;
       ],
       &quot;title&quot;: &quot;Relation&quot;,
       &quot;type&quot;: &quot;object&quot;
     }
   },
   &quot;properties&quot;: {
-    &quot;@context&quot;: {
+    &quot;context&quot;: {
       &quot;$ref&quot;: &quot;#/$defs/BaseContext&quot;,
       &quot;default&quot;: {
         &quot;@version&quot;: 1.1,
-        &quot;@vocab&quot;: &quot;http://example.com/vocab/&quot;,
-        &quot;@base&quot;: &quot;http://example.com/vocab/&quot;,
-        &quot;@language&quot;: &quot;en&quot;,
         &quot;sh&quot;: &quot;http://www.w3.org/ns/shacl#&quot;,
         &quot;xsd&quot;: &quot;http://www.w3.org/2001/XMLSchema#&quot;,
         &quot;rdfs&quot;: &quot;http://www.w3.org/2000/01/rdf-schema#&quot;,
@@ -749,7 +946,20 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
       &quot;description&quot;: &quot;JSON-LD context&quot;,
       &quot;name&quot;: &quot;@context&quot;
     },
-    &quot;@graph&quot;: {
+    &quot;id&quot;: {
+      &quot;anyOf&quot;: [
+        {
+          &quot;type&quot;: &quot;string&quot;
+        },
+        {
+          &quot;type&quot;: &quot;null&quot;
+        }
+      ],
+      &quot;default&quot;: null,
+      &quot;description&quot;: &quot;Optional IRI of the graph&quot;,
+      &quot;title&quot;: &quot;Id&quot;
+    },
+    &quot;graph&quot;: {
       &quot;description&quot;: &quot;Default json-ld graph&quot;,
       &quot;items&quot;: {
         &quot;anyOf&quot;: [
@@ -768,18 +978,19 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
         ]
       },
       &quot;name&quot;: &quot;@graph&quot;,
-      &quot;title&quot;: &quot;@Graph&quot;,
+      &quot;title&quot;: &quot;Graph&quot;,
       &quot;type&quot;: &quot;array&quot;
     }
   },
   &quot;required&quot;: [
-    &quot;@graph&quot;
+    &quot;graph&quot;
   ],
   &quot;title&quot;: &quot;PydontologyModel&quot;,
   &quot;type&quot;: &quot;object&quot;
 }
-
-</code></pre></div>
+</code></pre>
+<p>These outputs can be parsed by rdflib into a graph and serialized into e.g. Turtle format.</p>
+<p>More on will be said on this here later.</p></div>
             </div>
         </div>
 
@@ -840,5 +1051,5 @@ schemag_json = json.dumps(schemag.model_json_schema(), indent=2)
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2026-04-18 09:40:33.756377+00:00
+Build Date UTC : 2026-09-22 16:20:38.492386+00:00
 -->

@@ -31,8 +31,8 @@ def test_langstr_property_is_datatype_property_without_xsd(onto):
     doc = json.loads(onto.ontology_graph().model_dump_json(exclude_none=True))
     by_id = {node["@id"]: node for node in doc["@graph"]}
 
-    assert by_id["name"]["@type"] == ["owl:DatatypeProperty"]
-    assert by_id["nick"]["@type"] == ["owl:DatatypeProperty"]
+    assert by_id["ex:name"]["@type"] == ["owl:DatatypeProperty"]
+    assert by_id["ex:nick"]["@type"] == ["owl:DatatypeProperty"]
 
 
 def test_no_default_shacl_property_shape_for_langstr(onto):
@@ -87,8 +87,9 @@ def test_langstr_serializes_as_language_tagged_literal(onto):
         nick=LangStr(value="J", language="en-GB"),
     )
     doc = json.loads(person.model_dump_json(exclude_none=True))
-    assert doc["name"] == {"@value": "Jane", "@language": "en"}
-    assert doc["nick"] == {"@value": "J", "@language": "en-GB"}
+    assert doc["@id"] == "ex:P1"
+    assert doc["ex:name"] == {"@value": "Jane", "@language": "en"}
+    assert doc["ex:nick"] == {"@value": "J", "@language": "en-GB"}
 
 
 def test_langstr_data_graph_parses_to_language_tagged_literal(onto, test_context, vocab_namespace):
@@ -110,4 +111,4 @@ def test_literals_as_typeval_does_not_wrap_langstr(onto):
     onto._apply_settings(Settings(LITERALS_AS_TYPEVAL=True))
     person = Named(id="P1", name=LangStr(value="Jane", language="en"))
     doc = json.loads(person.model_dump_json(exclude_none=True))
-    assert doc["name"] == {"@value": "Jane", "@language": "en"}
+    assert doc["ex:name"] == {"@value": "Jane", "@language": "en"}

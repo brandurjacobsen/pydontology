@@ -18,14 +18,14 @@ from pydantic import (
     ConfigDict,
     Field,
     HttpUrl,
-    UUID4,
     computed_field,
     model_serializer,
     model_validator,
 )
 
+from .iri import AnyIri, IriRef, get_default_prefix, qualify_iri
 from .types import TYPE_SET, infer_xsd_type
-from .validators import val_bcp47, val_no_whitespace
+from .validators import val_bcp47
 
 
 class BaseContext(BaseModel):
@@ -64,23 +64,32 @@ class BaseContext(BaseModel):
     owl: Literal["http://www.w3.org/2002/07/owl#"] = Field(
         default="http://www.w3.org/2002/07/owl#"
     )
+    # Additional prefix mappings merged into the serialized @context. Used to
+    # declare the namespace behind Settings.DEFAULT_PREFIX (e.g. {"ex": ...}).
+    prefixes: dict[str, str] = Field(
+        default_factory=dict,
+        exclude=True,
+        description="Additional JSON-LD prefix mappings merged into @context",
+    )
 
     @model_serializer(mode="wrap")
     def _serialize_without_none(self, handler):
         # Drop unset optional entries (e.g. @vocab, @base, @language) so they
         # are never emitted as null, which JSON-LD consumers parse differently
         # from omission.
-        return {k: v for k, v in handler(self).items() if v is not None}
+        data = {k: v for k, v in handler(self).items() if v is not None}
+        # Merge arbitrary prefix mappings into the context object itself.
+        data.update(self.prefixes)
+        return data
 
     model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
 
 class Relation(BaseModel):
-    """This class should be the type of Entity attributes for them to be considered as IRIs."""
+    """A relation is a reference to an IRI"""
 
-    id: Annotated[str, AfterValidator(val_no_whitespace)] = Field(
-        serialization_alias="@id", title="@id", description="IRI", min_length=1
-    )
+    id: IriRef = Field(
+        serialization_alias="@id", title="@id", description="IRI")
     model_config = ConfigDict(
         populate_by_name=True, serialize_by_alias=True, frozen=True
     )
@@ -113,7 +122,7 @@ class LangStr(BaseModel):
 class Restriction(BaseModel):
     """Model defining OWL Restrictions for use with owl:equivalentClass, owl:intersectionOf, etc.."""
 
-    id: Optional[str] = Field(
+    id: Optional[IriRef] = Field(
         serialization_alias="@id", default=None, description="Optional restriction IRI"
     )
     type: Literal["owl:Restriction"] = Field(serialization_alias="@type", default="owl:Restriction")
@@ -181,7 +190,7 @@ class AllDifferent(BaseModel):
 class BaseMetaData(BaseModel):
     """The base class for a owl:Ontology class"""
 
-    id: str = Field(serialization_alias="@id", description="IRI of ontology meta-data")
+    id: IriRef = Field(serialization_alias="@id", description="IRI of ontology meta-data")
     type: Literal["owl:Ontology"] = Field(serialization_alias="@type", default="owl:Ontology")
     comment: Optional[str] = Field(serialization_alias="rdfs:comment", default=None)
     label: Optional[str] = Field(serialization_alias="rdfs:label", default=None)
@@ -203,15 +212,12 @@ class BaseMetaData(BaseModel):
 
 
 class Entity(BaseModel):
-    """The base class of all ontology classes.
-
-    Serialization behavior is controlled via Settings class.
-    """
+    """The base class of all ontology classes."""
 
     _serialize_literals_as_typeval: bool = False
     _type_strict_mode: bool = True
 
-    id: Annotated[str, AfterValidator(val_no_whitespace)] = Field(
+    id: IriRef = Field(
         serialization_alias="@id", description="IRI", title="@id", min_length=1
     )
 
@@ -304,19 +310,30 @@ class Entity(BaseModel):
     def _serialize_literals(self, handler):
         """Serialize scalar literals as TypeVal when the global toggle is enabled."""
         data = handler(self)
-        if not self._serialize_literals_as_typeval:
-            return data
 
-        for field_name, field_info in self.__class__.model_fields.items():
-            if not self._should_wrap_field(field_name, field_info):
-                continue
-            key = field_info.serialization_alias or field_info.alias or field_name
-            if key not in data:
-                continue
-            raw_value = getattr(self, field_name)
-            if raw_value is None:
-                continue
-            data[key] = self._wrap_serialized_value(raw_value, data[key], field_name)
+        if self._serialize_literals_as_typeval:
+            for field_name, field_info in self.__class__.model_fields.items():
+                if not self._should_wrap_field(field_name, field_info):
+                    continue
+                key = field_info.serialization_alias or field_info.alias or field_name
+                if key not in data:
+                    continue
+                raw_value = getattr(self, field_name)
+                if raw_value is None:
+                    continue
+                data[key] = self._wrap_serialized_value(raw_value, data[key], field_name)
+
+        # Qualify relative property names and @type with the DEFAULT_PREFIX so
+        # the data graph serializes as valid IRIs. Keyword entries ("@id",
+        # "@type", ...) keep their keys; already-qualified values are unchanged.
+        prefix = get_default_prefix()
+        if prefix:
+            data = {
+                key if key.startswith("@") else qualify_iri(key, prefix): value
+                for key, value in data.items()
+            }
+            if "@type" in data:
+                data["@type"] = qualify_iri(data["@type"], prefix)
 
         return data
 
@@ -326,7 +343,7 @@ class Entity(BaseModel):
 class OntologyClass(BaseModel):
     """Represents an RDFS/OWL class in an ontology graph"""
 
-    id: str = Field(serialization_alias="@id", description="Class IRI")
+    id: AnyIri = Field(serialization_alias="@id", description="Class IRI")
     type: Literal["rdfs:Class", "owl:Class"] = Field(
         default="rdfs:Class",
         serialization_alias="@type",
@@ -362,7 +379,7 @@ class OntologyClass(BaseModel):
 class OntologyProperty(BaseModel):
     """Represents an OWL property in an ontology graph."""
 
-    id: str = Field(serialization_alias="@id", description="Property IRI")
+    id: AnyIri = Field(serialization_alias="@id", description="Property IRI")
     type: List[
         Literal[
             "owl:ObjectProperty",
@@ -413,7 +430,7 @@ class OntologyProperty(BaseModel):
 class _PropertyShape(BaseModel):
     """Represents a SHACL property shape in a SHACL graph."""
 
-    id: str = Field(serialization_alias="@id", description="Property shape IRI")
+    id: AnyIri = Field(serialization_alias="@id", description="Property shape IRI")
     type: Literal["sh:PropertyShape"] = Field(default="sh:PropertyShape", serialization_alias="@type")
     path: Relation = Field(serialization_alias="sh:path", description="Property path")
 
@@ -518,7 +535,7 @@ class _PropertyShape(BaseModel):
 class _NodeShape(BaseModel):
     """Represents a SHACL node shape in a SHACL graph."""
 
-    id: str = Field(serialization_alias="@id", description="Node shape IRI")
+    id: AnyIri = Field(serialization_alias="@id", description="Node shape IRI")
     type: Literal["sh:NodeShape"] = Field(default="sh:NodeShape", serialization_alias="@type")
     targetClass: Relation = Field(serialization_alias="sh:targetClass", description="Target class")
     property: List[_PropertyShape] = Field(
@@ -551,7 +568,7 @@ class JSONLDGraph(BaseModel):
     # Optional graph IRI. Defaults to None so serialized documents are plain
     # (unnamed) JSON-LD graphs; a top-level @id would otherwise make the whole
     # document a named graph (with an empty default graph) when parsed.
-    id: Optional[str | UUID4] = Field(
+    id: IriRef | None = Field(
         serialization_alias="@id", default=None, description="Optional IRI of the graph"
     )
 

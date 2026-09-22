@@ -1,5 +1,7 @@
 import string
 
+import rfc3987
+
 from .bcp47 import BCP47
 
 
@@ -190,3 +192,51 @@ def val_severity_cls(input: str):
     if input not in allowed:
         raise ValueError(f"String must be one of {allowed}")
     return input
+
+
+def val_iri(input: str) -> str:
+    """Custom field validator, that checks that a string is a valid
+    RFC 3987 Internationalized Resource Identifier (IRI)
+
+    Args:
+        input (str): String to validate
+
+    Returns: Validated input
+
+    Raises:
+        ValueError
+    """
+
+    # rfc3987.parse throws a ValueError if the string violates the spec
+    try:
+        stripped_input = input.strip()
+        rfc3987.parse(stripped_input, rule="IRI")
+        return stripped_input
+    except ValueError as e:
+        raise ValueError(f"Invalid IRI: {e}")
+
+
+def val_iri_ref(input: str) -> str:
+    """Custom field validator, that checks that a string is a valid
+    RFC 3987 IRI reference.
+
+    Unlike val_iri, this accepts relative references (bare names such as
+    'knows' as well as compact IRIs such as 'ex:knows' and absolute IRIs).
+    Qualification of relative names to absolute IRIs is deferred to graph
+    construction, where the configured DEFAULT_PREFIX is known.
+
+    Args:
+        input (str): String to validate
+
+    Returns: Validated input
+
+    Raises:
+        ValueError
+    """
+
+    try:
+        stripped_input = input.strip()
+        rfc3987.parse(stripped_input, rule="IRI_reference")
+        return stripped_input
+    except ValueError as e:
+        raise ValueError(f"Invalid IRI reference: {e}")

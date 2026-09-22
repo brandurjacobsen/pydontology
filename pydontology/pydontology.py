@@ -1,12 +1,12 @@
 import warnings
-from copy import deepcopy
 from inspect import get_annotations, isclass
 from types import NoneType, UnionType
-from typing import Annotated, Any, List, Union, get_args, get_origin
+from typing import Annotated, List, Union, get_args, get_origin
 
-from pydantic import BaseModel, Field, create_model
+from pydantic import Field, create_model
 from pydantic.fields import FieldInfo
 
+from .iri import qualify_iri, set_default_prefix
 from .models import (
     BaseContext,
     BaseMetaData,
@@ -164,6 +164,25 @@ class Pydontology:
         # These flags control JSON-LD data serialization of Entity instances.
         Entity._serialize_literals_as_typeval = settings.LITERALS_AS_TYPEVAL
         Entity._type_strict_mode = settings.TYPE_STRICT_MODE
+        # Global prefix used to qualify bare names in generated graphs and data.
+        set_default_prefix(settings.DEFAULT_PREFIX)
+
+    def _qualify(self, name: str) -> str:
+        """Qualify a relative name using the configured DEFAULT_PREFIX."""
+        return qualify_iri(name, self.cfg.DEFAULT_PREFIX)
+
+    def _with_default_prefix(self, context: BaseContext) -> BaseContext:
+        """Inject the DEFAULT_PREFIX -> DEFAULT_PREFIX_NS mapping into @context."""
+        prefix = self.cfg.DEFAULT_PREFIX
+        namespace = self.cfg.DEFAULT_PREFIX_NS
+        if not prefix or not namespace:
+            return context
+        key = prefix.rstrip(":")
+        if key.endswith(("/", "#")):
+            return context
+        return context.model_copy(
+            update={"prefixes": {**context.prefixes, key: namespace}}
+        )
 
     def _get_field_type(self, field_info: FieldInfo):
         """Resolve a field annotation to a single concrete Python type.
@@ -244,8 +263,8 @@ class Pydontology:
 
         ontology_classes = []
         for class_name, class_info in self._cls_db.items():
-            class_fields = dict()
-            class_fields["id"] = class_name
+            class_fields = {}
+            class_fields["id"] = self._qualify(class_name)
             if self.cfg.CLASS_NAME_AS_LABEL:
                 class_fields["label"] = class_name
             if self.cfg.DOCSTRING_AS_COMMENT:
@@ -253,9 +272,9 @@ class Pydontology:
             if class_info["parent"] is not None and self.cfg.SUBCLASS_OF_PARENT:
                 class_fields["subClassOf"] = [Relation(id=class_info["parent"])]  # pyright: ignore
             else:
-                if self.cfg.SUBCLASS_OF_DEFAULT is not None:
+                if self.cfg.DEFAULT_SUBCLASS_OF is not None:
                     class_fields["subClassOf"] = [
-                        Relation(id=self.cfg.SUBCLASS_OF_DEFAULT)  # pyright: ignore
+                        Relation(id=self.cfg.DEFAULT_SUBCLASS_OF)
                     ]
 
             class_def = OntologyClass.model_validate(class_fields)
@@ -330,8 +349,8 @@ class Pydontology:
         """Create ontology properties using OntologyProperty class"""
         ontology_props = []
         for field_name, field_info in self._prop_db.items():
-            prop_fields = dict()
-            prop_fields["id"] = field_name
+            prop_fields = {}
+            prop_fields["id"] = self._qualify(field_name)
             # field_type is a type object; identity-check against Relation
             if field_info["field_type"] is Relation:
                 prop_fields["type"] = ["owl:ObjectProperty"]
@@ -354,7 +373,7 @@ class Pydontology:
                             UserWarning,
                         )
                 else:
-                    prop_fields["domain"] = Relation(id=field_info["defined_in"][0])  # pyright: ignore
+                    prop_fields["domain"] = Relation(id=field_info["defined_in"][0])
             if self.cfg.DESCRIPTION_AS_COMMENT:
                 if len(field_info["description"]) > 1:
                     if self.cfg.SHOW_WARNINGS:
@@ -366,12 +385,11 @@ class Pydontology:
                     prop_fields["comment"] = field_info["description"][0]
 
             prop_def = OntologyProperty.model_validate(prop_fields)
-            if len(field_info["metadata"]) > 1:
-                if self.cfg.SHOW_WARNINGS:
-                    warnings.warn(
-                        f"OWL/RDFS annotations will be concatenated/added for '{field_name}' property since it is defined in multiple classe",
-                        UserWarning,
-                    )
+            if len(field_info["metadata"]) > 1 and self.cfg.SHOW_WARNINGS:
+                warnings.warn(
+                    f"OWL/RDFS annotations will be concatenated/added for '{field_name}' property since it is defined in multiple classe",
+                    UserWarning,
+                )
             self._add_property_annotations(
                 prop_def, [m for sublist in field_info["metadata"] for m in sublist]
             )
@@ -392,8 +410,8 @@ class Pydontology:
             graph.append(self.metadata)
 
         return JSONLDGraph(
-            context=context,  # pyright: ignore
-            graph=graph,  # pyright: ignore
+            context=self._with_default_prefix(context),
+            graph=graph,
         )
 
     def _add_shacl_annotations(
@@ -402,11 +420,11 @@ class Pydontology:
         for meta in annotations:
             # Value Type Constraint Components
             if isinstance(meta, SHACLAnnotation.DATATYPE):
-                prop_shape.datatype = Relation(id=meta.value)  # pyright: ignore
+                prop_shape.datatype = Relation(id=meta.value)
             elif isinstance(meta, SHACLAnnotation.CLASS):
-                prop_shape.shclass = Relation(id=meta.value)  # pyright: ignore
+                prop_shape.shclass = Relation(id=meta.value)
             elif isinstance(meta, SHACLAnnotation.NODE_KIND):
-                prop_shape.nodeKind = Relation(id=meta.value)  # pyright: ignore
+                prop_shape.nodeKind = Relation(id=meta.value)
 
             # Cardinality Constraint Components
             elif isinstance(meta, SHACLAnnotation.MAX_COUNT):
@@ -438,13 +456,13 @@ class Pydontology:
 
             # Property Pair Constraint Components
             elif isinstance(meta, SHACLAnnotation.EQUALS):
-                prop_shape.equals = Relation(id=meta.value)  # pyright: ignore
+                prop_shape.equals = Relation(id=meta.value)
             elif isinstance(meta, SHACLAnnotation.DISJOINT):
-                prop_shape.disjoint = Relation(id=meta.value)  # pyright: ignore
+                prop_shape.disjoint = Relation(id=meta.value)
             elif isinstance(meta, SHACLAnnotation.LESS_THAN):
-                prop_shape.lessThan = Relation(id=meta.value)  # pyright: ignore
+                prop_shape.lessThan = Relation(id=meta.value)
             elif isinstance(meta, SHACLAnnotation.LESS_THAN_OR_EQUALS):
-                prop_shape.lessThanOrEquals = Relation(id=meta.value)  # pyright: ignore
+                prop_shape.lessThanOrEquals = Relation(id=meta.value)
 
             # Other Constraint Components
             # (SHACLAnnotation.CLOSED / IGNORED_PROPERTIES are node-shape
@@ -478,9 +496,10 @@ class Pydontology:
                 idx = field_info["defined_in"].index(class_name)
 
             prop_shape_fields = {
-                "id": f"{class_name}Shape_{field_name}",
-                "path": Relation(id=field_name),  # pyright: ignore
+                "id": self._qualify(f"{class_name}Shape_{field_name}"),
+                "path": Relation(id=self._qualify(field_name)),  # pyright: ignore
                 "name": field_name if self.cfg.FIELD_NAME_AS_SH_NAME else None,
+
                 "description": field_info["description"][idx]
                 if self.cfg.DESCRIPTION_AS_SH_DESCRIPTION
                 else None,
@@ -493,14 +512,14 @@ class Pydontology:
                 field_info["field_type"] is Relation
                 and self.cfg.RELATION_AS_NODEKIND_IRI
             ):
-                prop_shape.nodeKind = Relation(id="sh:IRI")  # pyright: ignore
+                prop_shape.nodeKind = Relation(id="sh:IRI")
                 create_prop_shape = True
             if (
                 field_info["field_type"] in self.type_map
                 and self.cfg.TYPE_AS_SH_DATATYPE
             ):
                 prop_shape.datatype = Relation(
-                    id=self.type_map[field_info["field_type"]]  # pyright: ignore
+                    id=self.type_map[field_info["field_type"]]
                 )
                 create_prop_shape = True
 
@@ -567,8 +586,8 @@ class Pydontology:
                 continue
 
             node_fields = {
-                "id": f"{class_name}Shape",
-                "targetClass": Relation(id=class_name),  # pyright: ignore
+                "id": self._qualify(f"{class_name}Shape"),
+                "targetClass": Relation(id=self._qualify(class_name)),  # pyright: ignore
                 "property": property_shapes,
             }
 
@@ -583,7 +602,9 @@ class Pydontology:
         """Generate SHACL graph"""
         self._apply_settings(settings)
         shacl_shapes = self._create_node_shapes()
-        return JSONLDGraph(context=context, graph=shacl_shapes)  # pyright: ignore
+        return JSONLDGraph(
+            context=self._with_default_prefix(context), graph=shacl_shapes
+        )  # pyright: ignore
 
 
     def jsonld_graph(
@@ -593,6 +614,7 @@ class Pydontology:
         settings: Settings = Settings(),
     ) -> type[JSONLDGraph]:
         self._apply_settings(settings)
+        context = self._with_default_prefix(context)
         return create_model(
             name,
             context=(

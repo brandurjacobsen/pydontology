@@ -27,7 +27,7 @@ class Settings(BaseModel):
     ORIGIN_AS_DOMAIN: bool = True
 
     # Default parent (rdfs:subClassOf) for ontology classes inheriting from Entity
-    SUBCLASS_OF_DEFAULT: str | None = "owl:Thing"
+    DEFAULT_SUBCLASS_OF: str | None = "owl:Thing"
 
     # Set rdfs:subClassOf to parent class (Recommended)
     SUBCLASS_OF_PARENT: bool = True
@@ -53,3 +53,14 @@ class Settings(BaseModel):
     # Require that Entity class fields can resolve to specific Python type
     # and that redefined properties have same Python type
     TYPE_STRICT_MODE: bool = True
+
+    # Use a default prefix term. If a default prefix is not used,
+    # then all properties will need a serialization_alias that
+    # serializes as a valid IRI. E.g. a property "knows" would need
+    # serialization_alias "ex:knows" or the like.
+    DEFAULT_PREFIX: str | None = "ex:"
+
+    # Namespace IRI that DEFAULT_PREFIX maps to in the generated @context.
+    # When set (along with DEFAULT_PREFIX), Pydontology injects the mapping
+    # into the serialized JSON-LD context so that compact IRIs expand.
+    DEFAULT_PREFIX_NS: str | None = None

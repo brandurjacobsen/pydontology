@@ -18,14 +18,34 @@ from pydantic import (
     ConfigDict,
     Field,
     HttpUrl,
+    SerializationInfo,
     UUID4,
     computed_field,
+    field_serializer,
     model_serializer,
     model_validator,
 )
 
 from .types import TYPE_SET, infer_xsd_type
 from .validators import val_bcp47, val_no_whitespace
+
+# Key under which a caller-supplied IRI rewriter is passed through the
+# serialization context, e.g. graph.model_dump(context={IRI_REWRITER: fn}).
+IRI_REWRITER = "iri_rewriter"
+
+
+def _rewrite_serialized_id(value: Any, info: SerializationInfo) -> Any:
+    """Apply a caller-supplied IRI rewriter from the serialization context.
+
+    Used by the ``id`` field serializers of ``Entity`` and ``Relation`` so that
+    ids provided in an LLM-generated data graph can be normalized to a single
+    form. When no rewriter is present in the context the value is returned
+    unchanged.
+    """
+    rewriter = (info.context or {}).get(IRI_REWRITER)
+    if rewriter is not None and isinstance(value, str):
+        return rewriter(value)
+    return value
 
 
 class BaseContext(BaseModel):
@@ -81,6 +101,12 @@ class Relation(BaseModel):
     id: Annotated[str, AfterValidator(val_no_whitespace)] = Field(
         serialization_alias="@id", title="@id", description="IRI", min_length=1
     )
+
+    @field_serializer("id")
+    def _serialize_id(self, value: str, info: SerializationInfo) -> Any:
+        """Rewrite the IRI when a rewriter is supplied via the serialization context."""
+        return _rewrite_serialized_id(value, info)
+
     model_config = ConfigDict(
         populate_by_name=True, serialize_by_alias=True, frozen=True
     )
@@ -214,6 +240,15 @@ class Entity(BaseModel):
     id: Annotated[str, AfterValidator(val_no_whitespace)] = Field(
         serialization_alias="@id", description="IRI", title="@id", min_length=1
     )
+
+    @field_serializer("id")
+    def _serialize_id(self, value: str, info: SerializationInfo) -> Any:
+        """Rewrite the IRI when a rewriter is supplied via the serialization context.
+
+        This serializer is inherited by all Entity subclasses, so every node id in
+        a data graph is normalized consistently with the Relation references to it.
+        """
+        return _rewrite_serialized_id(value, info)
 
     sameAs: Optional[Relation | List[Relation]] = Field(
         default=None,

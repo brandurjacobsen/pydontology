@@ -4,6 +4,10 @@
 ::: pydontology.pydontology.LangStr
 ::: pydontology.pydontology.Pydontology
 
+The exported constant `IRI_REWRITER` (`"iri_rewriter"`) is the serialization-context
+key used to normalize ids when dumping a data graph; see
+[Normalizing ids from LLM output](index.md#normalizing-ids-from-llm-output).
+
 ## Controlling behaviour
 ::: pydontology.settings.Settings
 

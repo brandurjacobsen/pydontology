@@ -2,6 +2,7 @@ from .models import (
     BaseContext,
     BaseMetaData,
     Entity,
+    IRI_REWRITER,
     LangStr,
     OntologyClass,
     OntologyProperty,
@@ -28,4 +29,5 @@ __all__ = [
     "SHACLAnnotation",
     "Settings",
     "JSONLDGraph",
+    "IRI_REWRITER",
 ]

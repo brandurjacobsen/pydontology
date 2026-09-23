@@ -733,4 +733,26 @@ Output of `print(schemag_json)`:
 
 These outputs can be parsed by rdflib into a graph and serialized into e.g. Turtle format.
 
-More on will be said on this here later.
+## Normalizing ids from LLM output
+
+When the [jsonld_graph] model is used as the structured output type of an LLM, the
+returned `@id` values may be inconsistent (e.g. some bare names, some absolute IRIs).
+Both [Entity] and [Relation] define an `id` field serializer, so every `@id` inside
+`@graph` can be normalized on serialization by passing a rewriter through the
+serialization context under the exported `IRI_REWRITER` key:
+
+~~~
+from pydontology import IRI_REWRITER
+
+data_graph = schemag.model_validate(llm_output)
+doc = data_graph.model_dump_json(
+    exclude_none=True,
+    context={IRI_REWRITER: lambda iri: f"https://example.com/vocab/{iri}"},
+)
+~~~
+
+The rewriter is applied to every node id and every relation reference, so the graph
+stays internally consistent. It does not touch the top-level graph `@id`, `@type`
+values, or property keys. Without the context (or the `IRI_REWRITER` key) the ids are
+serialized exactly as provided. Note that [Relation] is also used in the ontology and
+SHACL graphs, so the context key is intended for data graphs.

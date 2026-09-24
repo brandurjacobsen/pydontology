@@ -1,6 +1,7 @@
 import json
 
 import pytest
+from pydantic import BaseModel
 
 from pydontology import IRI_REWRITER, Entity, Pydontology, Relation
 
@@ -18,9 +19,35 @@ class Thing(Entity):
     acquaintances: list[Relation] | None = None
 
 
+class OptedOutRelation(Relation):
+    """A Relation subclass that opts out of IRI rewriting."""
+
+    _rewrite_iri = False
+
+
+class OptedOutThing(Entity):
+    """An Entity subclass that opts out of IRI rewriting."""
+
+    _rewrite_iri = False
+
+    name: str
+    knows: Relation | None = None
+
+
+class RelationHolder(BaseModel):
+    """Standalone holder used to exercise Relation subclass serialization."""
+
+    relation: OptedOutRelation
+
+
 @pytest.fixture
 def data_model(test_context):
     return Pydontology(Thing).jsonld_graph(context=test_context)
+
+
+@pytest.fixture
+def opted_out_model(test_context):
+    return Pydontology(OptedOutThing).jsonld_graph(context=test_context)
 
 
 def _dump(graph, **kwargs):
@@ -120,3 +147,38 @@ def test_rewriter_is_deterministic_across_references(data_model):
     doc = _dump(graph)
     node_ids = {node["@id"] for node in doc["@graph"]}
     assert doc["@graph"][0]["knows"]["@id"] in node_ids
+
+
+def test_entity_opted_out_of_id_rewrite(opted_out_model):
+    """An Entity subclass with _rewrite_iri = False keeps its raw @id."""
+    graph = opted_out_model(graph=[OptedOutThing(id="Jane", name="Jane")])
+    doc = _dump(graph)
+    assert doc["@graph"][0]["@id"] == "Jane"
+
+
+def test_opt_out_does_not_leak_to_other_entities(data_model, opted_out_model):
+    """Setting _rewrite_iri on one subclass does not affect other Entity classes."""
+    rewritten = _dump(data_model(graph=[Thing(id="Jane", name="Jane")]))
+    untouched = _dump(opted_out_model(graph=[OptedOutThing(id="Jane", name="Jane")]))
+    assert rewritten["@graph"][0]["@id"] == "http://example.com/vocab/Jane"
+    assert untouched["@graph"][0]["@id"] == "Jane"
+
+
+def test_relation_opted_out_of_id_rewrite():
+    """A Relation subclass with _rewrite_iri = False keeps its raw @id."""
+    dumped = RelationHolder(relation=OptedOutRelation(id="John")).model_dump(
+        context={IRI_REWRITER: _rewrite}
+    )
+    assert dumped["relation"]["@id"] == "John"
+
+
+def test_base_relation_still_rewritten():
+    """A plain Relation is unaffected by the opt-out mechanism."""
+
+    class BaseRelationHolder(BaseModel):
+        relation: Relation
+
+    dumped = BaseRelationHolder(relation=Relation(id="John")).model_dump(
+        context={IRI_REWRITER: _rewrite}
+    )
+    assert dumped["relation"]["@id"] == "http://example.com/vocab/John"

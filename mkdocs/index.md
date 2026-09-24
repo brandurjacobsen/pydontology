@@ -756,3 +756,17 @@ stays internally consistent. It does not touch the top-level graph `@id`, `@type
 values, or property keys. Without the context (or the `IRI_REWRITER` key) the ids are
 serialized exactly as provided. Note that [Relation] is also used in the ontology and
 SHACL graphs, so the context key is intended for data graphs.
+
+A subclass of [Entity] (or [Relation]) can opt out of rewriting by setting the private
+class attribute `_rewrite_iri = False`:
+
+~~~
+class NoRewriteRelation(Relation):
+    _rewrite_iri = False
+    
+class ExternalThing(Entity):
+    _rewrite_iri = False
+    other_thing: NoRewriteRelation
+~~~
+
+Opting out applies only to the class that sets it; other [Entity] and [Relation] classes are still rewritten if a rewriter function is supplied via the serialization context.

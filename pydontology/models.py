@@ -92,11 +92,13 @@ class BaseContext(BaseModel):
         # from omission.
         return {k: v for k, v in handler(self).items() if v is not None}
 
-    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True, extra="allow")
 
 
 class Relation(BaseModel):
     """This class should be the type of Entity attributes for them to be considered as IRIs."""
+
+    _rewrite_iri: bool = True
 
     id: Annotated[str, AfterValidator(val_no_whitespace)] = Field(
         serialization_alias="@id", title="@id", description="IRI", min_length=1
@@ -104,7 +106,12 @@ class Relation(BaseModel):
 
     @field_serializer("id")
     def _serialize_id(self, value: str, info: SerializationInfo) -> Any:
-        """Rewrite the IRI when a rewriter is supplied via the serialization context."""
+        """Rewrite the IRI when a rewriter is supplied via the serialization context.
+
+        Subclasses can set ``_rewrite_iri = False`` to opt out of rewriting.
+        """
+        if not self._rewrite_iri:
+            return value
         return _rewrite_serialized_id(value, info)
 
     model_config = ConfigDict(
@@ -236,6 +243,7 @@ class Entity(BaseModel):
 
     _serialize_literals_as_typeval: bool = False
     _type_strict_mode: bool = True
+    _rewrite_iri: bool = True
 
     id: Annotated[str, AfterValidator(val_no_whitespace)] = Field(
         serialization_alias="@id", description="IRI", title="@id", min_length=1
@@ -247,8 +255,12 @@ class Entity(BaseModel):
 
         This serializer is inherited by all Entity subclasses, so every node id in
         a data graph is normalized consistently with the Relation references to it.
+        Set 'rewrite_iri = False' in the constructor to opt out of rewriting.
         """
+        if not self._rewrite_iri:
+            return value
         return _rewrite_serialized_id(value, info)
+
 
     sameAs: Optional[Relation | List[Relation]] = Field(
         default=None,

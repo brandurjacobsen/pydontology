@@ -733,6 +733,51 @@ Output of `print(schemag_json)`:
 
 These outputs can be parsed by rdflib into a graph and serialized into e.g. Turtle format.
 
+## Open Knowledge Format (OKF) bundles
+
+[OKF](https://github.com/GoogleCloudPlatform/open-knowledge-format) is a
+vendor-neutral format for representing knowledge as markdown files with YAML
+frontmatter. [Pydontology.okf_bundle] emits an OKF v0.2 bundle describing the
+classes and properties of the ontology:
+
+~~~
+from pydontology import BaseMetaData, Pydontology
+
+# Person, Employee, and Company are Entity subclasses
+metadata = BaseMetaData(
+    id="https://example.com/onto",
+    label="Example Ontology",
+    comment="An example ontology.",
+)
+onto = Pydontology(Person | Employee | Company, metadata)
+
+bundle = onto.okf_bundle()
+bundle.name  # "Example-Ontology"
+
+documents = bundle.render()  # bundle-relative path -> markdown text
+
+bundle.write("output")  # writes output/Example-Ontology/
+~~~
+
+The bundle root is named after `metadata.label` (or `metadata.id` when there is no
+label); the name is slugified to be filesystem-safe. `okf_bundle()` requires
+metadata and raises `ValueError` otherwise. Labels and comments follow the active
+[Settings], so e.g. disabling `DOCSTRING_AS_COMMENT` removes the docstring from the
+concept body.
+
+A bundle contains:
+
+- `index.md` — the ontology comment followed by `# Classes` and `# Properties`
+  sections linking every concept.
+- `classes/<Class>.md` — the class docstring, its IRI (labelled `Relative IRI`,
+  or `IRI` when the id is absolute), its superclass (`rdfs:subClassOf`, linked
+  when it is part of the bundle), and links to the properties defined on the
+  class.
+- `properties/<Prop>.md` — the field description, the property IRI, its RDF
+  type(s) (e.g. `owl:ObjectProperty`, `xsd:string`), its `rdfs:domain` and
+  `rdfs:range` when known, and back-links to the classes that define the
+  property.
+
 ## Normalizing ids from LLM output
 
 When the [jsonld_graph] model is used as the structured output type of an LLM, the

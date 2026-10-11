@@ -20,6 +20,8 @@ PROPERTY_TYPE = "Ontology Property"
 CLASS_DIR = "classes"
 PROPERTY_DIR = "properties"
 
+_ABSOLUTE_IRI_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
+
 
 def _slugify(value: str) -> str:
     """Reduce an ontology id to a filesystem- and link-safe slug.
@@ -117,6 +119,21 @@ def _one_line(text: str | None) -> str | None:
     if not text:
         return None
     return " ".join(text.split())
+
+
+def _iri_label(iri: str) -> str:
+    """Label an ontology IRI as absolute or relative.
+
+    Concept ids are usually local names resolved through the JSON-LD context,
+    but an id may be an absolute IRI (e.g. a serialization alias).
+
+    Args:
+        iri (str): The concept id or IRI.
+
+    Returns:
+        str: ``"IRI"`` for an absolute IRI, otherwise ``"Relative IRI"``.
+    """
+    return "IRI" if _ABSOLUTE_IRI_RE.match(iri) else "Relative IRI"
 
 
 @dataclass(frozen=True)
@@ -274,6 +291,24 @@ class OKFBundle(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+def _iri_reference(iri: str, layout: _Layout) -> str:
+    """Render an IRI as a markdown link when it names a bundled class.
+
+    Args:
+        iri (str): The target IRI.
+        layout (_Layout): Precomputed path and title lookups.
+
+    Returns:
+        str: A markdown link to the class concept, or the bare IRI when the
+            target is not part of the bundle.
+    """
+    link = layout.class_link(iri)
+    if link is None:
+        return iri
+    title = layout.class_titles.get(iri, iri)
+    return f"[{title}]({link})"
+
+
 def _subclass_line(cls: OntologyClass, layout: _Layout) -> str | None:
     """Render the ``Subclass of`` body line for a class.
 
@@ -311,7 +346,7 @@ def _class_document(cls: OntologyClass, layout: _Layout) -> OKFDocument:
     blocks: list[str] = []
     if cls.comment:
         blocks.append(cls.comment)
-    blocks.append(f"IRI: {cls.id}")
+    blocks.append(f"{_iri_label(cls.id)}: {cls.id}")
     subclass = _subclass_line(cls, layout)
     if subclass:
         blocks.append(subclass)
@@ -349,6 +384,13 @@ def _property_document(prop: OntologyProperty, layout: _Layout) -> OKFDocument:
     blocks: list[str] = []
     if prop.comment:
         blocks.append(prop.comment)
+
+    blocks.append(f"{_iri_label(prop.id)}: {prop.id}")
+    blocks.append(f"Type: {', '.join(prop.type)}")
+    if prop.domain is not None:
+        blocks.append(f"Domain: {_iri_reference(prop.domain.id, layout)}")
+    if prop.range is not None:
+        blocks.append(f"Range: {_iri_reference(prop.range.id, layout)}")
 
     members = layout.property_members.get(prop.id, ())
     if members:
@@ -459,9 +501,7 @@ def build_okf_bundle(
     ordered_classes = sorted(classes, key=lambda c: c.id)
     ordered_properties = sorted(properties, key=lambda p: p.id)
     layout = _Layout.build(ordered_classes, ordered_properties, defined_in)
-    documents = [
-        _index_document(metadata, ordered_classes, ordered_properties, layout)
-    ]
+    documents = [_index_document(metadata, ordered_classes, ordered_properties, layout)]
     documents += [_class_document(cls, layout) for cls in ordered_classes]
     documents += [_property_document(prop, layout) for prop in ordered_properties]
     return OKFBundle(name=_slugify(name), documents=documents)

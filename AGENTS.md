@@ -14,6 +14,7 @@
 - `ontology_graph()` emits a JSON-LD graph of classes and properties.
 - `shacl_graph()` emits SHACL node/property shapes from annotations and defaults.
 - `jsonld_graph()` (alias `schema_graph()`) builds a JSON-LD data graph model; its `model_json_schema()` is the JSON schema.
+- `okf_bundle()` builds an Open Knowledge Format (OKF) v0.2 bundle of the classes and properties; it requires `metadata` (used for the bundle root name and index comment).
 
 ## Key APIs (use these first)
 - `Entity`: base class for ontology classes; provides `@id` and `@type`.
@@ -22,6 +23,7 @@
 - `Pydontology`: orchestrates graph generation.
 - `Settings`: controls default behaviors (labels, comments, domains, types, warnings).
 - `ontology_graph()`, `shacl_graph()`, `jsonld_graph()` (alias `schema_graph()`) on `Pydontology`.
+- `okf_bundle()` on `Pydontology`: builds an `OKFBundle` (requires `metadata`).
 
 ## Defaults and behaviors (Settings)
 - Class label/comment: class name and docstring by default.
@@ -51,6 +53,7 @@
   - `_add_class_annotations`, `_add_property_annotations`, `_add_shacl_annotations`.
 - Add validators in `pydontology/validators.py` and reference via `AfterValidator`.
 - Extend `TYPE_MAP` in `pydontology/pydontology.py` and update tests if needed.
+- OKF bundle rendering lives in `pydontology/okf.py` (`build_okf_bundle`, `OKFBundle`, `OKFDocument`).
 
 ## Tests and dependencies
 - Tests live in `tests/` and use `pytest`.

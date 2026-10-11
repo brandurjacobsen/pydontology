@@ -8,6 +8,20 @@ The exported constant `IRI_REWRITER` (`"iri_rewriter"`) is the serialization-con
 key used to normalize ids when dumping a data graph; see
 [Normalizing ids from LLM output](index.md#normalizing-ids-from-llm-output).
 
+## OKF v0.2 bundles
+
+`Pydontology.okf_bundle()` builds an
+[Open Knowledge Format](https://github.com/GoogleCloudPlatform/open-knowledge-format)
+v0.2 bundle (markdown with YAML frontmatter) describing the ontology's classes and
+properties. It requires `metadata` and returns an `OKFBundle`, which can be
+rendered in memory or written to disk. See
+[Open Knowledge Format (OKF) bundles](index.md#open-knowledge-format-okf-bundles)
+for usage.
+
+::: pydontology.okf.OKFBundle
+
+::: pydontology.okf.OKFDocument
+
 ## Controlling behaviour
 ::: pydontology.settings.Settings
 

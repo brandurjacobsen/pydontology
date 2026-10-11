@@ -25,7 +25,8 @@ property.
 | Concept types | `"Ontology Class"` / `"Ontology Property"` |
 | Root frontmatter | `okf_version: "0.2"` (only permitted index frontmatter) |
 | Class body | docstring, IRI line, "Subclass of", `# Properties` links (own-defined only) |
-| Property body | field description, `# Defined in` links |
+| Property body | field description, IRI line, `Type`, `Domain`, `Range`, `# Defined in` links |
+| IRI label | `Relative IRI: <id>`, or `IRI: <id>` when the id is an absolute IRI (IRI lines only) |
 | Frontmatter | Hand-serialized YAML; JSON-quoted string scalars (`json.dumps`), no PyYAML |
 | `resource` | Ontology id verbatim (e.g. `Person`, `knows`) |
 | `title` | `rdfs:label` if set, else id |
@@ -156,7 +157,8 @@ expected markdown and writes the expected tree to a temp dir.
      "resource": cls.id}`.
    - Body parts:
      - `cls.comment` if present (this is the docstring by default).
-     - `IRI: <cls.id>`.
+     - `<iri label>: <cls.id>` where the label is `Relative IRI` (or `IRI` for
+       an absolute id).
      - `Subclass of:` join over `cls.subClassOf`:
        `[id](/classes/<slug>.md)` when `layout.class_link(id)` is set, else the
        plain id (`owl:Thing`, `owl:Restriction`, external IRIs); omit the line
@@ -167,7 +169,10 @@ expected markdown and writes the expected tree to a temp dir.
    - `path = layout.property_paths[prop.id]`,
      `frontmatter = {"type": "Ontology Property", "title": prop.label or prop.id,
      "resource": prop.id}`.
-   - Body: `prop.comment` if present; then `# Defined in` +
+   - Body: `prop.comment` if present; then the IRI line
+     (`<iri label>: <prop.id>`); `Type: <", ".join(prop.type)>`; `Domain:` /
+     `Range:` when set (link via `layout` when the target is a bundled class,
+     else plain text); then `# Defined in` +
      `* [<title>](/classes/<slug>.md)` for each id in
      `layout.property_members.get(prop.id, ())`; omit when empty.
 4. `_index_document(metadata, classes, properties, layout) -> OKFDocument`:

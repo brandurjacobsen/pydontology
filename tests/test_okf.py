@@ -1,4 +1,4 @@
-from typing import Annotated, Optional
+from typing import Annotated
 
 import pytest
 from pydantic import Field
@@ -13,15 +13,13 @@ class Person(Entity):
     """A person in the test ontology."""
 
     name: str = Field(description="Person's name")
-    knows: Optional[Relation] = Field(default=None, description="A friend")
+    knows: Relation | None = Field(default=None, description="A friend")
 
 
 class Employee(Person):
     """An employee, a kind of person."""
 
-    company: Annotated[Relation, RDFS.range("Company")] = Field(
-        description="Employer"
-    )
+    company: Annotated[Relation, RDFS.range("Company")] = Field(description="Employer")
 
 
 class Company(Entity):
@@ -90,7 +88,7 @@ def test_class_document(okf_onto):
         '---\ntype: "Ontology Class"\ntitle: "Person"\nresource: "Person"\n---\n'
     )
     assert "A person in the test ontology." in person
-    assert "IRI: Person" in person
+    assert "Relative IRI: Person" in person
     assert "Subclass of: owl:Thing" in person
     assert "* [name](/properties/name.md)" in person
     assert "* [knows](/properties/knows.md)" in person
@@ -104,19 +102,28 @@ def test_class_document(okf_onto):
 
 
 def test_property_document(okf_onto):
-    """Property documents list a back-link to every defining class."""
+    """Property documents carry IRI, type, domain/range, and back-links."""
     docs = okf_onto.okf_bundle().render()
 
     name = docs["properties/name.md"]
     assert name.startswith(
         '---\ntype: "Ontology Property"\ntitle: "name"\nresource: "name"\n---\n'
     )
+    assert "Relative IRI: name" in name
+    assert "Type: owl:DatatypeProperty, xsd:string" in name
     assert "# Defined in" in name
     assert "* [Person](/classes/Person.md)" in name
     assert "* [Company](/classes/Company.md)" in name
+    # 'name' is defined in multiple classes, so domain/range are suppressed.
+    assert "Domain:" not in name
+    assert "Range:" not in name
 
     company = docs["properties/company.md"]
     assert "Employer" in company
+    assert "Relative IRI: company" in company
+    assert "Type: owl:ObjectProperty" in company
+    assert "Domain: [Employee](/classes/Employee.md)" in company
+    assert "Range: [Company](/classes/Company.md)" in company
     assert "* [Employee](/classes/Employee.md)" in company
 
 
@@ -162,6 +169,23 @@ def test_unsafe_id_is_slugged():
     assert "properties/has-child.md" in bundle.render()
 
 
+def test_absolute_id_uses_iri_label():
+    """An absolute-id concept is labelled 'IRI', not 'Relative IRI'."""
+    properties = [
+        OntologyProperty(id="http://example.com/p", type=["owl:ObjectProperty"])
+    ]
+    bundle = build_okf_bundle(
+        name="Bundle",
+        metadata=BaseMetaData(id="Bundle"),
+        classes=[],
+        properties=properties,
+        defined_in={"http://example.com/p": []},
+    )
+    document = bundle.render()["properties/http-example-com-p.md"]
+    assert "IRI: http://example.com/p" in document
+    assert "Relative IRI" not in document
+
+
 def test_slug_collision_raises():
     """Two ids that collapse to one slug raise a clear error."""
     classes = [OntologyClass(id="A B"), OntologyClass(id="A-B")]
@@ -184,3 +208,9 @@ def test_testmodel_bundle(TestModel):
     assert "properties/manager.md" in docs
     assert "Subclass of: [Employee](/classes/Employee.md)" in docs["classes/Manager.md"]
     assert "Subclass of: [Person](/classes/Person.md)" in docs["classes/Employee.md"]
+
+    manager = docs["properties/manager.md"]
+    assert "Relative IRI: manager" in manager
+    assert "Type: owl:ObjectProperty, owl:TransitiveProperty" in manager
+    assert "Domain: [Employee](/classes/Employee.md)" in manager
+    assert "Range: [Manager](/classes/Manager.md)" in manager

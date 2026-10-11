@@ -229,7 +229,8 @@ honored.
 
 Cases:
 
-1. **Root name**: `name` is `metadata.label` when set, `metadata.id` otherwise.
+1. **Root name**: `name` is the slugified `metadata.label` when set, else the
+   slugified `metadata.id` (e.g. `"Test Ontology"` -> `Test-Ontology`).
 2. **Missing metadata**: `okf_bundle()` raises `ValueError`.
 3. **Index**: `okf_version: "0.2"` frontmatter, metadata comment first,
    `# Classes` / `# Properties` bullets with `/classes/...md` and

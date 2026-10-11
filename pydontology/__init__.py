@@ -9,6 +9,7 @@ from .models import (
     Relation,
     JSONLDGraph,
 )
+from .okf import OKFBundle, OKFDocument
 from .owl import OWLAnnotation
 from .pydontology import Pydontology
 from .rdfs import RDFSAnnotation
@@ -20,6 +21,8 @@ __all__ = [
     "BaseMetaData",
     "Entity",
     "LangStr",
+    "OKFBundle",
+    "OKFDocument",
     "OntologyClass",
     "OntologyProperty",
     "Relation",

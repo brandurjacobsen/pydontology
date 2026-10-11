@@ -19,6 +19,7 @@ from .models import (
     OntologyProperty,
     _PropertyShape,
 )
+from .okf import OKFBundle, build_okf_bundle
 from .owl import OWLAnnotation
 from .rdfs import RDFSAnnotation
 from .settings import Settings
@@ -585,6 +586,38 @@ class Pydontology:
         shacl_shapes = self._create_node_shapes()
         return JSONLDGraph(context=context, graph=shacl_shapes)  # pyright: ignore
 
+    def okf_bundle(self, settings: Settings = Settings()) -> OKFBundle:
+        """Generate an Open Knowledge Format (OKF) v0.2 bundle.
+
+        The bundle describes the classes and properties derived from the
+        ontology union. Labels and comments follow the given settings; the
+        bundle root is named after the slugified metadata label (or id).
+
+        Args:
+            settings (Settings): Settings controlling default labels and
+                comments.
+
+        Returns:
+            OKFBundle: The in-memory bundle, ready to render or write.
+
+        Raises:
+            ValueError: If the instance was created without ontology metadata.
+        """
+        if self.metadata is None:
+            raise ValueError(
+                "metadata is required to generate an OKF bundle "
+                "(used for the bundle root name and index comment)"
+            )
+        self._apply_settings(settings)
+        return build_okf_bundle(
+            name=self.metadata.label or self.metadata.id,
+            metadata=self.metadata,
+            classes=self._create_ontology_classes(),
+            properties=self._create_ontology_properties(),
+            defined_in={
+                pid: info["defined_in"] for pid, info in self._prop_db.items()
+            },
+        )
 
     def jsonld_graph(
         self,

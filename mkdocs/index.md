@@ -786,7 +786,11 @@ A bundle contains:
 - `classes/<Class>.md` — the class docstring, its IRI (labelled `IRI` when it
   resolves to a compact/absolute IRI, else `Relative IRI`), its superclass
   (`rdfs:subClassOf`) and equivalent classes (`owl:equivalentClass`), linked
-  when part of the bundle, and links to the properties defined on the class.
+  when part of the bundle, and an `# Applicable properties` section. That
+  section lists the class's own-declared properties first, then the properties
+  inherited from its superclasses (marked `inherited from <Class>`). When the
+  class's SHACL shape is closed (`sh:closed`), a note marks the list as
+  exhaustive.
 - `properties/<Prop>.md` — the field description, the property IRI, its RDF
   type(s) (e.g. `owl:ObjectProperty`, `xsd:string`), its `RDFS domain` and
   `RDFS range` (`rdfs:domain`/`rdfs:range`) when known, its `Subproperty of`,

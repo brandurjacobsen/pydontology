@@ -14,7 +14,7 @@
 - `ontology_graph()` emits a JSON-LD graph of classes and properties.
 - `shacl_graph()` emits SHACL node/property shapes from annotations and defaults.
 - `jsonld_graph()` (alias `schema_graph()`) builds a JSON-LD data graph model; its `model_json_schema()` is the JSON schema.
-- `okf_bundle(context, settings)` builds an Open Knowledge Format (OKF) v0.2 bundle of the classes and properties; it requires `metadata` (used for the bundle root name and index comment). Concept ids render as compact IRIs from the `BaseContext` namespaces (`@vocab` -> `ex`, plus fixed `owl`/`xsd`/`rdfs`/`sh`), with a copy-pasteable `PREFIX` block in `index.md`; unresolvable ids stay `Relative IRI`.
+- `okf_bundle(context, settings)` builds an Open Knowledge Format (OKF) v0.2 bundle of the classes and properties; it requires `metadata` (used for the bundle root name and index comment). Concept ids render as compact IRIs from the `BaseContext` namespaces (`@vocab` -> `ex`, plus fixed `owl`/`xsd`/`rdfs`/`sh`), with a copy-pasteable `PREFIX` block in `index.md`; unresolvable ids stay `Relative IRI`. Class concepts list `# Applicable properties` (own-declared first, then inherited, marked with the declaring ancestor); `sh:closed` classes add an exhaustiveness note.
 
 ## Key APIs (use these first)
 - `Entity`: base class for ontology classes; provides `@id` and `@type`.

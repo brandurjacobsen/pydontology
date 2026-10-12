@@ -26,9 +26,9 @@ property.
 | Root frontmatter | `okf_version: "0.2"` (only permitted index frontmatter) |
 | Prefixes | Derived from `context`: `ex` = `@vocab` (fallback `@base`) plus fixed `owl`/`xsd`/`rdfs`/`sh`; **no `BaseContext` extras** |
 | Prefix section | Fenced ```sparql `PREFIX` block under `# Prefixes` in `index.md` body |
-| Conventions | Plain RDF-semantics note in `index.md` after the prefix block; `# Properties` / `# Defined in` headings unchanged (RDF predicates are global) |
+| Conventions | Plain RDF-semantics note in `index.md` after the prefix block (RDF predicates are global; listings are exhaustive only for closed shapes) |
 | IRI form | Compact IRIs where the prefix map allows; absolute/unknown ids verbatim |
-| Class body | docstring, IRI line, "Subclass of", "Equivalent to" (if set), `# Properties` links (own-defined only) |
+| Class body | docstring, IRI line, "Subclass of", "Equivalent to" (if set), `# Applicable properties` (own first, then inherited marked with the declaring ancestor) |
 | Property body | field description, IRI line, `Type`, `RDFS domain`, `RDFS range`, "Subproperty of", "Equivalent to", "Inverse of", `# Defined in` links |
 | IRI label | `IRI:` when the id is a compact/absolute IRI, else `Relative IRI:` |
 | Cross-refs | Markdown link for internal targets; compact IRI (or verbatim) for external targets |
@@ -349,6 +349,46 @@ internal cross-ref links, and `Inverse of:` / `Subproperty of:` on the
 **Exit criteria:** with a context, every concept/term is a compact IRI and every
 prefix used appears in the `# Prefixes` block; without one, output is unchanged
 from Phase 6 apart from the always-present fixed prefixes.
+
+---
+
+## Phase 8 — Applicable properties and the closed-shape marker
+
+**Motivation:** RDF predicates are global, but an agent writing SPARQL wants
+the properties that apply to a class, including inherited ones, and wants to
+know when that set is exhaustive. SHACL only becomes exhaustive when a shape
+is closed, so the bundle surfaces exactly that signal.
+
+**Deliverable:** class concepts list applicable (own + inherited) properties;
+closed shapes carry an exhaustiveness note.
+
+1. `_Layout` (`pydontology/okf.py`):
+   - `_Member(property_id, inherited_from)`; `class_members` becomes
+     `Mapping[str, tuple[_Member, ...]]`.
+   - `_class_parents` extracts bundled superclasses from `OntologyClass.subClassOf`
+     (`Relation` targets in `class_ids`; drops restrictions/external; dedupes).
+   - `_ancestors` walks breadth-first (nearest first), cycle-safe.
+   - Membership order: own-declared id-sorted first, then each nearest ancestor's
+     declared properties id-sorted, deduped (`inherited_from` = nearest declarer).
+   - `closed: Mapping[str, tuple[str, ...]]` field (class -> `sh:ignoredProperties`;
+     key present means closed).
+2. `_applicable_block`: renders `# Applicable properties`; own bullets plain,
+   inherited bullets suffixed ` - inherited from [<Class>]`; a closed class gets
+   the note "Closed shape (`sh:closed`): only these properties are allowed"
+   (plus ignored list). The section is emitted for a closed class even with no
+   properties.
+3. `Pydontology.okf_bundle`: scans `_cls_db[...]["metadata"]` for
+   `SHACLAnnotation.CLOSED`/`IGNORED_PROPERTIES` and passes `closed=...`.
+   `build_okf_bundle` gains `closed: Mapping[str, Sequence[str]] | None = None`.
+4. `CONVENTIONS_NOTE`: rewrites to describe applicable (own + inherited) listings
+   and that they are exhaustive only for closed shapes.
+5. Property `# Defined in` is unchanged (declaration sites).
+
+**Limitation (documented):** the closed marker reflects a class's *own* node
+shape; cross-hierarchy closed-shape intersection is not computed.
+
+**Tests:** own-then-inherited ordering and `inherited from` attribution
+(nearest ancestor), plus a closed-shape exhaustiveness note.
 
 ---
 

@@ -23,9 +23,10 @@ PROPERTY_DIR = "properties"
 
 CONVENTIONS_NOTE = (
     "RDF predicates are global: any property may be used with any subject. "
-    "A class's `# Properties` section lists the properties declared on that "
-    "class in the source model, and a property's `# Defined in` section lists "
-    "the classes that declare it; neither is an exhaustive or restrictive list."
+    "A class's `# Applicable properties` section lists the properties declared "
+    "on that class or inherited from its superclasses, and a property's "
+    "`# Defined in` section lists the classes that declare it. These listings "
+    "are exhaustive only where a class's shape is marked closed (`sh:closed`)."
 )
 
 _ABSOLUTE_IRI_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
@@ -193,6 +194,69 @@ def _iri_label(iri: str, prefixes: Mapping[str, str]) -> str:
 
 
 @dataclass(frozen=True)
+class _Member:
+    """An applicable property on a class.
+
+    Attributes:
+        property_id (str): The property's ontology id.
+        inherited_from (str | None): The ancestor class that declares the
+            property, or None when the class declares it directly.
+    """
+
+    property_id: str
+    inherited_from: str | None
+
+
+def _class_parents(
+    classes: Sequence[OntologyClass], class_ids: set[str]
+) -> dict[str, tuple[str, ...]]:
+    """Map each class to its bundled superclasses.
+
+    Args:
+        classes (Sequence[OntologyClass]): Ontology classes.
+        class_ids (set[str]): The ids of all bundled classes.
+
+    Returns:
+        dict[str, tuple[str, ...]]: Class id to bundled parent ids, in
+            ``subClassOf`` order and deduplicated. Non-class targets
+            (restrictions, ``owl:Thing``, external IRIs) are dropped.
+    """
+    parents: dict[str, tuple[str, ...]] = {}
+    for cls in classes:
+        seen: list[str] = []
+        for entry in cls.subClassOf or []:
+            parent_id = _entry_id(entry)
+            if parent_id in class_ids and parent_id != cls.id and parent_id not in seen:
+                seen.append(parent_id)
+        parents[cls.id] = tuple(seen)
+    return parents
+
+
+def _ancestors(start: str, parents: Mapping[str, tuple[str, ...]]) -> tuple[str, ...]:
+    """Return a class's bundled ancestors, nearest first.
+
+    Args:
+        start (str): The class id to walk up from.
+        parents (Mapping[str, tuple[str, ...]]): Class id to bundled parents.
+
+    Returns:
+        tuple[str, ...]: Ancestor ids in breadth-first (nearest-first) order,
+            deduplicated and cycle-safe.
+    """
+    order: list[str] = []
+    seen = {start}
+    queue = list(parents.get(start, ()))
+    while queue:
+        node = queue.pop(0)
+        if node in seen:
+            continue
+        seen.add(node)
+        order.append(node)
+        queue.extend(parents.get(node, ()))
+    return tuple(order)
+
+
+@dataclass(frozen=True)
 class _Layout:
     """Precomputed paths, titles, and membership for a bundle build.
 
@@ -201,20 +265,23 @@ class _Layout:
         property_paths (Mapping[str, str]): Property id to bundle-relative path.
         class_titles (Mapping[str, str]): Class id to display title.
         property_titles (Mapping[str, str]): Property id to display title.
-        class_members (Mapping[str, tuple[str, ...]]): Class id to ids of the
-            properties it defines.
+        class_members (Mapping[str, tuple[_Member, ...]]): Class id to its
+            applicable properties (own first, then inherited), deduplicated.
         property_members (Mapping[str, tuple[str, ...]]): Property id to the
-            classes that define it.
+            classes that declare it.
         prefixes (Mapping[str, str]): Prefix name to namespace IRI.
+        closed (Mapping[str, tuple[str, ...]]): Class id to its
+            ``sh:ignoredProperties`` for closed shapes; absent when open.
     """
 
     class_paths: Mapping[str, str]
     property_paths: Mapping[str, str]
     class_titles: Mapping[str, str]
     property_titles: Mapping[str, str]
-    class_members: Mapping[str, tuple[str, ...]]
+    class_members: Mapping[str, tuple[_Member, ...]]
     property_members: Mapping[str, tuple[str, ...]]
     prefixes: Mapping[str, str]
+    closed: Mapping[str, tuple[str, ...]]
 
     @classmethod
     def build(
@@ -223,6 +290,7 @@ class _Layout:
         properties: Sequence[OntologyProperty],
         defined_in: Mapping[str, Sequence[str]],
         prefixes: Mapping[str, str],
+        closed: Mapping[str, Sequence[str]],
     ) -> "_Layout":
         """Derive a layout from the ontology registries.
 
@@ -230,8 +298,10 @@ class _Layout:
             classes (Sequence[OntologyClass]): Ontology classes.
             properties (Sequence[OntologyProperty]): Ontology properties.
             defined_in (Mapping[str, Sequence[str]]): Property id to the class
-                ids that define it.
+                ids that declare it.
             prefixes (Mapping[str, str]): Prefix name to namespace IRI.
+            closed (Mapping[str, Sequence[str]]): Class id to ignored
+                properties for closed shapes.
 
         Returns:
             _Layout: The precomputed layout.
@@ -239,21 +309,35 @@ class _Layout:
         class_paths = _slug_paths([c.id for c in classes], CLASS_DIR)
         property_paths = _slug_paths([p.id for p in properties], PROPERTY_DIR)
 
-        class_members: dict[str, list[str]] = {}
+        declared: dict[str, list[str]] = {}
         for prop in properties:
             for class_id in defined_in.get(prop.id, ()):
-                class_members.setdefault(class_id, []).append(prop.id)
+                declared.setdefault(class_id, []).append(prop.id)
+
+        parents = _class_parents(classes, {c.id for c in classes})
+        class_members: dict[str, tuple[_Member, ...]] = {}
+        for class_id in parents:
+            own = sorted(declared.get(class_id, ()))
+            members = [_Member(pid, None) for pid in own]
+            seen = set(own)
+            for ancestor in _ancestors(class_id, parents):
+                for pid in sorted(declared.get(ancestor, ())):
+                    if pid not in seen:
+                        seen.add(pid)
+                        members.append(_Member(pid, ancestor))
+            class_members[class_id] = tuple(members)
 
         return cls(
             class_paths=class_paths,
             property_paths=property_paths,
             class_titles={c.id: c.label or c.id for c in classes},
             property_titles={p.id: p.label or p.id for p in properties},
-            class_members={cid: tuple(pids) for cid, pids in class_members.items()},
+            class_members=class_members,
             property_members={
                 p.id: tuple(defined_in.get(p.id, ())) for p in properties
             },
             prefixes=prefixes,
+            closed={cid: tuple(props) for cid, props in closed.items()},
         )
 
     def class_link(self, class_id: str) -> str | None:
@@ -403,6 +487,49 @@ def _entry_line(
     return f"{name}: " + ", ".join(reference(_entry_id(entry)) for entry in entries)
 
 
+def _applicable_block(cls: OntologyClass, layout: _Layout) -> str | None:
+    """Render the ``# Applicable properties`` section for a class.
+
+    Own-declared properties come first; inherited ones follow, each marked
+    with the nearest declaring ancestor. A close-shape note is added when the
+    class's node shape is closed.
+
+    Args:
+        cls (OntologyClass): The class to render.
+        layout (_Layout): Precomputed membership and shape lookups.
+
+    Returns:
+        str | None: The rendered section, or None when the class has no
+            applicable properties and no closed-shape marker.
+    """
+    members = layout.class_members.get(cls.id, ())
+    ignored = layout.closed.get(cls.id)
+    if not members and ignored is None:
+        return None
+
+    paragraphs: list[str] = []
+    if ignored is not None:
+        note = "Closed shape (`sh:closed`): only these properties are allowed"
+        if ignored:
+            note += " (plus ignored: " + ", ".join(ignored) + ")"
+        paragraphs.append(note + ".")
+
+    if members:
+        bullets = []
+        for member in members:
+            title = layout.property_titles.get(member.property_id, member.property_id)
+            link = layout.property_link(member.property_id)
+            bullet = f"* [{title}]({link})" if link else f"* {title}"
+            if member.inherited_from is not None:
+                bullet += (
+                    f" - inherited from {layout.class_reference(member.inherited_from)}"
+                )
+            bullets.append(bullet)
+        paragraphs.append("\n".join(bullets))
+
+    return "# Applicable properties\n\n" + "\n\n".join(paragraphs)
+
+
 def _class_document(cls: OntologyClass, layout: _Layout) -> OKFDocument:
     """Build the OKF concept document for an ontology class.
 
@@ -427,14 +554,9 @@ def _class_document(cls: OntologyClass, layout: _Layout) -> OKFDocument:
         if line:
             blocks.append(line)
 
-    members = layout.class_members.get(cls.id, ())
-    if members:
-        bullets = []
-        for property_id in members:
-            title = layout.property_titles.get(property_id, property_id)
-            link = layout.property_link(property_id)
-            bullets.append(f"* [{title}]({link})" if link else f"* {title}")
-        blocks.append("# Properties\n\n" + "\n".join(bullets))
+    applicable = _applicable_block(cls, layout)
+    if applicable:
+        blocks.append(applicable)
 
     return OKFDocument(
         path=layout.class_paths[cls.id],
@@ -588,6 +710,7 @@ def build_okf_bundle(
     properties: Sequence[OntologyProperty],
     defined_in: Mapping[str, Sequence[str]],
     context: BaseContext | None = None,
+    closed: Mapping[str, Sequence[str]] | None = None,
 ) -> OKFBundle:
     """Build an OKF v0.2 bundle from ontology registries.
 
@@ -598,9 +721,12 @@ def build_okf_bundle(
         classes (Sequence[OntologyClass]): Ontology classes.
         properties (Sequence[OntologyProperty]): Ontology properties.
         defined_in (Mapping[str, Sequence[str]]): Property id to the class ids
-            that define it.
+            that declare it.
         context (BaseContext | None): JSON-LD context supplying the namespaces
             for compact IRIs. Defaults to an empty ``BaseContext``.
+        closed (Mapping[str, Sequence[str]] | None): Class id to its
+            ``sh:ignoredProperties`` for closed (``sh:closed``) shapes. Only
+            closed classes appear; defaults to no closed shapes.
 
     Returns:
         OKFBundle: The in-memory bundle, with the index first and all concept
@@ -609,7 +735,13 @@ def build_okf_bundle(
     prefixes = _build_prefixes(context if context is not None else BaseContext())
     ordered_classes = sorted(classes, key=lambda c: c.id)
     ordered_properties = sorted(properties, key=lambda p: p.id)
-    layout = _Layout.build(ordered_classes, ordered_properties, defined_in, prefixes)
+    layout = _Layout.build(
+        ordered_classes,
+        ordered_properties,
+        defined_in,
+        prefixes,
+        closed or {},
+    )
     documents = [_index_document(metadata, ordered_classes, ordered_properties, layout)]
     documents += [_class_document(cls, layout) for cls in ordered_classes]
     documents += [_property_document(prop, layout) for prop in ordered_properties]

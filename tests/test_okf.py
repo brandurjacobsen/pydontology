@@ -14,6 +14,7 @@ from pydontology import (
 from pydontology.models import OntologyClass, OntologyProperty
 from pydontology.okf import CONVENTIONS_NOTE, build_okf_bundle
 from pydontology.rdfs import RDFSAnnotation as RDFS
+from pydontology.shacl import SHACLAnnotation as SH
 
 
 class Person(Entity):
@@ -105,15 +106,28 @@ def test_class_document(okf_onto):
     assert "A person in the test ontology." in person
     assert "Relative IRI: Person" in person
     assert "Subclass of: owl:Thing" in person
+    assert "# Applicable properties" in person
+    assert "# Properties\n" not in person
     assert "* [name](/properties/name.md)" in person
     assert "* [knows](/properties/knows.md)" in person
 
     employee = docs["classes/Employee.md"]
     assert "Subclass of: [Person](/classes/Person.md)" in employee
+    # Own-declared properties come first, then inherited ones (id-sorted).
     assert "* [company](/properties/company.md)" in employee
-    # Only properties defined directly on the class are listed.
-    assert "/properties/name.md" not in employee
-    assert "/properties/knows.md" not in employee
+    assert (
+        "* [knows](/properties/knows.md) - inherited from [Person](/classes/Person.md)"
+        in employee
+    )
+    assert (
+        "* [name](/properties/name.md) - inherited from [Person](/classes/Person.md)"
+        in employee
+    )
+    assert (
+        employee.index("company.md")
+        < employee.index("knows.md")
+        < employee.index("name.md")
+    )
 
 
 def test_property_document(okf_onto):
@@ -311,3 +325,45 @@ def test_relations_render_with_internal_links(TestModel):
     assert "Equivalent to: works_at" in docs["properties/works-for.md"]
     assert "Inverse of: [head_of](/properties/head-of.md)" in docs["properties/head.md"]
     assert "Equivalent to: ContractorRestriction" in docs["classes/Contractor.md"]
+
+
+def test_applicable_properties_attribute_nearest_ancestor(TestModel):
+    """Inherited properties are attributed to the nearest declaring ancestor."""
+    manager = TestModel.okf_bundle().render()["classes/Manager.md"]
+
+    # Own-declared property, unmarked.
+    assert "* [head_of](/properties/head-of.md)" in manager
+    # Declared on Employee (the nearest ancestor), not Person.
+    assert (
+        "* [company](/properties/company.md) - inherited from "
+        "[Employee](/classes/Employee.md)" in manager
+    )
+    # Declared on Person, the grandparent.
+    assert (
+        "* [name](/properties/name.md) - inherited from [Person](/classes/Person.md)"
+        in manager
+    )
+
+
+def test_closed_shape_note():
+    """A closed class marks its property list as exhaustive."""
+    from typing import Annotated
+
+    class ClosedThing(Entity):
+        """A closed thing."""
+
+        name: str = Field(default="x")
+
+    ontology = Annotated[
+        ClosedThing,
+        SH.closed(True),
+        SH.ignoredProperties(["rdf:type"]),
+    ]
+    onto = Pydontology(ontology, BaseMetaData(id="ClosedOnto"))
+    thing = onto.okf_bundle().render()["classes/ClosedThing.md"]
+
+    assert (
+        "Closed shape (`sh:closed`): only these properties are allowed "
+        "(plus ignored: rdf:type)." in thing
+    )
+    assert "* [name](/properties/name.md)" in thing

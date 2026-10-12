@@ -615,6 +615,24 @@ class Pydontology:
                 "(used for the bundle root name and index comment)"
             )
         self._apply_settings(settings)
+
+        closed: dict[str, tuple[str, ...]] = {}
+        for class_name, class_info in self._cls_db.items():
+            annotations = class_info["metadata"] or []
+            if not any(
+                isinstance(m, SHACLAnnotation.CLOSED) and m.value for m in annotations
+            ):
+                continue
+            ignored = next(
+                (
+                    tuple(m.value)
+                    for m in annotations
+                    if isinstance(m, SHACLAnnotation.IGNORED_PROPERTIES)
+                ),
+                (),
+            )
+            closed[class_name] = ignored
+
         return build_okf_bundle(
             name=self.metadata.label or self.metadata.id,
             metadata=self.metadata,
@@ -624,6 +642,7 @@ class Pydontology:
                 pid: info["defined_in"] for pid, info in self._prop_db.items()
             },
             context=context,
+            closed=closed,
         )
 
     def jsonld_graph(

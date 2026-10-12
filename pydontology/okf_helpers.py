@@ -1,0 +1,457 @@
+import json
+import re
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
+
+from .models import (
+    BaseContext,
+    OntologyClass,
+    OntologyProperty,
+    Relation,
+    Restriction,
+)
+
+CLASS_TYPE = "Ontology Class"
+PROPERTY_TYPE = "Ontology Property"
+CLASS_DIR = "classes"
+PROPERTY_DIR = "properties"
+
+CONVENTIONS_NOTE = (
+    "RDF predicates are global: any property may be used with any subject. "
+    "A class's `# Applicable properties` section lists the properties declared "
+    "on that class or inherited from its superclasses, and a property's "
+    "`# Defined in` section lists the classes that declare it. These listings "
+    "are exhaustive only where a class's shape is marked closed (`sh:closed`)."
+)
+
+_ABSOLUTE_IRI_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
+
+
+def _slugify(value: str) -> str:
+    """Reduce an ontology id to a filesystem- and link-safe slug.
+
+    Every run of characters outside ``[A-Za-z0-9]`` is collapsed to a single
+    hyphen; leading and trailing hyphens are stripped. Case is preserved so the
+    mapping stays recognizable.
+
+    Args:
+        value (str): Raw ontology id or label.
+
+    Returns:
+        str: The non-empty slug.
+
+    Raises:
+        ValueError: If the value has no alphanumeric characters at all.
+    """
+    slug = re.sub(r"[^A-Za-z0-9]+", "-", value).strip("-")
+    if not slug:
+        raise ValueError(f"Cannot derive a filename slug from {value!r}")
+    return slug
+
+
+def _frontmatter_block(frontmatter: Mapping[str, str]) -> str:
+    """Render an ordered frontmatter mapping as a YAML block.
+
+    Values are emitted with ``json.dumps`` so that special characters are
+    escaped; JSON string quoting is a valid YAML subset, which keeps the
+    package free of a YAML dependency.
+
+    Args:
+        frontmatter (Mapping[str, str]): Ordered keys and string values.
+
+    Returns:
+        str: The ``---`` delimited block, or an empty string when the mapping
+            is empty.
+    """
+    if not frontmatter:
+        return ""
+    lines = [f"{key}: {json.dumps(value)}" for key, value in frontmatter.items()]
+    return "---\n" + "\n".join(lines) + "\n---\n\n"
+
+
+def _slug_paths(ids: Sequence[str], directory: str) -> dict[str, str]:
+    """Map ontology ids to bundle-relative concept paths.
+
+    Args:
+        ids (Sequence[str]): Ontology ids for one concept group.
+        directory (str): Group directory, e.g. ``classes``.
+
+    Returns:
+        dict[str, str]: Mapping of id to ``<directory>/<slug>.md``.
+
+    Raises:
+        ValueError: If two ids in the group collapse to the same slug.
+    """
+    paths: dict[str, str] = {}
+    seen: dict[str, str] = {}
+    for ontology_id in ids:
+        slug = _slugify(ontology_id)
+        if slug in seen:
+            raise ValueError(
+                f"Concept filename collision in '{directory}': "
+                f"{seen[slug]!r} and {ontology_id!r} both map to {slug!r}"
+            )
+        seen[slug] = ontology_id
+        paths[ontology_id] = f"{directory}/{slug}.md"
+    return paths
+
+
+def _entry_id(entry: Relation | Restriction) -> str:
+    """Reduce a subClassOf entry to its IRI string.
+
+    Args:
+        entry (Relation | Restriction): A relation or OWL restriction.
+
+    Returns:
+        str: The entry id, or ``owl:Restriction`` when a restriction is
+            anonymous.
+    """
+    if isinstance(entry, Relation):
+        return entry.id
+    return entry.id or "owl:Restriction"
+
+
+def _one_line(text: str | None) -> str | None:
+    """Collapse a possibly multi-line comment into a single line.
+
+    Args:
+        text (str | None): Raw comment or docstring.
+
+    Returns:
+        str | None: Whitespace-normalized text, or None when empty.
+    """
+    if not text:
+        return None
+    return " ".join(text.split())
+
+
+def _build_prefixes(context: BaseContext) -> dict[str, str]:
+    """Derive the ordered prefix map used for compact IRIs.
+
+    The vocabulary (``@vocab``, falling back to ``@base``) is exposed as the
+    ``ex`` prefix so that bare local names can be written as compact IRIs.
+    Arbitrary ``BaseContext`` extras are intentionally not treated as prefixes;
+    only ``ex`` and the fixed ``owl``/``xsd``/``rdfs``/``sh`` namespaces are
+    emitted.
+
+    Args:
+        context (BaseContext): The JSON-LD context supplying the namespaces.
+
+    Returns:
+        dict[str, str]: Prefix name to namespace IRI, ``ex`` first (when set).
+    """
+    prefixes: dict[str, str] = {}
+    namespace = context.vocab or context.base
+    if namespace:
+        prefixes["ex"] = namespace
+    prefixes["owl"] = str(context.owl)
+    prefixes["xsd"] = str(context.xsd)
+    prefixes["rdfs"] = str(context.rdfs)
+    prefixes["sh"] = str(context.sh)
+    return prefixes
+
+
+def _resolve_term(iri: str, prefixes: Mapping[str, str]) -> tuple[str, bool]:
+    """Render a concept id or IRI as a compact IRI when possible.
+
+    Args:
+        iri (str): The concept id or IRI.
+        prefixes (Mapping[str, str]): Prefix name to namespace IRI.
+
+    Returns:
+        tuple[str, bool]: The rendered text and whether it resolved to an IRI
+            (a known-prefix CURIE, an absolute IRI, or a bare name compacted
+            through ``ex``). Unresolved bare names return ``(iri, False)``.
+    """
+    prefix, sep, local = iri.partition(":")
+    if sep and prefix in prefixes and not local.startswith("//"):
+        return iri, True
+    for name, namespace in prefixes.items():
+        if namespace and iri.startswith(namespace):
+            return f"{name}:{iri[len(namespace) :]}", True
+    if "ex" in prefixes and not _ABSOLUTE_IRI_RE.match(iri):
+        return f"ex:{iri}", True
+    return iri, bool(_ABSOLUTE_IRI_RE.match(iri))
+
+
+def _iri_label(iri: str, prefixes: Mapping[str, str]) -> str:
+    """Label an ontology term as an IRI or an unresolved relative name.
+
+    Args:
+        iri (str): The concept id or IRI.
+        prefixes (Mapping[str, str]): Prefix name to namespace IRI.
+
+    Returns:
+        str: ``"IRI"`` when the term resolves to a compact or absolute IRI,
+            otherwise ``"Relative IRI"``.
+    """
+    return "IRI" if _resolve_term(iri, prefixes)[1] else "Relative IRI"
+
+
+@dataclass(frozen=True)
+class _Member:
+    """An applicable property on a class.
+
+    Attributes:
+        property_id (str): The property's ontology id.
+        inherited_from (str | None): The ancestor class that declares the
+            property, or None when the class declares it directly.
+    """
+
+    property_id: str
+    inherited_from: str | None
+
+
+def _class_parents(
+    classes: Sequence[OntologyClass], class_ids: set[str]
+) -> dict[str, tuple[str, ...]]:
+    """Map each class to its bundled superclasses.
+
+    Args:
+        classes (Sequence[OntologyClass]): Ontology classes.
+        class_ids (set[str]): The ids of all bundled classes.
+
+    Returns:
+        dict[str, tuple[str, ...]]: Class id to bundled parent ids, in
+            ``subClassOf`` order and deduplicated. Non-class targets
+            (restrictions, ``owl:Thing``, external IRIs) are dropped.
+    """
+    parents: dict[str, tuple[str, ...]] = {}
+    for cls in classes:
+        seen: list[str] = []
+        for entry in cls.subClassOf or []:
+            parent_id = _entry_id(entry)
+            if parent_id in class_ids and parent_id != cls.id and parent_id not in seen:
+                seen.append(parent_id)
+        parents[cls.id] = tuple(seen)
+    return parents
+
+
+def _ancestors(start: str, parents: Mapping[str, tuple[str, ...]]) -> tuple[str, ...]:
+    """Return a class's bundled ancestors, nearest first.
+
+    Args:
+        start (str): The class id to walk up from.
+        parents (Mapping[str, tuple[str, ...]]): Class id to bundled parents.
+
+    Returns:
+        tuple[str, ...]: Ancestor ids in breadth-first (nearest-first) order,
+            deduplicated and cycle-safe.
+    """
+    order: list[str] = []
+    seen = {start}
+    queue = list(parents.get(start, ()))
+    while queue:
+        node = queue.pop(0)
+        if node in seen:
+            continue
+        seen.add(node)
+        order.append(node)
+        queue.extend(parents.get(node, ()))
+    return tuple(order)
+
+
+@dataclass(frozen=True)
+class _Layout:
+    """Precomputed paths, titles, and membership for a bundle build.
+
+    Attributes:
+        class_paths (Mapping[str, str]): Class id to bundle-relative path.
+        property_paths (Mapping[str, str]): Property id to bundle-relative path.
+        class_titles (Mapping[str, str]): Class id to display title.
+        property_titles (Mapping[str, str]): Property id to display title.
+        class_members (Mapping[str, tuple[_Member, ...]]): Class id to its
+            applicable properties (own first, then inherited), deduplicated.
+        property_members (Mapping[str, tuple[str, ...]]): Property id to the
+            classes that declare it.
+        prefixes (Mapping[str, str]): Prefix name to namespace IRI.
+        closed (Mapping[str, tuple[str, ...]]): Class id to its
+            ``sh:ignoredProperties`` for closed shapes; absent when open.
+    """
+
+    class_paths: Mapping[str, str]
+    property_paths: Mapping[str, str]
+    class_titles: Mapping[str, str]
+    property_titles: Mapping[str, str]
+    class_members: Mapping[str, tuple[_Member, ...]]
+    property_members: Mapping[str, tuple[str, ...]]
+    prefixes: Mapping[str, str]
+    closed: Mapping[str, tuple[str, ...]]
+
+    @classmethod
+    def build(
+        cls,
+        classes: Sequence[OntologyClass],
+        properties: Sequence[OntologyProperty],
+        defined_in: Mapping[str, Sequence[str]],
+        prefixes: Mapping[str, str],
+        closed: Mapping[str, Sequence[str]],
+    ) -> "_Layout":
+        """Derive a layout from the ontology registries.
+
+        Args:
+            classes (Sequence[OntologyClass]): Ontology classes.
+            properties (Sequence[OntologyProperty]): Ontology properties.
+            defined_in (Mapping[str, Sequence[str]]): Property id to the class
+                ids that declare it.
+            prefixes (Mapping[str, str]): Prefix name to namespace IRI.
+            closed (Mapping[str, Sequence[str]]): Class id to ignored
+                properties for closed shapes.
+
+        Returns:
+            _Layout: The precomputed layout.
+        """
+        class_paths = _slug_paths([c.id for c in classes], CLASS_DIR)
+        property_paths = _slug_paths([p.id for p in properties], PROPERTY_DIR)
+
+        declared: dict[str, list[str]] = {}
+        for prop in properties:
+            for class_id in defined_in.get(prop.id, ()):
+                declared.setdefault(class_id, []).append(prop.id)
+
+        parents = _class_parents(classes, {c.id for c in classes})
+        class_members: dict[str, tuple[_Member, ...]] = {}
+        for class_id in parents:
+            own = sorted(declared.get(class_id, ()))
+            members = [_Member(pid, None) for pid in own]
+            seen = set(own)
+            for ancestor in _ancestors(class_id, parents):
+                for pid in sorted(declared.get(ancestor, ())):
+                    if pid not in seen:
+                        seen.add(pid)
+                        members.append(_Member(pid, ancestor))
+            class_members[class_id] = tuple(members)
+
+        return cls(
+            class_paths=class_paths,
+            property_paths=property_paths,
+            class_titles={c.id: c.label or c.id for c in classes},
+            property_titles={p.id: p.label or p.id for p in properties},
+            class_members=class_members,
+            property_members={
+                p.id: tuple(defined_in.get(p.id, ())) for p in properties
+            },
+            prefixes=prefixes,
+            closed={cid: tuple(props) for cid, props in closed.items()},
+        )
+
+    def class_link(self, class_id: str) -> str | None:
+        """Return the POSIX markdown link target for a class.
+
+        Args:
+            class_id (str): Ontology class id.
+
+        Returns:
+            str | None: The bundle-relative link (``/classes/<slug>.md``), or
+                None when the class is not part of the bundle.
+        """
+        path = self.class_paths.get(class_id)
+        return f"/{path}" if path else None
+
+    def property_link(self, property_id: str) -> str | None:
+        """Return the POSIX markdown link target for a property.
+
+        Args:
+            property_id (str): Ontology property id.
+
+        Returns:
+            str | None: The bundle-relative link
+                (``/properties/<slug>.md``), or None when the property is not
+                part of the bundle.
+        """
+        path = self.property_paths.get(property_id)
+        return f"/{path}" if path else None
+
+    def class_reference(self, class_id: str) -> str:
+        """Render a class id as a link when bundled, else as a compact IRI.
+
+        Args:
+            class_id (str): Ontology class id.
+
+        Returns:
+            str: A markdown link to the class concept, or the compact/verbatim
+                IRI when the class is not part of the bundle.
+        """
+        link = self.class_link(class_id)
+        if link is None:
+            return _resolve_term(class_id, self.prefixes)[0]
+        return f"[{self.class_titles.get(class_id, class_id)}]({link})"
+
+    def property_reference(self, property_id: str) -> str:
+        """Render a property id as a link when bundled, else a compact IRI.
+
+        Args:
+            property_id (str): Ontology property id.
+
+        Returns:
+            str: A markdown link to the property concept, or the
+                compact/verbatim IRI when the property is not in the bundle.
+        """
+        link = self.property_link(property_id)
+        if link is None:
+            return _resolve_term(property_id, self.prefixes)[0]
+        return f"[{self.property_titles.get(property_id, property_id)}]({link})"
+
+
+def _entry_line(
+    name: str,
+    entries: Sequence[Relation | Restriction],
+    reference: Callable[[str], str],
+) -> str | None:
+    """Render a comma-joined body line for a list of relation entries.
+
+    Args:
+        name (str): Line label without the trailing colon, e.g. ``Subclass of``.
+        entries (Sequence[Relation | Restriction]): Entries to render.
+        reference (Callable[[str], str]): Renders one entry id as a link or
+            compact IRI.
+
+    Returns:
+        str | None: The rendered line, or None when there are no entries.
+    """
+    if not entries:
+        return None
+    return f"{name}: " + ", ".join(reference(_entry_id(entry)) for entry in entries)
+
+
+def _list_section(
+    heading: str,
+    items: Sequence[OntologyClass | OntologyProperty],
+    link_for: Callable[[str], str | None],
+) -> str:
+    """Render a markdown section of concept links for the index.
+
+    Args:
+        heading (str): Section heading, without the leading ``#``.
+        items (Sequence[OntologyClass | OntologyProperty]): Concepts to list.
+        link_for (Callable[[str], str | None]): Maps a concept id to its
+            bundle-relative link.
+
+    Returns:
+        str: The heading followed by one bullet per concept, each optionally
+            annotated with the concept's one-line comment.
+    """
+    lines = []
+    for item in items:
+        title = item.label or item.id
+        link = link_for(item.id)
+        line = f"* [{title}]({link})" if link else f"* {title}"
+        description = _one_line(item.comment)
+        if description:
+            line += f" - {description}"
+        lines.append(line)
+    return f"# {heading}\n\n" + "\n".join(lines)
+
+
+def _prefix_section(prefixes: Mapping[str, str]) -> str:
+    """Render the copy-pasteable ``PREFIX`` block for the index.
+
+    Args:
+        prefixes (Mapping[str, str]): Prefix name to namespace IRI.
+
+    Returns:
+        str: A ``# Prefixes`` heading followed by a fenced ``sparql`` block with
+            one ``PREFIX <name>: <namespace>`` line per entry.
+    """
+    lines = [f"PREFIX {name}: <{namespace}>" for name, namespace in prefixes.items()]
+    return "# Prefixes\n\n```sparql\n" + "\n".join(lines) + "\n```"

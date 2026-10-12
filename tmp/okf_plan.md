@@ -392,6 +392,26 @@ shape; cross-hierarchy closed-shape intersection is not computed.
 
 ---
 
+## Phase 9 — Module split (`okf.py` / `okf_helpers.py`)
+
+**Motivation:** `okf.py` had grown to ~750 lines, most of it pure helpers and
+docstrings. Split the internal machinery from the public document model.
+
+**Deliverable:** `okf.py` keeps only `OKFDocument`/`OKFBundle`, the document
+builders (`_applicable_block`, `_class_document`, `_property_document`,
+`_index_document`), and `build_okf_bundle` (~310 lines). A new
+`pydontology/okf_helpers.py` holds the constants (`CLASS_TYPE`/`PROPERTY_TYPE`/
+`CLASS_DIR`/`PROPERTY_DIR`/`CONVENTIONS_NOTE`), pure string/IRI/path helpers
+(`_slugify`, `_frontmatter_block`, `_slug_paths`, `_entry_id`, `_one_line`,
+`_build_prefixes`, `_resolve_term`, `_iri_label`), the structure helpers
+(`_Member`, `_class_parents`, `_ancestors`), `_Layout`, and the non-model
+section renderers (`_entry_line`, `_list_section`, `_prefix_section`).
+
+Import graph: `models` ← `okf_helpers` ← `okf.py` ← `pydontology.py` (acyclic;
+helpers never reference the document model). Public import paths are preserved:
+`okf.py` re-exports `CONVENTIONS_NOTE`, and `pydontology/__init__.py` /
+`pydontology/pydontology.py` are unchanged. Output is byte-identical.
+
 ## Out of scope (explicitly deferred)
 
 - `log.md` update history.

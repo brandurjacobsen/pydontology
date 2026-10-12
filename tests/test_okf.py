@@ -3,9 +3,16 @@ from typing import Annotated
 import pytest
 from pydantic import Field
 
-from pydontology import BaseMetaData, Entity, OKFBundle, Pydontology, Relation
+from pydontology import (
+    BaseContext,
+    BaseMetaData,
+    Entity,
+    OKFBundle,
+    Pydontology,
+    Relation,
+)
 from pydontology.models import OntologyClass, OntologyProperty
-from pydontology.okf import build_okf_bundle
+from pydontology.okf import CONVENTIONS_NOTE, build_okf_bundle
 from pydontology.rdfs import RDFSAnnotation as RDFS
 
 
@@ -71,6 +78,14 @@ def test_index_document(okf_onto):
     assert "# Classes" in text
     assert "# Properties" in text
 
+    # The RDF-semantics convention note sits between the prefixes and the lists.
+    assert CONVENTIONS_NOTE in text
+    assert (
+        text.index("# Prefixes")
+        < text.index(CONVENTIONS_NOTE)
+        < text.index("# Classes")
+    )
+
     assert "* [Person](/classes/Person.md) - A person in the test ontology." in text
     # A multi-line class docstring is collapsed to one line in the index.
     assert "* [Company](/classes/Company.md) - A company. More detail here." in text
@@ -115,15 +130,15 @@ def test_property_document(okf_onto):
     assert "* [Person](/classes/Person.md)" in name
     assert "* [Company](/classes/Company.md)" in name
     # 'name' is defined in multiple classes, so domain/range are suppressed.
-    assert "Domain:" not in name
-    assert "Range:" not in name
+    assert "RDFS domain:" not in name
+    assert "RDFS range:" not in name
 
     company = docs["properties/company.md"]
     assert "Employer" in company
     assert "Relative IRI: company" in company
     assert "Type: owl:ObjectProperty" in company
-    assert "Domain: [Employee](/classes/Employee.md)" in company
-    assert "Range: [Company](/classes/Company.md)" in company
+    assert "RDFS domain: [Employee](/classes/Employee.md)" in company
+    assert "RDFS range: [Company](/classes/Company.md)" in company
     assert "* [Employee](/classes/Employee.md)" in company
 
 
@@ -212,5 +227,87 @@ def test_testmodel_bundle(TestModel):
     manager = docs["properties/manager.md"]
     assert "Relative IRI: manager" in manager
     assert "Type: owl:ObjectProperty, owl:TransitiveProperty" in manager
-    assert "Domain: [Employee](/classes/Employee.md)" in manager
-    assert "Range: [Manager](/classes/Manager.md)" in manager
+    assert "RDFS domain: [Employee](/classes/Employee.md)" in manager
+    assert "RDFS range: [Manager](/classes/Manager.md)" in manager
+
+
+TEST_VOCAB = "http://example.com/vocab/"
+
+
+@pytest.fixture
+def okf_context():
+    """A BaseContext that resolves local names into compact IRIs."""
+    return BaseContext(vocab=TEST_VOCAB, base=TEST_VOCAB)
+
+
+def test_prefix_section_lists_context_namespaces(okf_onto, okf_context):
+    """index.md carries a copy-pasteable PREFIX block for the context."""
+    index = okf_onto.okf_bundle(context=okf_context).render()["index.md"]
+
+    assert "# Prefixes" in index
+    assert f"PREFIX ex: <{TEST_VOCAB}>" in index
+    assert "PREFIX owl: <http://www.w3.org/2002/07/owl#>" in index
+    assert "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>" in index
+    assert "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>" in index
+    assert "PREFIX sh: <http://www.w3.org/ns/shacl#>" in index
+
+
+def test_compact_iri_when_context_supplied(okf_onto, okf_context):
+    """With a vocab, ids and resources render as ex: compact IRIs."""
+    docs = okf_onto.okf_bundle(context=okf_context).render()
+
+    person = docs["classes/Person.md"]
+    assert 'resource: "ex:Person"' in person
+    assert "IRI: ex:Person" in person
+    assert "Subclass of: owl:Thing" in person
+    assert "Relative IRI" not in person
+
+    name = docs["properties/name.md"]
+    assert 'resource: "ex:name"' in name
+    assert "IRI: ex:name" in name
+
+
+def test_default_context_falls_back_to_relative_names(okf_onto):
+    """Without a vocab, bare names stay relative and only fixed prefixes show."""
+    docs = okf_onto.okf_bundle().render()
+
+    index = docs["index.md"]
+    assert "PREFIX ex:" not in index
+    assert "PREFIX owl:" in index
+    assert "Relative IRI: Person" in docs["classes/Person.md"]
+
+
+def test_unbundled_target_uses_compact_iri(okf_context):
+    """An external inverseOf target renders as a compact or verbatim IRI."""
+    properties = [
+        OntologyProperty(
+            id="related_to",
+            type=["owl:ObjectProperty"],
+            inverseOf=Relation(id="schema:related"),
+        )
+    ]
+    bundle = build_okf_bundle(
+        name="Bundle",
+        metadata=BaseMetaData(id="Bundle"),
+        classes=[],
+        properties=properties,
+        defined_in={"related_to": []},
+        context=okf_context,
+    )
+    document = bundle.render()["properties/related-to.md"]
+
+    assert "IRI: ex:related_to" in document
+    assert "Inverse of: schema:related" in document
+
+
+def test_relations_render_with_internal_links(TestModel):
+    """subPropertyOf/equivalentProperty/inverseOf/equivalentClass lines render."""
+    docs = TestModel.okf_bundle().render()
+
+    assert (
+        "Subproperty of: [knows](/properties/knows.md)"
+        in docs["properties/acquaintance.md"]
+    )
+    assert "Equivalent to: works_at" in docs["properties/works-for.md"]
+    assert "Inverse of: [head_of](/properties/head-of.md)" in docs["properties/head.md"]
+    assert "Equivalent to: ContractorRestriction" in docs["classes/Contractor.md"]

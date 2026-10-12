@@ -16,7 +16,7 @@ property.
 | Topic | Decision |
 |-------|----------|
 | API shape | In-memory `OKFBundle` model + `OKFBundle.write(parent)` for disk output |
-| Entry point | `Pydontology.okf_bundle(settings=Settings()) -> OKFBundle` |
+| Entry point | `Pydontology.okf_bundle(context=BaseContext(), settings=Settings()) -> OKFBundle` |
 | Module | New `pydontology/okf.py` |
 | Missing metadata | Raise a clear `ValueError` at the `Pydontology` boundary |
 | Root name | `metadata.label` else `metadata.id`; slugified |
@@ -24,13 +24,18 @@ property.
 | Naming | Slugify non-alphanumerics to `-`, keep case; raise on collisions |
 | Concept types | `"Ontology Class"` / `"Ontology Property"` |
 | Root frontmatter | `okf_version: "0.2"` (only permitted index frontmatter) |
-| Class body | docstring, IRI line, "Subclass of", `# Properties` links (own-defined only) |
-| Property body | field description, IRI line, `Type`, `Domain`, `Range`, `# Defined in` links |
-| IRI label | `Relative IRI: <id>`, or `IRI: <id>` when the id is an absolute IRI (IRI lines only) |
+| Prefixes | Derived from `context`: `ex` = `@vocab` (fallback `@base`) plus fixed `owl`/`xsd`/`rdfs`/`sh`; **no `BaseContext` extras** |
+| Prefix section | Fenced ```sparql `PREFIX` block under `# Prefixes` in `index.md` body |
+| Conventions | Plain RDF-semantics note in `index.md` after the prefix block; `# Properties` / `# Defined in` headings unchanged (RDF predicates are global) |
+| IRI form | Compact IRIs where the prefix map allows; absolute/unknown ids verbatim |
+| Class body | docstring, IRI line, "Subclass of", "Equivalent to" (if set), `# Properties` links (own-defined only) |
+| Property body | field description, IRI line, `Type`, `RDFS domain`, `RDFS range`, "Subproperty of", "Equivalent to", "Inverse of", `# Defined in` links |
+| IRI label | `IRI:` when the id is a compact/absolute IRI, else `Relative IRI:` |
+| Cross-refs | Markdown link for internal targets; compact IRI (or verbatim) for external targets |
 | Frontmatter | Hand-serialized YAML; JSON-quoted string scalars (`json.dumps`), no PyYAML |
-| `resource` | Ontology id verbatim (e.g. `Person`, `knows`) |
+| `resource` | Ontology id as its compact IRI (e.g. `ex:Person`), else verbatim |
 | `title` | `rdfs:label` if set, else id |
-| Parent rendering | Markdown link when parent is a generated class; otherwise plain text (`owl:Thing`, restrictions) |
+| Parent rendering | Markdown link when parent is a generated class; otherwise compact/plain text (`owl:Thing`, restrictions) |
 | Settings | Accept `settings`, rebuild registries, honor label/comment/subclass toggles |
 | `write` semantics | `mkdir(parents=True, exist_ok=True)`, overwrite files, never delete |
 | Verification | Unit tests + docs + package exports |
@@ -157,12 +162,14 @@ expected markdown and writes the expected tree to a temp dir.
      "resource": cls.id}`.
    - Body parts:
      - `cls.comment` if present (this is the docstring by default).
-     - `<iri label>: <cls.id>` where the label is `Relative IRI` (or `IRI` for
-       an absolute id).
+     - `<iri label>: <compact id>` where the label is `IRI` when the id
+       compacted (or was already absolute), else `Relative IRI`.
      - `Subclass of:` join over `cls.subClassOf`:
        `[id](/classes/<slug>.md)` when `layout.class_link(id)` is set, else the
-       plain id (`owl:Thing`, `owl:Restriction`, external IRIs); omit the line
-       when `subClassOf` is empty.
+       compact/verbatim id (`owl:Thing`, `owl:Restriction`, external IRIs);
+       omit the line when `subClassOf` is empty.
+     - `Equivalent to:` join over `cls.equivalentClass` (same rendering rules);
+       omit when empty.
      - `# Properties` + `* [<title>](/properties/<slug>.md)` for each id in
        `layout.class_members.get(cls.id, ())`; omit when empty.
 3. `_property_document(prop, layout) -> OKFDocument`:
@@ -170,9 +177,11 @@ expected markdown and writes the expected tree to a temp dir.
      `frontmatter = {"type": "Ontology Property", "title": prop.label or prop.id,
      "resource": prop.id}`.
    - Body: `prop.comment` if present; then the IRI line
-     (`<iri label>: <prop.id>`); `Type: <", ".join(prop.type)>`; `Domain:` /
-     `Range:` when set (link via `layout` when the target is a bundled class,
-     else plain text); then `# Defined in` +
+     (`<iri label>: <compact prop.id>`); `Type: <", ".join(prop.type)>`;
+     `Domain:` / `Range:` when set (link via `layout` when the target is a
+     bundled class, else compact/verbatim); `Subproperty of:` /
+     `Equivalent to:` / `Inverse of:` when set (link when the target is a
+     bundled property, else compact/verbatim); then `# Defined in` +
      `* [<title>](/classes/<slug>.md)` for each id in
      `layout.property_members.get(prop.id, ())`; omit when empty.
 4. `_index_document(metadata, classes, properties, layout) -> OKFDocument`:
@@ -287,6 +296,62 @@ producer-side OKF v0.2 conformance rules.
 
 ---
 
+## Phase 7 — Compact IRIs, prefixes, and related constructs
+
+**Motivation:** the bundle is served to agents that generate SPARQL. Local
+names (`Person`, `age`) resolve to nothing without a namespace, so queries
+cannot be written. This phase renders compact IRIs backed by a copy-pasteable
+prefix section and surfaces the traversal-relevant relations.
+
+**Deliverable:** `okf_bundle` accepts a `BaseContext`; every concept/term is
+rendered as a compact IRI where possible, and `inverseOf` / `subPropertyOf` /
+`equivalentProperty` / `equivalentClass` are rendered.
+
+1. Resolution model (`pydontology/okf.py`):
+   - `_build_prefixes(context) -> dict[str, str]` (ordered):
+     - `ex` -> `context.vocab` else `context.base` (only when set);
+     - `owl`/`xsd`/`rdfs`/`sh` from the fixed `BaseContext` fields.
+     - `BaseContext` extras are **not** treated as prefixes.
+   - `_compact_iri(iri, prefixes) -> str`:
+     1. known-prefix CURIE -> verbatim;
+     2. absolute IRI starting with a namespace -> `prefix:local`;
+     3. bare local name with `ex` available -> `ex:<name>`;
+     4. otherwise -> verbatim.
+   - `_iri_label(iri, prefixes) -> "IRI" | "Relative IRI"`: `IRI` when steps
+     1–3 apply, else `Relative IRI`.
+   - `_class_reference(iri, layout)` / `_property_reference(iri, layout)`:
+     markdown link for internal targets, else compact IRI.
+2. `_Layout` gains the prefix map (and keeps `property_link`).
+3. `_class_document`: compact IRI line and frontmatter `resource`; new
+   `Equivalent to:` line.
+4. `_property_document`: compact IRI line and `resource`; new
+   `Subproperty of:` / `Equivalent to:` / `Inverse of:` lines.
+5. `_index_document`: insert `# Prefixes` + fenced ```sparql block (one
+   `PREFIX <p>: <ns>` per prefix) after the metadata comment, then the
+   `CONVENTIONS_NOTE` paragraph, before `# Classes`. The note records that RDF
+   predicates are global, so `# Properties` / `# Defined in` are declaration
+   sites (not restrictions); the headings themselves are unchanged.
+6. `build_okf_bundle(*, name, metadata, classes, properties, defined_in,
+   context=BaseContext())`: derive prefixes, thread through.
+7. `pydontology/pydontology.py`: `okf_bundle(self, context=BaseContext(),
+   settings=Settings())` (context is now the first positional parameter,
+   matching `jsonld_graph`/`ontology_graph`/`shacl_graph`).
+
+**Fallback:** with no `vocab`/`base`, step 3 never fires, so bare names stay
+`Relative IRI` and the prefix section lists only the fixed namespaces.
+
+**Tests:** default-context bundles keep the existing `Relative IRI`/prefix-free
+expectations; new cases pass a `BaseContext(vocab=TEST_VOCAB, base=TEST_VOCAB)`
+and assert `PREFIX ex:` in `index.md`, `IRI: ex:Person`, `resource: "ex:Person"`,
+internal cross-ref links, and `Inverse of:` / `Subproperty of:` on the
+`TestModel` properties.
+
+**Exit criteria:** with a context, every concept/term is a compact IRI and every
+prefix used appears in the `# Prefixes` block; without one, output is unchanged
+from Phase 6 apart from the always-present fixed prefixes.
+
+---
+
 ## Out of scope (explicitly deferred)
 
 - `log.md` update history.
@@ -295,3 +360,7 @@ producer-side OKF v0.2 conformance rules.
 - Attested Computation concepts.
 - Back-links from index to subdirectories (files are flat within each group).
 - Wiping/cleaning the output directory on `write()`.
+- Treating arbitrary `BaseContext` extras as prefixes (only `ex` + the fixed
+  `owl`/`xsd`/`rdfs`/`sh` namespaces are emitted).
+- Worked SPARQL examples / few-shot queries in the bundle.
+- The MCP server that serves the bundle (separate concern).

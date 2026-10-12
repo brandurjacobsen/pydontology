@@ -586,7 +586,9 @@ class Pydontology:
         shacl_shapes = self._create_node_shapes()
         return JSONLDGraph(context=context, graph=shacl_shapes)  # pyright: ignore
 
-    def okf_bundle(self, settings: Settings = Settings()) -> OKFBundle:
+    def okf_bundle(
+        self, context: BaseContext = BaseContext(), settings: Settings = Settings()
+    ) -> OKFBundle:
         """Generate an Open Knowledge Format (OKF) v0.2 bundle.
 
         The bundle describes the classes and properties derived from the
@@ -594,6 +596,10 @@ class Pydontology:
         bundle root is named after the slugified metadata label (or id).
 
         Args:
+            context (BaseContext): JSON-LD context supplying the namespaces
+                (``@vocab``/``@base`` and the ``owl``/``xsd``/``rdfs``/``sh``
+                prefixes) used to render compact IRIs and the index prefix
+                block.
             settings (Settings): Settings controlling default labels and
                 comments.
 
@@ -617,6 +623,7 @@ class Pydontology:
             defined_in={
                 pid: info["defined_in"] for pid, info in self._prop_db.items()
             },
+            context=context,
         )
 
     def jsonld_graph(

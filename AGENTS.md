@@ -14,7 +14,7 @@
 - `ontology_graph()` emits a JSON-LD graph of classes and properties.
 - `shacl_graph()` emits SHACL node/property shapes from annotations and defaults.
 - `jsonld_graph()` (alias `schema_graph()`) builds a JSON-LD data graph model; its `model_json_schema()` is the JSON schema.
-- `okf_bundle()` builds an Open Knowledge Format (OKF) v0.2 bundle of the classes and properties; it requires `metadata` (used for the bundle root name and index comment).
+- `okf_bundle(context, settings)` builds an Open Knowledge Format (OKF) v0.2 bundle of the classes and properties; it requires `metadata` (used for the bundle root name and index comment). Concept ids render as compact IRIs from the `BaseContext` namespaces (`@vocab` -> `ex`, plus fixed `owl`/`xsd`/`rdfs`/`sh`), with a copy-pasteable `PREFIX` block in `index.md`; unresolvable ids stay `Relative IRI`.
 
 ## Key APIs (use these first)
 - `Entity`: base class for ontology classes; provides `@id` and `@type`.
@@ -23,7 +23,7 @@
 - `Pydontology`: orchestrates graph generation.
 - `Settings`: controls default behaviors (labels, comments, domains, types, warnings).
 - `ontology_graph()`, `shacl_graph()`, `jsonld_graph()` (alias `schema_graph()`) on `Pydontology`.
-- `okf_bundle()` on `Pydontology`: builds an `OKFBundle` (requires `metadata`).
+- `okf_bundle(context, settings)` on `Pydontology`: builds an `OKFBundle` (requires `metadata`; compact IRIs come from `context`).
 
 ## Defaults and behaviors (Settings)
 - Class label/comment: class name and docstring by default.

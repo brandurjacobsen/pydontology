@@ -741,7 +741,7 @@ frontmatter. [Pydontology.okf_bundle] emits an OKF v0.2 bundle describing the
 classes and properties of the ontology:
 
 ~~~
-from pydontology import BaseMetaData, Pydontology
+from pydontology import BaseContext, BaseMetaData, Pydontology
 
 # Person, Employee, and Company are Entity subclasses
 metadata = BaseMetaData(
@@ -749,9 +749,13 @@ metadata = BaseMetaData(
     label="Example Ontology",
     comment="An example ontology.",
 )
+context = BaseContext(
+    vocab="https://example.com/vocab/",
+    base="https://example.com/vocab/",
+)
 onto = Pydontology(Person | Employee | Company, metadata)
 
-bundle = onto.okf_bundle()
+bundle = onto.okf_bundle(context=context)
 bundle.name  # "Example-Ontology"
 
 documents = bundle.render()  # bundle-relative path -> markdown text
@@ -765,18 +769,30 @@ metadata and raises `ValueError` otherwise. Labels and comments follow the activ
 [Settings], so e.g. disabling `DOCSTRING_AS_COMMENT` removes the docstring from the
 concept body.
 
+Concept ids are rendered as **compact IRIs** using the namespaces supplied by the
+[BaseContext] `context` argument, so an agent can read the IRIs straight from the
+files. The context's `@vocab` (falling back to `@base`) is exposed as the `ex`
+prefix; `owl`, `xsd`, `rdfs`, and `sh` always come from the context defaults. Ids
+that cannot be resolved (no `@vocab`/`@base`, or an unknown prefix) stay verbatim
+and are labelled `Relative IRI`. Internal targets are markdown links; external
+targets render as a compact IRI when a prefix matches, otherwise verbatim.
+
 A bundle contains:
 
-- `index.md` — the ontology comment followed by `# Classes` and `# Properties`
-  sections linking every concept.
-- `classes/<Class>.md` — the class docstring, its IRI (labelled `Relative IRI`,
-  or `IRI` when the id is absolute), its superclass (`rdfs:subClassOf`, linked
-  when it is part of the bundle), and links to the properties defined on the
-  class.
+- `index.md` — the ontology comment, a `# Prefixes` section with a fenced
+  `sparql` block of copy-pasteable `PREFIX` lines, a short note on RDF
+  predicate semantics, then `# Classes` and `# Properties` sections linking
+  every concept.
+- `classes/<Class>.md` — the class docstring, its IRI (labelled `IRI` when it
+  resolves to a compact/absolute IRI, else `Relative IRI`), its superclass
+  (`rdfs:subClassOf`) and equivalent classes (`owl:equivalentClass`), linked
+  when part of the bundle, and links to the properties defined on the class.
 - `properties/<Prop>.md` — the field description, the property IRI, its RDF
-  type(s) (e.g. `owl:ObjectProperty`, `xsd:string`), its `rdfs:domain` and
-  `rdfs:range` when known, and back-links to the classes that define the
-  property.
+  type(s) (e.g. `owl:ObjectProperty`, `xsd:string`), its `RDFS domain` and
+  `RDFS range` (`rdfs:domain`/`rdfs:range`) when known, its `Subproperty of`,
+  `Equivalent to`, and `Inverse of` relations (`rdfs:subPropertyOf`,
+  `owl:equivalentProperty`, `owl:inverseOf`) when set, and back-links to the
+  classes that declare the property.
 
 ## Normalizing ids from LLM output
 

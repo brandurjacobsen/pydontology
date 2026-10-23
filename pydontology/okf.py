@@ -413,7 +413,7 @@ def _render_document(
 # ---------------------------------------------------------------------------
 
 
-def build_okf_bundle_from_graphs(
+def build_okf_bundle(
     *,
     name: str,
     onto_graph: JSONLDGraph,

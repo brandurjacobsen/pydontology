@@ -53,7 +53,7 @@
   - `_add_class_annotations`, `_add_property_annotations`, `_add_shacl_annotations`.
 - Add validators in `pydontology/validators.py` and reference via `AfterValidator`.
 - Extend `TYPE_MAP` in `pydontology/pydontology.py` and update tests if needed.
-- OKF bundle rendering is split across `pydontology/okf.py` (the `OKFBundle`/`OKFDocument` models, view dataclasses, and `build_okf_bundle_from_graphs`) and `pydontology/okf_queries.py` (rdflib graph parsing, SPARQL-like queries, class hierarchy and membership computation).
+- OKF bundle rendering is split across `pydontology/okf.py` (the `OKFBundle`/`OKFDocument` models, view dataclasses, and `build_okf_bundle`) and `pydontology/okf_queries.py` (rdflib graph parsing, SPARQL-like queries, class hierarchy and membership computation).
 
 ## Tests and dependencies
 - Tests live in `tests/` and use `pytest`.

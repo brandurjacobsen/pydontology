@@ -20,7 +20,7 @@ from .models import (
     OntologyProperty,
     _PropertyShape,
 )
-from .okf import OKFBundle, MembershipMode, build_okf_bundle_from_graphs
+from .okf import OKFBundle, MembershipMode, build_okf_bundle
 from .owl import OWLAnnotation
 from .rdfs import RDFSAnnotation
 from .settings import Settings
@@ -631,7 +631,7 @@ class Pydontology:
         onto = self.ontology_graph(context=context, settings=settings)
         shacl = self.shacl_graph(context=context, settings=settings)
 
-        return build_okf_bundle_from_graphs(
+        return build_okf_bundle(
             name=self.metadata.label or self.metadata.id,
             onto_graph=onto,
             shacl_graph=shacl,

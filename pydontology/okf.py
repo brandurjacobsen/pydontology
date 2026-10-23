@@ -3,6 +3,7 @@ import re
 from dataclasses import dataclass, field
 from enum import Enum
 from os import PathLike
+from os.path import dirname, relpath
 from pathlib import Path
 
 try:
@@ -312,11 +313,29 @@ class IndexView:
 # ---------------------------------------------------------------------------
 
 
-def _ref_filter(ref: Reference) -> str:
-    """Render a Reference as a Markdown link or bare title."""
-    if ref.path is not None:
-        return f"[{ref.title}](/{ref.path})"
-    return ref.title
+def _make_ref_filter(source_path: str):
+    """Build a ``|ref`` filter closed over the source document's path.
+
+    Links are rendered relative to the source document's directory so the
+    bundle is navigable in local markdown previewers (e.g. Zed, VS Code)
+    that resolve links against the filesystem rather than a web root.
+
+    Args:
+        source_path (str): Bundle-relative path of the document being
+            rendered, e.g. ``classes/Person.md``.
+
+    Returns:
+        callable: A filter that takes a Reference and returns a markdown
+            link (relative to the source document) or a bare title.
+    """
+
+    def ref_filter(ref: Reference | PropertyRef) -> str:
+        if ref.path:
+            relative = relpath(ref.path, dirname(source_path) or ".")
+            return f"[{ref.title}]({relative})"
+        return ref.title
+
+    return ref_filter
 
 
 def _make_compact_iri_filter(ns_manager):
@@ -397,6 +416,10 @@ def _render_document(
 ) -> OKFDocument:
     """Render a single Jinja2 template into an OKF document.
 
+    The ``ref`` filter is bound to this document's path so links resolve
+    relative to the source file, keeping the bundle navigable in local
+    markdown previewers.
+
     Args:
         env (jinja2.Environment): The Jinja2 environment.
         template_name (str): The template filename, e.g. ``class.md.j2``.
@@ -405,6 +428,7 @@ def _render_document(
     Returns:
         OKFDocument: The rendered document.
     """
+    env.filters["ref"] = _make_ref_filter(view.path)
     template = env.get_template(template_name)
     body = template.render(view=view).strip()
     return OKFDocument(path=view.path, frontmatter=view.frontmatter, body=body)
@@ -488,7 +512,8 @@ def build_okf_bundle(
     env = jinja2.Environment(loader=loader, autoescape=False)
     env.filters["compact_iri"] = _make_compact_iri_filter(ns_manager)
     env.filters["iri_label"] = _make_iri_label_filter(ns_manager)
-    env.filters["ref"] = _ref_filter
+    # ``ref`` is bound per-document in _render_document so links resolve
+    # relative to each source file.
 
     # Render all documents
     documents: list[OKFDocument] = []

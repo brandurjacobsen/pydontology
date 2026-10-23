@@ -451,7 +451,7 @@ def _build_membership(
             declared.setdefault(domain, []).append(prop["uriref"])
 
     # Supplement based on mode
-    if membership_mode is MembershipMode.PYDONTOLOGY:
+    if membership_mode == MembershipMode.PYDONTOLOGY:
         # Supplement with defined_in (keyed by property local name → class local names)
         if defined_in:
             prop_by_name = {_local_name(p["uriref"]): p["uriref"] for p in properties}
@@ -792,7 +792,7 @@ def _build_views(
         # Collect candidate classes
         candidate_iris: list[str] = list(prop["domains"])
 
-        if membership_mode is MembershipMode.PYDONTOLOGY:
+        if membership_mode == MembershipMode.PYDONTOLOGY:
             # Supplement with defined_in
             prop_name = _local_name(prop_iri)
             cls_by_name = {_local_name(c["uriref"]): c["uriref"] for c in classes}

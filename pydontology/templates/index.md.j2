@@ -8,13 +8,9 @@ PREFIX {{ prefix.name }}: <{{ prefix.namespace }}>
 {% endfor %}
 
 RDF predicates are global: any property may be used with any subject.
-A class's `# Required properties` and `# Associated properties` sections
-list the properties declared on that class or inherited from its
-superclasses, and a property's `# Required by` and `# Associated with`
-sections list the classes that require or are associated with it via
-rdfs:domain, SHACL constraints, or the ontology class definitions.
-These listings are exhaustive only where a class's shape is marked
-closed (`sh:closed`).
+An RDFS or OWL class may have `# Required properties` due to SHACL constraints,
+and `# Associated properties` inferred from rdfs:domain, rdfs:range, etc...
+Similarly, properties can be `# Required by` or `# Associated with` classes.
 
 # Classes
 {% for cls in view.classes -%}

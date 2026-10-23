@@ -733,6 +733,102 @@ Output of `print(schemag_json)`:
 
 These outputs can be parsed by rdflib into a graph and serialized into e.g. Turtle format.
 
+## Open Knowledge Format (OKF) bundles
+
+[OKF](https://github.com/GoogleCloudPlatform/open-knowledge-format) is a
+vendor-neutral format for representing knowledge as markdown files with YAML
+frontmatter. [Pydontology.okf_bundle] emits an OKF v0.2 bundle describing the
+classes and properties of the ontology:
+
+~~~
+from pydontology import BaseContext, BaseMetaData, Pydontology
+
+# Person, Employee, and Company are Entity subclasses
+metadata = BaseMetaData(
+    id="https://example.com/onto",
+    label="Example Ontology",
+    comment="An example ontology.",
+)
+context = BaseContext(
+    vocab="https://example.com/vocab/",
+    base="https://example.com/vocab/",
+)
+onto = Pydontology(Person | Employee | Company, metadata)
+
+bundle = onto.okf_bundle(context=context)
+bundle.name  # "Example-Ontology"
+
+documents = bundle.render()  # bundle-relative path -> markdown text
+
+bundle.write("output")  # writes output/Example-Ontology/
+~~~
+
+The bundle root is named after `metadata.label` (or `metadata.id` when there is no
+label); the name is slugified to be filesystem-safe. `okf_bundle()` requires
+metadata and raises `ValueError` otherwise. Labels and comments follow the active
+[Settings], so e.g. disabling `DOCSTRING_AS_COMMENT` removes the docstring from the
+concept body.
+
+Concept ids are rendered as **compact IRIs** using the namespace bindings
+supplied by the [BaseContext] `context` argument, so an agent can read the IRIs
+straight from the files. Prefixes come from the context's configured namespaces
+(``owl``, ``xsd``, ``rdfs``, ``sh``, and any extras declared in the context).
+Ids that cannot be resolved stay verbatim and are labelled ``Relative IRI``.
+Internal targets are markdown links; external targets render as a compact IRI
+when a prefix matches, otherwise verbatim.
+
+A bundle contains:
+
+- `index.md` — the ontology comment, a `# Prefixes` section with a fenced
+  `sparql` block of copy-pasteable `PREFIX` lines, a short note on RDF
+  predicate semantics, then `# Classes` and `# Properties` sections linking
+  every concept.
+- `classes/<Class>.md` — the class docstring, its IRI (labelled `IRI` when it
+  resolves to a compact/absolute IRI, else `Relative IRI`), its superclass
+  (`rdfs:subClassOf`) and equivalent classes (`owl:equivalentClass`), linked
+  when part of the bundle, and **two** property sections listing the
+  class's own-declared properties first, then those inherited from
+  superclasses (marked `inherited from <Class>`):
+
+    * `# Required properties` — properties where the class's NodeShape has
+      ``sh:minCount`` ≥ 1. Absence will fail SHACL validation.
+    * `# Associated properties` — all other applicable properties.
+
+  When the class's SHACL shape is closed (`sh:closed`), a note marks the
+  listing as exhaustive.
+- `properties/<Prop>.md` — the field description, the property IRI, its RDF
+  type(s) (e.g. `owl:ObjectProperty`, `xsd:string`), its `RDFS domain` and
+  `RDFS range` (`rdfs:domain`/`rdfs:range`) when known, its `Subproperty of`,
+  `Equivalent to`, and `Inverse of` relations (`rdfs:subPropertyOf`,
+  `owl:equivalentProperty`, `owl:inverseOf`) when set, and **two**
+  class-association sections:
+
+    * `# Required by` — classes whose SHACL shapes mandate the property
+      (`sh:minCount` ≥ 1). Absence will fail validation.
+    * `# Associated with` — classes that declare or are otherwise associated
+      with the property, without a mandatory constraint.
+
+### Membership mode
+
+By default (``MembershipMode.PYDONTOLOGY``), the classes listed in
+`# Required by` and `# Associated with` are derived from the Pydantic field
+definitions — properties belong to specific classes as part of their schema.
+Pass ``MembershipMode.RDF`` to infer membership **solely from the RDF
+graph** (``rdfs:domain`` and ``sh:targetClass`` / ``sh:property`` / ``sh:path``),
+treating properties as global:
+
+~~~
+from pydontology import MembershipMode
+
+bundle = onto.okf_bundle(
+    context=context,
+    membership_mode=MembershipMode.RDF,
+)
+~~~
+
+In both modes the `# Required by` heading is determined by whether the
+class's NodeShape includes the property with ``sh:minCount`` ≥ 1.
+
 ## Normalizing ids from LLM output
 
 When the [jsonld_graph] model is used as the structured output type of an LLM, the

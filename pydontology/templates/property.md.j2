@@ -1,0 +1,43 @@
+{% if view.comment -%}
+{{ view.comment }}
+
+{% endif -%}
+{{ view.uriref|iri_label }}: {{ view.uriref|compact_iri }}
+
+{% if view.types -%}
+Type: {{ view.types|join(', ') }}
+
+{% endif -%}
+{% if view.domain -%}
+RDFS domain: {{ view.domain|ref }}
+
+{% endif -%}
+{% if view.range -%}
+RDFS range: {{ view.range|ref }}
+
+{% endif -%}
+{% if view.sub_property_of -%}
+Subproperty of: {{ view.sub_property_of|ref }}
+
+{% endif -%}
+{% if view.equivalent_property -%}
+Equivalent to: {{ view.equivalent_property|ref }}
+
+{% endif -%}
+{% if view.inverse_of -%}
+Inverse of: {{ view.inverse_of|ref }}
+
+{% endif -%}
+{% if view.required_by -%}
+# Required by
+{% for cls in view.required_by -%}
+* {{ cls|ref }}
+{% endfor %}
+
+{% endif -%}
+{% if view.associated_with -%}
+# Associated with
+{% for cls in view.associated_with -%}
+* {{ cls|ref }}
+{% endfor %}
+{% endif -%}

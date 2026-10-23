@@ -1,6 +1,7 @@
 import warnings
 from copy import deepcopy
 from inspect import get_annotations, isclass
+from os import PathLike
 from types import NoneType, UnionType
 from typing import Annotated, Any, List, Union, get_args, get_origin
 
@@ -19,6 +20,7 @@ from .models import (
     OntologyProperty,
     _PropertyShape,
 )
+from .okf import OKFBundle, MembershipMode, build_okf_bundle
 from .owl import OWLAnnotation
 from .rdfs import RDFSAnnotation
 from .settings import Settings
@@ -585,6 +587,60 @@ class Pydontology:
         shacl_shapes = self._create_node_shapes()
         return JSONLDGraph(context=context, graph=shacl_shapes)  # pyright: ignore
 
+    def okf_bundle(
+        self,
+        context: BaseContext = BaseContext(),
+        settings: Settings = Settings(),
+        template_dir: str | PathLike | None = None,
+        membership_mode: MembershipMode = MembershipMode.PYDONTOLOGY,
+    ) -> OKFBundle:
+        """Generate an Open Knowledge Format (OKF) v0.2 bundle.
+
+        The bundle describes the classes and properties derived from the
+        ontology union. Labels and comments follow the given settings; the
+        bundle root is named after the slugified metadata label (or id).
+
+        Args:
+            context (BaseContext): JSON-LD context supplying the namespaces
+                (``@vocab``/``@base`` and the ``owl``/``xsd``/``rdfs``/``sh``
+                prefixes) used to render compact IRIs and the index prefix
+                block.
+            settings (Settings): Settings controlling default labels and
+                comments.
+            template_dir (str | PathLike | None): Optional directory containing
+                custom Jinja2 templates (``class.md.j2``, ``property.md.j2``,
+                ``index.md.j2``). When ``None``, the package defaults are used.
+            membership_mode (MembershipMode): How to determine property→class
+                membership. ``PYDONTOLOGY`` (default) uses the internal field
+                registry; ``RDF`` infers everything from the RDF graph.
+
+        Returns:
+            OKFBundle: The in-memory bundle, ready to render or write.
+
+        Raises:
+            ValueError: If the instance was created without ontology metadata.
+            ImportError: If ``jinja2`` or ``rdflib`` is not installed.
+        """
+        if self.metadata is None:
+            raise ValueError(
+                "metadata is required to generate an OKF bundle "
+                "(used for the bundle root name and index comment)"
+            )
+        self._apply_settings(settings)
+
+        onto = self.ontology_graph(context=context, settings=settings)
+        shacl = self.shacl_graph(context=context, settings=settings)
+
+        return build_okf_bundle(
+            name=self.metadata.label or self.metadata.id,
+            onto_graph=onto,
+            shacl_graph=shacl,
+            defined_in={
+                pid: info["defined_in"] for pid, info in self._prop_db.items()
+            },
+            membership_mode=membership_mode,
+            template_dir=template_dir,
+        )
 
     def jsonld_graph(
         self,

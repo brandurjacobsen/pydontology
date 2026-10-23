@@ -1,0 +1,31 @@
+{% if view.comment -%}
+{{ view.comment }}
+
+{% endif -%}
+{{ view.uriref|iri_label }}: {{ view.uriref|compact_iri }}
+
+{% if view.sub_class_of -%}
+Subclass of: {% for ref in view.sub_class_of %}{{ ref|ref }}{% if not loop.last %}, {% endif %}{% endfor %}
+
+{% endif -%}
+{% if view.equivalent_class -%}
+Equivalent to: {% for ref in view.equivalent_class %}{{ ref|ref }}{% if not loop.last %}, {% endif %}{% endfor %}
+
+{% endif -%}
+{% if view.closed -%}
+Closed shape (`sh:closed`): only these properties are allowed{% if view.ignored_properties %} (plus ignored: {{ view.ignored_properties|join(', ') }}){% endif %}.
+
+{% endif -%}
+{% if view.required_properties -%}
+# Required properties
+{% for prop in view.required_properties -%}
+* [{{ prop.title }}](/{{ prop.path }}){% if prop.inherited_from %} - inherited from {{ prop.inherited_from|ref }}{% endif %}
+{% endfor %}
+
+{% endif -%}
+{% if view.associated_properties -%}
+# Associated properties
+{% for prop in view.associated_properties -%}
+* [{{ prop.title }}](/{{ prop.path }}){% if prop.inherited_from %} - inherited from {{ prop.inherited_from|ref }}{% endif %}
+{% endfor %}
+{% endif -%}

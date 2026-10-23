@@ -1,0 +1,23 @@
+{% if view.comment -%}
+{{ view.comment }}
+
+{% endif -%}
+# Prefixes
+{% for prefix in view.prefixes -%}
+PREFIX {{ prefix.name }}: <{{ prefix.namespace }}>
+{% endfor %}
+
+RDF predicates are global: any property may be used with any subject.
+An RDFS or OWL class may have `# Required properties` due to SHACL constraints,
+and `# Associated properties` inferred from rdfs:domain, rdfs:range, etc...
+Similarly, properties can be `# Required by` or `# Associated with` classes.
+
+# Classes
+{% for cls in view.classes -%}
+* {{ cls|ref }}{% if cls.comment %} - {{ cls.comment }}{% endif %}
+{% endfor %}
+
+# Properties
+{% for prop in view.properties -%}
+* {{ prop|ref }}{% if prop.comment %} - {{ prop.comment }}{% endif %}
+{% endfor -%}

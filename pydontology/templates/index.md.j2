@@ -1,0 +1,20 @@
+{% if view.comment -%}
+{{ view.comment }}
+
+{% endif -%}
+# Prefixes
+{% for prefix in view.prefixes -%}
+PREFIX {{ prefix.name }}: <{{ prefix.namespace }}>
+{% endfor %}
+
+{{ view.conventions_note }}
+
+# Classes
+{% for cls in view.classes -%}
+* {{ cls|ref }}{% if cls.comment %} - {{ cls.comment }}{% endif %}
+{% endfor %}
+
+# Properties
+{% for prop in view.properties -%}
+* {{ prop|ref }}{% if prop.comment %} - {{ prop.comment }}{% endif %}
+{% endfor -%}

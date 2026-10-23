@@ -1,6 +1,7 @@
 import warnings
 from copy import deepcopy
 from inspect import get_annotations, isclass
+from os import PathLike
 from types import NoneType, UnionType
 from typing import Annotated, Any, List, Union, get_args, get_origin
 
@@ -19,7 +20,7 @@ from .models import (
     OntologyProperty,
     _PropertyShape,
 )
-from .okf import OKFBundle, build_okf_bundle
+from .okf import OKFBundle, build_okf_bundle_from_graphs
 from .owl import OWLAnnotation
 from .rdfs import RDFSAnnotation
 from .settings import Settings
@@ -587,7 +588,10 @@ class Pydontology:
         return JSONLDGraph(context=context, graph=shacl_shapes)  # pyright: ignore
 
     def okf_bundle(
-        self, context: BaseContext = BaseContext(), settings: Settings = Settings()
+        self,
+        context: BaseContext = BaseContext(),
+        settings: Settings = Settings(),
+        template_dir: str | PathLike | None = None,
     ) -> OKFBundle:
         """Generate an Open Knowledge Format (OKF) v0.2 bundle.
 
@@ -602,12 +606,16 @@ class Pydontology:
                 block.
             settings (Settings): Settings controlling default labels and
                 comments.
+            template_dir (str | PathLike | None): Optional directory containing
+                custom Jinja2 templates (``class.md.j2``, ``property.md.j2``,
+                ``index.md.j2``). When ``None``, the package defaults are used.
 
         Returns:
             OKFBundle: The in-memory bundle, ready to render or write.
 
         Raises:
             ValueError: If the instance was created without ontology metadata.
+            ImportError: If ``jinja2`` or ``rdflib`` is not installed.
         """
         if self.metadata is None:
             raise ValueError(
@@ -616,33 +624,17 @@ class Pydontology:
             )
         self._apply_settings(settings)
 
-        closed: dict[str, tuple[str, ...]] = {}
-        for class_name, class_info in self._cls_db.items():
-            annotations = class_info["metadata"] or []
-            if not any(
-                isinstance(m, SHACLAnnotation.CLOSED) and m.value for m in annotations
-            ):
-                continue
-            ignored = next(
-                (
-                    tuple(m.value)
-                    for m in annotations
-                    if isinstance(m, SHACLAnnotation.IGNORED_PROPERTIES)
-                ),
-                (),
-            )
-            closed[class_name] = ignored
+        onto = self.ontology_graph(context=context, settings=settings)
+        shacl = self.shacl_graph(context=context, settings=settings)
 
-        return build_okf_bundle(
+        return build_okf_bundle_from_graphs(
             name=self.metadata.label or self.metadata.id,
-            metadata=self.metadata,
-            classes=self._create_ontology_classes(),
-            properties=self._create_ontology_properties(),
+            onto_graph=onto,
+            shacl_graph=shacl,
             defined_in={
                 pid: info["defined_in"] for pid, info in self._prop_db.items()
             },
-            context=context,
-            closed=closed,
+            template_dir=template_dir,
         )
 
     def jsonld_graph(

@@ -14,7 +14,7 @@
 - `ontology_graph()` emits a JSON-LD graph of classes and properties.
 - `shacl_graph()` emits SHACL node/property shapes from annotations and defaults.
 - `jsonld_graph()` (alias `schema_graph()`) builds a JSON-LD data graph model; its `model_json_schema()` is the JSON schema.
-- `okf_bundle(context, settings)` builds an Open Knowledge Format (OKF) v0.2 bundle of the classes and properties; it requires `metadata` (used for the bundle root name and index comment). Concept ids render as compact IRIs from the `BaseContext` namespaces (`@vocab` -> `ex`, plus fixed `owl`/`xsd`/`rdfs`/`sh`), with a copy-pasteable `PREFIX` block in `index.md`; unresolvable ids stay `Relative IRI`. Class concepts list `# Applicable properties` (own-declared first, then inherited, marked with the declaring ancestor); `sh:closed` classes add an exhaustiveness note.
+- `okf_bundle(context, settings)` builds an Open Knowledge Format (OKF) v0.2 bundle of the classes and properties; it requires `metadata` (used for the bundle root name and index comment). The bundle is built by serializing `ontology_graph()` and `shacl_graph()` to JSON-LD, parsing with rdflib, and rendering through Jinja2 templates. Concept IRIs are compacted via the graph's namespace bindings (from `@context`); unresolvable IRIs render verbatim with a `Relative IRI` label. The `index.md` carries a `PREFIX` block listing the graph's namespace bindings. Class concepts list `# Applicable properties` (own-declared first, then inherited, marked with the declaring ancestor); `sh:closed` classes add an exhaustiveness note.
 
 ## Key APIs (use these first)
 - `Entity`: base class for ontology classes; provides `@id` and `@type`.
@@ -23,7 +23,7 @@
 - `Pydontology`: orchestrates graph generation.
 - `Settings`: controls default behaviors (labels, comments, domains, types, warnings).
 - `ontology_graph()`, `shacl_graph()`, `jsonld_graph()` (alias `schema_graph()`) on `Pydontology`.
-- `okf_bundle(context, settings)` on `Pydontology`: builds an `OKFBundle` (requires `metadata`; compact IRIs come from `context`).
+- `okf_bundle(context, settings)` on `Pydontology`: builds an `OKFBundle` (requires `metadata`; compact IRIs come from the graph's namespace bindings).
 
 ## Defaults and behaviors (Settings)
 - Class label/comment: class name and docstring by default.
@@ -53,7 +53,7 @@
   - `_add_class_annotations`, `_add_property_annotations`, `_add_shacl_annotations`.
 - Add validators in `pydontology/validators.py` and reference via `AfterValidator`.
 - Extend `TYPE_MAP` in `pydontology/pydontology.py` and update tests if needed.
-- OKF bundle rendering is split across `pydontology/okf.py` (the `OKFBundle`/`OKFDocument` models, document builders, and `build_okf_bundle`) and `pydontology/okf_helpers.py` (constants, pure string/IRI/path helpers, and the `_Layout` membership index).
+- OKF bundle rendering is split across `pydontology/okf.py` (the `OKFBundle`/`OKFDocument` models, view dataclasses, and `build_okf_bundle_from_graphs`) and `pydontology/okf_queries.py` (rdflib graph parsing, SPARQL-like queries, class hierarchy and membership computation).
 
 ## Tests and dependencies
 - Tests live in `tests/` and use `pytest`.

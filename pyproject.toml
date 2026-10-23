@@ -27,7 +27,7 @@ classifiers = [
 [project.optional-dependencies]
 examples = ["marimo", "rdflib", "pyshacl"]
 tests = ["pytest", "rdflib", "pyshacl", "jinja2"]
-tools = ["jinja2"]
+tools = ["jinja2", "rdflib"]
 
 [tool.setuptools]
 packages = ["pydontology"]

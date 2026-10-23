@@ -1,30 +1,99 @@
-from collections.abc import Mapping, Sequence
+import json
+import re
+from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
 
+try:
+    import jinja2
+except ImportError:
+    jinja2 = None  # type: ignore[assignment]
+
 from pydantic import BaseModel, ConfigDict, Field
 
-from .models import (
-    BaseContext,
-    BaseMetaData,
-    OntologyClass,
-    OntologyProperty,
+from .models import BaseMetaData, JSONLDGraph
+
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+CLASS_TYPE = "Ontology Class"
+PROPERTY_TYPE = "Ontology Property"
+CLASS_DIR = "classes"
+PROPERTY_DIR = "properties"
+
+CONVENTIONS_NOTE = (
+    "RDF predicates are global: any property may be used with any subject. "
+    "A class's `# Applicable properties` section lists the properties declared "
+    "on that class or inherited from its superclasses, and a property's "
+    "`# Defined in` section lists the classes that declare it. These listings "
+    "are exhaustive only where a class's shape is marked closed (`sh:closed`)."
 )
-from .okf_helpers import (
-    CLASS_TYPE,
-    CONVENTIONS_NOTE,
-    PROPERTY_TYPE,
-    _build_prefixes,
-    _entry_line,
-    _frontmatter_block,
-    _iri_label,
-    _Layout,
-    _list_section,
-    _one_line,
-    _prefix_section,
-    _resolve_term,
-    _slugify,
-)
+
+
+# ---------------------------------------------------------------------------
+# Pure helpers
+# ---------------------------------------------------------------------------
+
+
+def _slugify(value: str) -> str:
+    """Reduce an ontology id to a filesystem- and link-safe slug.
+
+    Every run of characters outside ``[A-Za-z0-9]`` is collapsed to a single
+    hyphen; leading and trailing hyphens are stripped. Case is preserved so the
+    mapping stays recognizable.
+
+    Args:
+        value (str): Raw ontology id or label.
+
+    Returns:
+        str: The non-empty slug.
+
+    Raises:
+        ValueError: If the value has no alphanumeric characters at all.
+    """
+    slug = re.sub(r"[^A-Za-z0-9]+", "-", value).strip("-")
+    if not slug:
+        raise ValueError(f"Cannot derive a filename slug from {value!r}")
+    return slug
+
+
+def _one_line(text: str | None) -> str | None:
+    """Collapse a possibly multi-line comment into a single line.
+
+    Args:
+        text (str | None): Raw comment or docstring.
+
+    Returns:
+        str | None: Whitespace-normalized text, or None when empty.
+    """
+    if not text:
+        return None
+    return " ".join(text.split())
+
+
+def _local_name(uriref_str: str) -> str:
+    """Extract the local-name portion from a URI string.
+
+    Takes the part after the last ``#`` or ``/``. For bare names with no
+    separator, returns the string unchanged.
+
+    Args:
+        uriref_str (str): The URI string.
+
+    Returns:
+        str: The local name.
+    """
+    for sep in ("#", "/"):
+        if sep in uriref_str:
+            return uriref_str.rsplit(sep, 1)[-1]
+    return uriref_str
+
+
+# ---------------------------------------------------------------------------
+# Document models
+# ---------------------------------------------------------------------------
 
 
 class OKFDocument(BaseModel):
@@ -47,7 +116,10 @@ class OKFDocument(BaseModel):
             str: The frontmatter block (if any) followed by the stripped body
                 and a single trailing newline.
         """
-        return _frontmatter_block(self.frontmatter) + self.body.strip() + "\n"
+        if not self.frontmatter:
+            return self.body.strip() + "\n"
+        lines = [f"{key}: {json.dumps(value)}" for key, value in self.frontmatter.items()]
+        return "---\n" + "\n".join(lines) + "\n---\n\n" + self.body.strip() + "\n"
 
     model_config = ConfigDict(frozen=True)
 
@@ -95,219 +167,314 @@ class OKFBundle(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
-def _applicable_block(cls: OntologyClass, layout: _Layout) -> str | None:
-    """Render the ``# Applicable properties`` section for a class.
+# ---------------------------------------------------------------------------
+# View dataclasses
+# ---------------------------------------------------------------------------
 
-    Own-declared properties come first; inherited ones follow, each marked
-    with the nearest declaring ancestor. A close-shape note is added when the
-    class's node shape is closed.
+
+@dataclass
+class Reference:
+    """A reference to a class or property concept.
+
+    Attributes:
+        uriref (str): The IRI string of the referenced concept.
+        title (str): Display title (label or local name).
+        path (str | None): Bundle-relative path, or None for external references.
+        comment (str | None): Optional one-line comment for index listings.
+    """
+    uriref: str
+    title: str
+    path: str | None = None
+    comment: str | None = None
+
+
+@dataclass
+class PropertyRef:
+    """A reference to a property with inheritance tracking.
+
+    Attributes:
+        uriref (str): The IRI string of the property.
+        title (str): Display title.
+        path (str): Bundle-relative path for this property concept.
+        inherited_from (Reference | None): The ancestor class that declares
+            the property, or None when declared directly on the current class.
+    """
+    uriref: str
+    title: str
+    path: str
+    inherited_from: "Reference | None" = None
+
+
+@dataclass
+class PrefixEntry:
+    """A namespace prefix entry for the index."""
+    name: str
+    namespace: str
+
+
+@dataclass
+class ClassView:
+    """View model for a class template.
+
+    Attributes:
+        path (str): Bundle-relative path, e.g. ``classes/Person.md``.
+        frontmatter (dict[str, str]): Frontmatter key-value pairs.
+        comment (str | None): One-line class description.
+        uriref (str): The class IRI string.
+        sub_class_of (list[Reference]): Parent class references.
+        equivalent_class (list[Reference]): Equivalent class references.
+        properties (list[PropertyRef]): Applicable properties, own first.
+        closed (bool): Whether the class shape is ``sh:closed``.
+        ignored_properties (list[str]): Ignored properties for closed shapes.
+    """
+    path: str
+    frontmatter: dict[str, str]
+    comment: str | None
+    uriref: str
+    sub_class_of: list[Reference] = field(default_factory=list)
+    equivalent_class: list[Reference] = field(default_factory=list)
+    properties: list[PropertyRef] = field(default_factory=list)
+    closed: bool = False
+    ignored_properties: list[str] = field(default_factory=list)
+
+
+@dataclass
+class PropertyView:
+    """View model for a property template.
+
+    Attributes:
+        path (str): Bundle-relative path, e.g. ``properties/name.md``.
+        frontmatter (dict[str, str]): Frontmatter key-value pairs.
+        comment (str | None): One-line property description.
+        uriref (str): The property IRI string.
+        types (list[str]): RDF type IRIs (e.g. ``owl:ObjectProperty``).
+        domain (Reference | None): RDFS domain class reference.
+        range (Reference | None): RDFS range class reference.
+        sub_property_of (Reference | None): Super-property reference.
+        equivalent_property (Reference | None): Equivalent property reference.
+        inverse_of (Reference | None): Inverse property reference.
+        defined_in (list[Reference]): Classes that declare this property.
+    """
+    path: str
+    frontmatter: dict[str, str]
+    comment: str | None
+    uriref: str
+    types: list[str] = field(default_factory=list)
+    domain: Reference | None = None
+    range: Reference | None = None
+    sub_property_of: Reference | None = None
+    equivalent_property: Reference | None = None
+    inverse_of: Reference | None = None
+    defined_in: list[Reference] = field(default_factory=list)
+
+
+@dataclass
+class IndexView:
+    """View model for the index template.
+
+    Attributes:
+        path (str): Always ``"index.md"``.
+        frontmatter (dict[str, str]): Frontmatter, typically ``okf_version``.
+        comment (str | None): One-line ontology description.
+        prefixes (list[PrefixEntry]): Namespace prefix entries for the
+            copy-pasteable PREFIX block.
+        conventions_note (str): RDF-semantics conventions paragraph.
+        classes (list[Reference]): Class concepts for the index listing.
+        properties (list[Reference]): Property concepts for the index listing.
+    """
+    path: str
+    frontmatter: dict[str, str]
+    comment: str | None
+    prefixes: list[PrefixEntry] = field(default_factory=list)
+    conventions_note: str = ""
+    classes: list[Reference] = field(default_factory=list)
+    properties: list[Reference] = field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Jinja2 filters
+# ---------------------------------------------------------------------------
+
+
+def _ref_filter(ref: Reference) -> str:
+    """Render a Reference as a Markdown link or bare title."""
+    if ref.path is not None:
+        return f"[{ref.title}](/{ref.path})"
+    return ref.title
+
+
+def _make_compact_iri_filter(ns_manager):
+    """Build a ``|compact_iri`` filter closed over an rdflib namespace manager.
 
     Args:
-        cls (OntologyClass): The class to render.
-        layout (_Layout): Precomputed membership and shape lookups.
+        ns_manager: An rdflib ``NamespaceManager`` instance.
 
     Returns:
-        str | None: The rendered section, or None when the class has no
-            applicable properties and no closed-shape marker.
+        callable: A filter that takes a URI string and returns a compact IRI
+            (``prefix:localname``) or the full IRI if no prefix matches.
     """
-    members = layout.class_members.get(cls.id, ())
-    ignored = layout.closed.get(cls.id)
-    if not members and ignored is None:
-        return None
+    from rdflib.term import URIRef
 
-    paragraphs: list[str] = []
-    if ignored is not None:
-        note = "Closed shape (`sh:closed`): only these properties are allowed"
-        if ignored:
-            note += " (plus ignored: " + ", ".join(ignored) + ")"
-        paragraphs.append(note + ".")
+    def compact_iri(uriref_str: str) -> str:
+        # Resolved-against-filesystem IRIs: show the local name only
+        if uriref_str.startswith("file:"):
+            return _local_name(uriref_str)
+        try:
+            uri = URIRef(uriref_str)
+            result = ns_manager.qname(uri)
+            if result is not None:
+                prefix, _namespace, localname = result
+                if prefix:
+                    return f"{prefix}:{localname}"
+        except Exception:
+            pass
+        return uriref_str
 
-    if members:
-        bullets = []
-        for member in members:
-            title = layout.property_titles.get(member.property_id, member.property_id)
-            link = layout.property_link(member.property_id)
-            bullet = f"* [{title}]({link})" if link else f"* {title}"
-            if member.inherited_from is not None:
-                bullet += (
-                    f" - inherited from {layout.class_reference(member.inherited_from)}"
-                )
-            bullets.append(bullet)
-        paragraphs.append("\n".join(bullets))
-
-    return "# Applicable properties\n\n" + "\n\n".join(paragraphs)
+    return compact_iri
 
 
-def _class_document(cls: OntologyClass, layout: _Layout) -> OKFDocument:
-    """Build the OKF concept document for an ontology class.
+def _make_iri_label_filter(ns_manager):
+    """Build an ``|iri_label`` filter closed over an rdflib namespace manager.
 
     Args:
-        cls (OntologyClass): The class to serialize.
-        layout (_Layout): Precomputed path and title lookups.
+        ns_manager: An rdflib ``NamespaceManager`` instance.
 
     Returns:
-        OKFDocument: The class concept document.
+        callable: A filter that takes a URI string and returns ``"IRI"`` when
+            the URI can be compacted or is absolute, otherwise ``"Relative IRI"``.
     """
-    blocks: list[str] = []
-    if cls.comment:
-        blocks.append(cls.comment)
-    blocks.append(
-        f"{_iri_label(cls.id, layout.prefixes)}: "
-        f"{_resolve_term(cls.id, layout.prefixes)[0]}"
-    )
-    for line in (
-        _entry_line("Subclass of", cls.subClassOf or [], layout.class_reference),
-        _entry_line("Equivalent to", cls.equivalentClass or [], layout.class_reference),
-    ):
-        if line:
-            blocks.append(line)
+    from rdflib.term import URIRef
 
-    applicable = _applicable_block(cls, layout)
-    if applicable:
-        blocks.append(applicable)
+    def iri_label(uriref_str: str) -> str:
+        # Resolved-against-filesystem IRIs are not real ontology IRIs
+        if uriref_str.startswith("file:"):
+            return "Relative IRI"
+        try:
+            uri = URIRef(uriref_str)
+            result = ns_manager.qname(uri)
+            if result is not None:
+                prefix, _namespace, _localname = result
+                if prefix:
+                    return "IRI"
+        except Exception:
+            pass
+        # Check for absolute IRI (has a scheme with "//")
+        if "://" in uriref_str:
+            return "IRI"
+        # Compact forms like "owl:Thing"
+        if ":" in uriref_str and not uriref_str.startswith("_:"):
+            return "IRI"
+        return "Relative IRI"
 
-    return OKFDocument(
-        path=layout.class_paths[cls.id],
-        frontmatter={
-            "type": CLASS_TYPE,
-            "title": cls.label or cls.id,
-            "resource": _resolve_term(cls.id, layout.prefixes)[0],
-        },
-        body="\n\n".join(blocks),
-    )
+    return iri_label
 
 
-def _property_document(prop: OntologyProperty, layout: _Layout) -> OKFDocument:
-    """Build the OKF concept document for an ontology property.
-
-    Args:
-        prop (OntologyProperty): The property to serialize.
-        layout (_Layout): Precomputed path and title lookups.
-
-    Returns:
-        OKFDocument: The property concept document.
-    """
-    blocks: list[str] = []
-    if prop.comment:
-        blocks.append(prop.comment)
-
-    blocks.append(
-        f"{_iri_label(prop.id, layout.prefixes)}: "
-        f"{_resolve_term(prop.id, layout.prefixes)[0]}"
-    )
-    blocks.append(f"Type: {', '.join(prop.type)}")
-    if prop.domain is not None:
-        blocks.append(f"RDFS domain: {layout.class_reference(prop.domain.id)}")
-    if prop.range is not None:
-        blocks.append(f"RDFS range: {layout.class_reference(prop.range.id)}")
-    if prop.subPropertyOf is not None:
-        blocks.append(
-            f"Subproperty of: {layout.property_reference(prop.subPropertyOf.id)}"
-        )
-    if prop.equivalentProperty is not None:
-        blocks.append(
-            f"Equivalent to: {layout.property_reference(prop.equivalentProperty.id)}"
-        )
-    if prop.inverseOf is not None:
-        blocks.append(f"Inverse of: {layout.property_reference(prop.inverseOf.id)}")
-
-    members = layout.property_members.get(prop.id, ())
-    if members:
-        bullets = []
-        for class_id in members:
-            title = layout.class_titles.get(class_id, class_id)
-            link = layout.class_link(class_id)
-            bullets.append(f"* [{title}]({link})" if link else f"* {title}")
-        blocks.append("# Defined in\n\n" + "\n".join(bullets))
-
-    return OKFDocument(
-        path=layout.property_paths[prop.id],
-        frontmatter={
-            "type": PROPERTY_TYPE,
-            "title": prop.label or prop.id,
-            "resource": _resolve_term(prop.id, layout.prefixes)[0],
-        },
-        body="\n\n".join(blocks),
-    )
+# ---------------------------------------------------------------------------
+# Template rendering
+# ---------------------------------------------------------------------------
 
 
-def _index_document(
-    metadata: BaseMetaData,
-    classes: Sequence[OntologyClass],
-    properties: Sequence[OntologyProperty],
-    layout: _Layout,
+def _render_document(
+    env: "jinja2.Environment",
+    template_name: str,
+    view: IndexView | ClassView | PropertyView,
 ) -> OKFDocument:
-    """Build the bundle-root ``index.md`` document.
+    """Render a single Jinja2 template into an OKF document.
 
     Args:
-        metadata (BaseMetaData): Ontology metadata; its comment opens the body.
-        classes (Sequence[OntologyClass]): Ontology classes to list.
-        properties (Sequence[OntologyProperty]): Ontology properties to list.
-        layout (_Layout): Precomputed path, title, and prefix lookups.
+        env (jinja2.Environment): The Jinja2 environment.
+        template_name (str): The template filename, e.g. ``class.md.j2``.
+        view (IndexView | ClassView | PropertyView): The view model.
 
     Returns:
-        OKFDocument: The index document, carrying only the ``okf_version``
-            frontmatter key.
+        OKFDocument: The rendered document.
     """
-    blocks: list[str] = []
-    comment = _one_line(metadata.comment)
-    if comment:
-        blocks.append(comment)
-    blocks.append(_prefix_section(layout.prefixes))
-    blocks.append(CONVENTIONS_NOTE)
-    if classes:
-        blocks.append(_list_section("Classes", classes, layout.class_link))
-    if properties:
-        blocks.append(_list_section("Properties", properties, layout.property_link))
-
-    return OKFDocument(
-        path="index.md",
-        frontmatter={"okf_version": "0.2"},
-        body="\n\n".join(blocks),
-    )
+    template = env.get_template(template_name)
+    body = template.render(view=view).strip()
+    return OKFDocument(path=view.path, frontmatter=view.frontmatter, body=body)
 
 
-def build_okf_bundle(
+# ---------------------------------------------------------------------------
+# Bundle builder (from graphs)
+# ---------------------------------------------------------------------------
+
+
+def build_okf_bundle_from_graphs(
     *,
     name: str,
-    metadata: BaseMetaData,
-    classes: Sequence[OntologyClass],
-    properties: Sequence[OntologyProperty],
-    defined_in: Mapping[str, Sequence[str]],
-    context: BaseContext | None = None,
-    closed: Mapping[str, Sequence[str]] | None = None,
+    onto_graph: JSONLDGraph,
+    shacl_graph: JSONLDGraph | None = None,
+    defined_in: dict[str, list[str]] | None = None,
+    template_dir: str | PathLike | None = None,
 ) -> OKFBundle:
-    """Build an OKF v0.2 bundle from ontology registries.
+    """Build an OKF v0.2 bundle from ontology and SHACL graphs.
+
+    Serializes the graphs to JSON-LD, parses them with rdflib, extracts
+    classes, properties, and SHACL constraints, and renders the results
+    through Jinja2 templates.
 
     Args:
-        name (str): Bundle directory name (typically ``metadata.label`` or
-            ``metadata.id``); slugified so the result is filesystem-safe.
-        metadata (BaseMetaData): Ontology metadata for the index comment.
-        classes (Sequence[OntologyClass]): Ontology classes.
-        properties (Sequence[OntologyProperty]): Ontology properties.
-        defined_in (Mapping[str, Sequence[str]]): Property id to the class ids
-            that declare it.
-        context (BaseContext | None): JSON-LD context supplying the namespaces
-            for compact IRIs. Defaults to an empty ``BaseContext``.
-        closed (Mapping[str, Sequence[str]] | None): Class id to its
-            ``sh:ignoredProperties`` for closed (``sh:closed``) shapes. Only
-            closed classes appear; defaults to no closed shapes.
+        name (str): Bundle directory name (typically the slugified ontology
+            label or id).
+        onto_graph (JSONLDGraph): The ontology graph from ``ontology_graph()``.
+        shacl_graph (JSONLDGraph | None): The SHACL graph from
+            ``shacl_graph()``, or None.
+        defined_in (dict[str, list[str]] | None): Property IRI to list of
+            class IRIs that declare it. Supplements ``rdfs:domain`` for
+            multi-class properties where domain is not emitted.
+        template_dir (str | PathLike | None): Directory containing Jinja2
+            templates. Defaults to the package's built-in template directory.
 
     Returns:
         OKFBundle: The in-memory bundle, with the index first and all concept
-            documents (and index entries) sorted by id.
+            documents sorted by IRI.
+
+    Raises:
+        ImportError: If ``jinja2`` or ``rdflib`` is not installed.
     """
-    prefixes = _build_prefixes(context if context is not None else BaseContext())
-    ordered_classes = sorted(classes, key=lambda c: c.id)
-    ordered_properties = sorted(properties, key=lambda p: p.id)
-    layout = _Layout.build(
-        ordered_classes,
-        ordered_properties,
-        defined_in,
-        prefixes,
-        closed or {},
+    if jinja2 is None:
+        raise ImportError(
+            "jinja2 is required for OKF bundle building. "
+            "Install it with: pip install jinja2"
+        )
+
+    try:
+        import rdflib  # noqa: F401
+    except ImportError:
+        raise ImportError(
+            "rdflib is required for OKF bundle building. "
+            "Install it with: pip install rdflib"
+        )
+
+    from .okf_queries import query_ontology
+
+    # Serialize graphs to JSON-LD
+    onto_jsonld = onto_graph.model_dump_json(exclude_none=True)
+    shacl_jsonld = None
+    if shacl_graph is not None:
+        shacl_jsonld = shacl_graph.model_dump_json(exclude_none=True)
+
+    # Query rdflib for views (also returns the namespace manager for filters)
+    index_view, class_views, property_views, ns_manager = query_ontology(
+        onto_jsonld, shacl_jsonld, defined_in=defined_in
     )
-    documents = [_index_document(metadata, ordered_classes, ordered_properties, layout)]
-    documents += [_class_document(cls, layout) for cls in ordered_classes]
-    documents += [_property_document(prop, layout) for prop in ordered_properties]
+
+    # Set up Jinja2 environment
+    if template_dir is not None:
+        loader: "jinja2.BaseLoader" = jinja2.FileSystemLoader(str(template_dir))
+    else:
+        loader = jinja2.PackageLoader("pydontology", "templates")
+    env = jinja2.Environment(loader=loader, autoescape=False)
+    env.filters["compact_iri"] = _make_compact_iri_filter(ns_manager)
+    env.filters["iri_label"] = _make_iri_label_filter(ns_manager)
+    env.filters["ref"] = _ref_filter
+
+    # Render all documents
+    documents: list[OKFDocument] = []
+    documents.append(_render_document(env, "index.md.j2", index_view))
+    for view in class_views:
+        documents.append(_render_document(env, "class.md.j2", view))
+    for view in property_views:
+        documents.append(_render_document(env, "property.md.j2", view))
+
     return OKFBundle(name=_slugify(name), documents=documents)

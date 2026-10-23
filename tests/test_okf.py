@@ -11,7 +11,7 @@ from pydontology import (
     Pydontology,
     Relation,
 )
-from pydontology.okf import CONVENTIONS_NOTE, _slugify
+from pydontology.okf import _slugify
 from pydontology.rdfs import RDFSAnnotation as RDFS
 from pydontology.shacl import SHACLAnnotation as SH
 
@@ -96,10 +96,10 @@ def test_index_document(okf_onto):
     assert "# Properties" in text
 
     # The RDF-semantics convention note sits between the prefixes and the lists.
-    assert CONVENTIONS_NOTE in text
+    assert "RDF predicates are global" in text
     assert (
         text.index("# Prefixes")
-        < text.index(CONVENTIONS_NOTE)
+        < text.index("RDF predicates are global")
         < text.index("# Classes")
     )
 
@@ -127,7 +127,7 @@ def test_class_document(okf_onto):
     assert "A person in the test ontology." in person
     assert "Relative IRI" in person
     assert "Person" in person
-    assert "# Applicable properties" in person
+    assert "# Associated properties" in person
     assert "* [knows](/properties/knows.md)" in person
     assert "* [name](/properties/name.md)" in person
 

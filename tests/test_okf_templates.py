@@ -10,8 +10,6 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from pydontology.okf import CONVENTIONS_NOTE
-
 
 # ---------------------------------------------------------------------------
 # View dataclasses (match the plan shapes, using str in place of URIRef for
@@ -49,7 +47,8 @@ class ClassView:
     uriref: str
     sub_class_of: list[Reference] = field(default_factory=list)
     equivalent_class: list[Reference] = field(default_factory=list)
-    properties: list[PropertyRef] = field(default_factory=list)
+    required_properties: list[PropertyRef] = field(default_factory=list)
+    associated_properties: list[PropertyRef] = field(default_factory=list)
     closed: bool = False
     ignored_properties: list[str] = field(default_factory=list)
 
@@ -76,7 +75,6 @@ class IndexView:
     frontmatter: dict[str, str]
     comment: str | None
     prefixes: list[PrefixEntry] = field(default_factory=list)
-    conventions_note: str = ""
     classes: list[Reference] = field(default_factory=list)
     properties: list[Reference] = field(default_factory=list)
 
@@ -154,7 +152,7 @@ class TestClassTemplate:
             sub_class_of=[
                 Reference(uriref="Person", title="Person", path="classes/Person.md")
             ],
-            properties=[
+            associated_properties=[
                 PropertyRef(
                     uriref="company",
                     title="company",
@@ -182,7 +180,7 @@ class TestClassTemplate:
         # Subclass link
         assert "Subclass of: [Person](/classes/Person.md)" in body
         # Section heading
-        assert "# Applicable properties" in body
+        assert "# Associated properties" in body
         # Own property (no inheritance marker)
         assert "* [company](/properties/company.md)" in body
         # Inherited property
@@ -207,7 +205,7 @@ class TestClassTemplate:
             sub_class_of=[
                 Reference(uriref="owl:Thing", title="owl:Thing", path=None)
             ],
-            properties=[
+            associated_properties=[
                 PropertyRef(
                     uriref="name", title="name", path="properties/name.md"
                 ),
@@ -220,7 +218,7 @@ class TestClassTemplate:
         assert "Relative IRI: Person" in body
         # owl:Thing has no path, so rendered as bare title (no link)
         assert "Subclass of: owl:Thing" in body
-        assert "# Applicable properties" in body
+        assert "# Associated properties" in body
         assert "* [name](/properties/name.md)" in body
 
     def test_no_comment(self, env):
@@ -250,7 +248,7 @@ class TestClassTemplate:
             uriref="ClosedThing",
             closed=True,
             ignored_properties=["rdf:type"],
-            properties=[
+            associated_properties=[
                 PropertyRef(
                     uriref="name", title="name", path="properties/name.md"
                 ),
@@ -273,7 +271,6 @@ class TestClassTemplate:
             comment=None,
             uriref="X",
             closed=True,
-            properties=[],
         )
 
         body = render(env, "class.md.j2", view)
@@ -307,7 +304,7 @@ class TestClassTemplate:
         assert "Equivalent to: ContractorRestriction" in body
 
     def test_empty_properties(self, env):
-        """Class with no properties still shows the heading."""
+        """Class with no properties omits property sections entirely."""
         view = ClassView(
             path="classes/X.md",
             frontmatter={"type": "Ontology Class", "title": "X", "resource": "X"},
@@ -316,7 +313,8 @@ class TestClassTemplate:
         )
 
         body = render(env, "class.md.j2", view)
-        assert "# Applicable properties" in body
+        assert "# Required properties" not in body
+        assert "# Associated properties" not in body
 
     def test_compact_iri(self, env):
         """With a vocab, compact IRIs are used."""
@@ -530,7 +528,6 @@ class TestIndexTemplate:
                 ),
                 PrefixEntry(name="sh", namespace="http://www.w3.org/ns/shacl#"),
             ],
-            conventions_note=CONVENTIONS_NOTE,
             classes=[
                 Reference(
                     uriref="Company",
@@ -586,10 +583,10 @@ class TestIndexTemplate:
         assert "PREFIX sh: <http://www.w3.org/ns/shacl#>" in body
 
         # Conventions note between prefixes and classes
-        assert CONVENTIONS_NOTE in body
+        assert "RDF predicates are global" in body
         assert (
             body.index("# Prefixes")
-            < body.index(CONVENTIONS_NOTE)
+            < body.index("RDF predicates are global")
             < body.index("# Classes")
         )
 
@@ -616,7 +613,6 @@ class TestIndexTemplate:
             frontmatter={"okf_version": "0.2"},
             comment=None,
             prefixes=[],
-            conventions_note="",
         )
 
         body = render(env, "index.md.j2", view)
@@ -629,7 +625,6 @@ class TestIndexTemplate:
             frontmatter={"okf_version": "0.2"},
             comment=None,
             prefixes=[],
-            conventions_note="",
         )
 
         body = render(env, "index.md.j2", view)
@@ -645,7 +640,6 @@ class TestIndexTemplate:
             prefixes=[
                 PrefixEntry(name="owl", namespace="http://www.w3.org/2002/07/owl#"),
             ],
-            conventions_note="",
         )
 
         body = render(env, "index.md.j2", view)
@@ -664,7 +658,7 @@ def test_templates_are_deterministic(env):
         frontmatter={"type": "Ontology Class", "title": "X", "resource": "X"},
         comment=None,
         uriref="X",
-        properties=[
+        associated_properties=[
             PropertyRef(uriref="a", title="a", path="properties/a.md"),
             PropertyRef(uriref="b", title="b", path="properties/b.md"),
         ],

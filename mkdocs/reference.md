@@ -22,6 +22,8 @@ for usage.
 
 ::: pydontology.okf.OKFDocument
 
+::: pydontology.okf.MembershipMode
+
 ## Controlling behaviour
 ::: pydontology.settings.Settings
 

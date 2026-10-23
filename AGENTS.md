@@ -14,7 +14,7 @@
 - `ontology_graph()` emits a JSON-LD graph of classes and properties.
 - `shacl_graph()` emits SHACL node/property shapes from annotations and defaults.
 - `jsonld_graph()` (alias `schema_graph()`) builds a JSON-LD data graph model; its `model_json_schema()` is the JSON schema.
-- `okf_bundle(context, settings)` builds an Open Knowledge Format (OKF) v0.2 bundle of the classes and properties; it requires `metadata` (used for the bundle root name and index comment). The bundle is built by serializing `ontology_graph()` and `shacl_graph()` to JSON-LD, parsing with rdflib, and rendering through Jinja2 templates. Concept IRIs are compacted via the graph's namespace bindings (from `@context`); unresolvable IRIs render verbatim with a `Relative IRI` label. The `index.md` carries a `PREFIX` block listing the graph's namespace bindings. Class concepts list `# Applicable properties` (own-declared first, then inherited, marked with the declaring ancestor); `sh:closed` classes add an exhaustiveness note.
+- `okf_bundle(context, settings, membership_mode)` builds an Open Knowledge Format (OKF) v0.2 bundle of the classes and properties; it requires `metadata` (used for the bundle root name and index comment). The bundle is built by serializing `ontology_graph()` and `shacl_graph()` to JSON-LD, parsing with rdflib, and rendering through Jinja2 templates. Concept IRIs are compacted via the graph's namespace bindings (from `@context`); unresolvable IRIs render verbatim with a `Relative IRI` label. The `index.md` carries a `PREFIX` block listing the graph's namespace bindings. Class concepts list `# Required properties` (``sh:minCount`` ≥ 1) and `# Associated properties` (all other applicable properties, own-declared first then inherited, marked with the declaring ancestor); `sh:closed` classes add an exhaustiveness note. Property concepts list `# Required by` (classes with `sh:minCount` ≥ 1) and `# Associated with` (all other associations). `membership_mode` (`MembershipMode.PYDONTOLOGY` default, or `MembershipMode.RDF`) controls whether membership derives from the Pydantic field registry or solely from the RDF graph.
 
 ## Key APIs (use these first)
 - `Entity`: base class for ontology classes; provides `@id` and `@type`.
@@ -23,7 +23,7 @@
 - `Pydontology`: orchestrates graph generation.
 - `Settings`: controls default behaviors (labels, comments, domains, types, warnings).
 - `ontology_graph()`, `shacl_graph()`, `jsonld_graph()` (alias `schema_graph()`) on `Pydontology`.
-- `okf_bundle(context, settings)` on `Pydontology`: builds an `OKFBundle` (requires `metadata`; compact IRIs come from the graph's namespace bindings).
+- `okf_bundle(context, settings, membership_mode)` on `Pydontology`: builds an `OKFBundle` (requires `metadata`; compact IRIs come from the graph's namespace bindings; `membership_mode` defaults to `MembershipMode.PYDONTOLOGY`).
 
 ## Defaults and behaviors (Settings)
 - Class label/comment: class name and docstring by default.

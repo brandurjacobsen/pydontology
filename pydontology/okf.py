@@ -24,16 +24,6 @@ PROPERTY_TYPE = "Ontology Property"
 CLASS_DIR = "classes"
 PROPERTY_DIR = "properties"
 
-CONVENTIONS_NOTE = (
-    "RDF predicates are global: any property may be used with any subject. "
-    "A class's `# Applicable properties` section lists the properties declared "
-    "on that class or inherited from its superclasses, and a property's "
-    "`# Required by` and `# Associated with` sections list the classes that "
-    "require or are associated with it via rdfs:domain, SHACL constraints, "
-    "or the ontology class definitions. These listings are exhaustive only "
-    "where a class's shape is marked closed (`sh:closed`)."
-)
-
 
 class MembershipMode(str, Enum):
     """Controls how property→class membership is determined.
@@ -240,7 +230,10 @@ class ClassView:
         uriref (str): The class IRI string.
         sub_class_of (list[Reference]): Parent class references.
         equivalent_class (list[Reference]): Equivalent class references.
-        properties (list[PropertyRef]): Applicable properties, own first.
+        required_properties (list[PropertyRef]): Properties that must be
+            present (``sh:minCount`` ≥ 1 on this class's NodeShape).
+        associated_properties (list[PropertyRef]): All other applicable
+            properties, own-declared first then inherited.
         closed (bool): Whether the class shape is ``sh:closed``.
         ignored_properties (list[str]): Ignored properties for closed shapes.
     """
@@ -250,7 +243,8 @@ class ClassView:
     uriref: str
     sub_class_of: list[Reference] = field(default_factory=list)
     equivalent_class: list[Reference] = field(default_factory=list)
-    properties: list[PropertyRef] = field(default_factory=list)
+    required_properties: list[PropertyRef] = field(default_factory=list)
+    associated_properties: list[PropertyRef] = field(default_factory=list)
     closed: bool = False
     ignored_properties: list[str] = field(default_factory=list)
 
@@ -300,7 +294,6 @@ class IndexView:
         comment (str | None): One-line ontology description.
         prefixes (list[PrefixEntry]): Namespace prefix entries for the
             copy-pasteable PREFIX block.
-        conventions_note (str): RDF-semantics conventions paragraph.
         classes (list[Reference]): Class concepts for the index listing.
         properties (list[Reference]): Property concepts for the index listing.
     """
@@ -308,7 +301,6 @@ class IndexView:
     frontmatter: dict[str, str]
     comment: str | None
     prefixes: list[PrefixEntry] = field(default_factory=list)
-    conventions_note: str = ""
     classes: list[Reference] = field(default_factory=list)
     properties: list[Reference] = field(default_factory=list)
 

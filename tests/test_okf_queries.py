@@ -218,14 +218,16 @@ class TestMembership:
             class_by_name[name] = v
 
         manager = class_by_name.get("Manager")
-        if manager and len(manager.properties) > 1:
-            # head_of should be own (first), inherited ones follow
-            own = [p for p in manager.properties if p.inherited_from is None]
-            inherited = [p for p in manager.properties if p.inherited_from is not None]
-            if own and inherited:
-                first_own_idx = manager.properties.index(own[0])
-                first_inherited_idx = manager.properties.index(inherited[0])
-                assert first_own_idx < first_inherited_idx
+        if manager:
+            props = manager.required_properties + manager.associated_properties
+            if len(props) > 1:
+                # head_of should be own (first), inherited ones follow
+                own = [p for p in props if p.inherited_from is None]
+                inherited = [p for p in props if p.inherited_from is not None]
+                if own and inherited:
+                    first_own_idx = props.index(own[0])
+                    first_inherited_idx = props.index(inherited[0])
+                    assert first_own_idx < first_inherited_idx
 
     def test_inherited_properties_have_ancestor(self, onto_jsonld):
         """Inherited properties carry the declaring ancestor reference."""
@@ -237,7 +239,8 @@ class TestMembership:
 
         employee = class_by_name.get("Employee")
         if employee:
-            inherited = [p for p in employee.properties if p.inherited_from is not None]
+            props = employee.required_properties + employee.associated_properties
+            inherited = [p for p in props if p.inherited_from is not None]
             if inherited:
                 # Properties inherited from Person should have Person as ancestor
                 person_props = [
@@ -255,9 +258,10 @@ class TestMembership:
 
         manager = class_by_name.get("Manager")
         if manager:
+            props = manager.required_properties + manager.associated_properties
             # company is declared on Employee, so Manager inherits it from Employee
             company_props = [
-                p for p in manager.properties
+                p for p in props
                 if "company" in p.uriref and p.inherited_from is not None
             ]
             if company_props:

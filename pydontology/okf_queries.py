@@ -14,7 +14,6 @@ from rdflib import RDF, RDFS, OWL, SH, Graph, URIRef
 from .okf import (
     CLASS_DIR,
     CLASS_TYPE,
-    CONVENTIONS_NOTE,
     PROPERTY_DIR,
     PROPERTY_TYPE,
     ClassView,
@@ -674,10 +673,15 @@ def _build_views(
         frontmatter={"okf_version": "0.2"},
         comment=_one_line(ontology_comment),
         prefixes=_extract_namespaces(graph),
-        conventions_note=CONVENTIONS_NOTE,
         classes=index_classes,
         properties=index_properties,
     )
+
+    # Build a (class_iri, prop_iri) → min_count lookup from SHACL data
+    shacl_min: dict[tuple[str, str], int] = {}
+    for c_iri, data in shacl_data.items():
+        for ps in data.get("properties", ()):
+            shacl_min[(c_iri, ps["uriref"])] = ps["min_count"]
 
     # --- Class views ---
     class_views: list[ClassView] = []
@@ -698,22 +702,28 @@ def _build_views(
         for equiv_iri in cls["equivalents"]:
             equiv.append(_build_reference(equiv_iri, None, all_paths, graph))
 
-        # Property references (own first, then inherited)
-        props: list[PropertyRef] = []
+        # Property references partitioned by minCount (own first, then inherited)
+        required: list[PropertyRef] = []
+        associated: list[PropertyRef] = []
         for prop_iri, inherited_from in membership.get(class_iri, ()):
             prop_path = property_paths.get(prop_iri, "")
             prop_label = _local_name(prop_iri)
             inherited_ref = None
             if inherited_from is not None:
                 inherited_ref = _build_reference(inherited_from, None, all_paths, graph)
-            props.append(
-                PropertyRef(
-                    uriref=prop_iri,
-                    title=prop_label,
-                    path=prop_path,
-                    inherited_from=inherited_ref,
-                )
+            pref = PropertyRef(
+                uriref=prop_iri,
+                title=prop_label,
+                path=prop_path,
+                inherited_from=inherited_ref,
             )
+            # Determine bucket: check minCount on this class's shape.
+            # For inherited properties, check the declaring class's shape.
+            check_class = inherited_from if inherited_from is not None else class_iri
+            if shacl_min.get((check_class, prop_iri), 0) >= 1:
+                required.append(pref)
+            else:
+                associated.append(pref)
 
         # SHACL data
         shacl = shacl_data.get(class_iri, {})
@@ -732,7 +742,8 @@ def _build_views(
                 uriref=class_iri,
                 sub_class_of=sub_of,
                 equivalent_class=equiv,
-                properties=props,
+                required_properties=required,
+                associated_properties=associated,
                 closed=closed,
                 ignored_properties=ignored,
             )
@@ -777,12 +788,6 @@ def _build_views(
         required_by: list[Reference] = []
         associated_with: list[Reference] = []
         seen_cls: set[str] = set()
-
-        # Build a lookup: (class_iri, prop_iri) → min_count from SHACL data
-        shacl_min: dict[tuple[str, str], int] = {}
-        for class_iri, data in shacl_data.items():
-            for ps in data.get("properties", ()):
-                shacl_min[(class_iri, ps["uriref"])] = ps["min_count"]
 
         # Collect candidate classes
         candidate_iris: list[str] = list(prop["domains"])

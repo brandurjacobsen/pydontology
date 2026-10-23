@@ -66,7 +66,8 @@ class PropertyView:
     sub_property_of: Reference | None = None
     equivalent_property: Reference | None = None
     inverse_of: Reference | None = None
-    defined_in: list[Reference] = field(default_factory=list)
+    required_by: list[Reference] = field(default_factory=list)
+    associated_with: list[Reference] = field(default_factory=list)
 
 
 @dataclass
@@ -368,7 +369,7 @@ class TestPropertyTemplate:
                 title="Company",
                 path="classes/Company.md",
             ),
-            defined_in=[
+            associated_with=[
                 Reference(
                     uriref="Employee",
                     title="Employee",
@@ -384,7 +385,7 @@ class TestPropertyTemplate:
         assert "Type: owl:ObjectProperty" in body
         assert "RDFS domain: [Employee](/classes/Employee.md)" in body
         assert "RDFS range: [Company](/classes/Company.md)" in body
-        assert "# Defined in" in body
+        assert "# Associated with" in body
         assert "* [Employee](/classes/Employee.md)" in body
 
     def test_multi_class_property_no_domain_range(self, env):
@@ -399,7 +400,7 @@ class TestPropertyTemplate:
             comment=None,
             uriref="name",
             types=["owl:DatatypeProperty", "xsd:string"],
-            defined_in=[
+            associated_with=[
                 Reference(uriref="Person", title="Person", path="classes/Person.md"),
                 Reference(uriref="Company", title="Company", path="classes/Company.md"),
             ],
@@ -411,7 +412,7 @@ class TestPropertyTemplate:
         assert "Type: owl:DatatypeProperty, xsd:string" in body
         assert "RDFS domain:" not in body
         assert "RDFS range:" not in body
-        assert "# Defined in" in body
+        assert "# Associated with" in body
         assert "* [Person](/classes/Person.md)" in body
         assert "* [Company](/classes/Company.md)" in body
 
@@ -442,7 +443,7 @@ class TestPropertyTemplate:
                 title="head_of",
                 path="properties/head-of.md",
             ),
-            defined_in=[
+            associated_with=[
                 Reference(uriref="Person", title="Person", path="classes/Person.md"),
             ],
         )
@@ -465,14 +466,13 @@ class TestPropertyTemplate:
             comment=None,
             uriref="x",
             types=["owl:DatatypeProperty", "xsd:integer"],
-            defined_in=[],
         )
 
         body = render(env, "property.md.j2", view)
         assert body.startswith("Relative IRI: x")
 
     def test_empty_defined_in(self, env):
-        """Property with no defining classes still shows heading."""
+        """Property with no required or associated classes omits both sections."""
         view = PropertyView(
             path="properties/x.md",
             frontmatter={
@@ -482,11 +482,13 @@ class TestPropertyTemplate:
             },
             comment=None,
             uriref="x",
-            defined_in=[],
+            required_by=[],
+            associated_with=[],
         )
 
         body = render(env, "property.md.j2", view)
-        assert "# Defined in" in body
+        assert "# Required by" not in body
+        assert "# Associated with" not in body
 
     def test_compact_iri(self, env):
         """With a vocab, compact IRIs are used."""

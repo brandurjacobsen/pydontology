@@ -9,7 +9,7 @@ from .models import (
     OntologyProperty,
     Relation,
 )
-from .okf import OKFBundle, OKFDocument
+from .okf import OKFBundle, OKFDocument, MembershipMode
 from .owl import OWLAnnotation
 from .pydontology import Pydontology
 from .rdfs import RDFSAnnotation
@@ -23,6 +23,7 @@ __all__ = [
     "Entity",
     "JSONLDGraph",
     "LangStr",
+    "MembershipMode",
     "OKFBundle",
     "OKFDocument",
     "OWLAnnotation",

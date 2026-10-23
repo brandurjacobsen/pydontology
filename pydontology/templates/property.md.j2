@@ -28,7 +28,16 @@ Equivalent to: {{ view.equivalent_property|ref }}
 Inverse of: {{ view.inverse_of|ref }}
 
 {% endif -%}
-# Defined in
-{% for cls in view.defined_in -%}
+{% if view.required_by -%}
+# Required by
+{% for cls in view.required_by -%}
 * {{ cls|ref }}
-{% endfor -%}
+{% endfor %}
+
+{% endif -%}
+{% if view.associated_with -%}
+# Associated with
+{% for cls in view.associated_with -%}
+* {{ cls|ref }}
+{% endfor %}
+{% endif -%}

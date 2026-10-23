@@ -165,7 +165,7 @@ def test_property_document(okf_onto):
     assert 'title: "name"' in name
     assert "Relative IRI" in name
     assert "DatatypeProperty" in name
-    assert "# Defined in" in name
+    assert "# Associated with" in name
     assert "/classes/Person.md" in name
 
     company = docs["properties/company.md"]

@@ -1,6 +1,7 @@
 import json
 import re
 from dataclasses import dataclass, field
+from enum import Enum
 from os import PathLike
 from pathlib import Path
 
@@ -27,9 +28,25 @@ CONVENTIONS_NOTE = (
     "RDF predicates are global: any property may be used with any subject. "
     "A class's `# Applicable properties` section lists the properties declared "
     "on that class or inherited from its superclasses, and a property's "
-    "`# Defined in` section lists the classes that declare it. These listings "
-    "are exhaustive only where a class's shape is marked closed (`sh:closed`)."
+    "`# Required by` and `# Associated with` sections list the classes that "
+    "require or are associated with it via rdfs:domain, SHACL constraints, "
+    "or the ontology class definitions. These listings are exhaustive only "
+    "where a class's shape is marked closed (`sh:closed`)."
 )
+
+
+class MembershipMode(str, Enum):
+    """Controls how property→class membership is determined.
+
+    ``PYDONTOLOGY`` (default) uses the ``_prop_db`` internal registry,
+    treating classes as schemas where properties belong to specific
+    classes.  ``RDF`` infers membership solely from the graph —
+    ``rdfs:domain`` and ``sh:targetClass`` / ``sh:property`` / ``sh:path``
+    — treating properties as global.
+    """
+
+    PYDONTOLOGY = "pydontology"
+    RDF = "rdf"
 
 
 # ---------------------------------------------------------------------------
@@ -253,7 +270,11 @@ class PropertyView:
         sub_property_of (Reference | None): Super-property reference.
         equivalent_property (Reference | None): Equivalent property reference.
         inverse_of (Reference | None): Inverse property reference.
-        defined_in (list[Reference]): Classes that declare this property.
+        required_by (list[Reference]): Classes whose SHACL shapes require
+            this property (``sh:minCount`` ≥ 1).
+        associated_with (list[Reference]): Classes associated with this
+            property via ``rdfs:domain`` or class definitions, without a
+            mandatory SHACL constraint.
     """
     path: str
     frontmatter: dict[str, str]
@@ -265,7 +286,8 @@ class PropertyView:
     sub_property_of: Reference | None = None
     equivalent_property: Reference | None = None
     inverse_of: Reference | None = None
-    defined_in: list[Reference] = field(default_factory=list)
+    required_by: list[Reference] = field(default_factory=list)
+    associated_with: list[Reference] = field(default_factory=list)
 
 
 @dataclass
@@ -405,6 +427,7 @@ def build_okf_bundle_from_graphs(
     onto_graph: JSONLDGraph,
     shacl_graph: JSONLDGraph | None = None,
     defined_in: dict[str, list[str]] | None = None,
+    membership_mode: MembershipMode = MembershipMode.PYDONTOLOGY,
     template_dir: str | PathLike | None = None,
 ) -> OKFBundle:
     """Build an OKF v0.2 bundle from ontology and SHACL graphs.
@@ -422,6 +445,9 @@ def build_okf_bundle_from_graphs(
         defined_in (dict[str, list[str]] | None): Property IRI to list of
             class IRIs that declare it. Supplements ``rdfs:domain`` for
             multi-class properties where domain is not emitted.
+        membership_mode (MembershipMode): How to determine property→class
+            membership. ``PYDONTOLOGY`` (default) uses the internal field
+            registry; ``RDF`` infers everything from the graph.
         template_dir (str | PathLike | None): Directory containing Jinja2
             templates. Defaults to the package's built-in template directory.
 
@@ -456,7 +482,8 @@ def build_okf_bundle_from_graphs(
 
     # Query rdflib for views (also returns the namespace manager for filters)
     index_view, class_views, property_views, ns_manager = query_ontology(
-        onto_jsonld, shacl_jsonld, defined_in=defined_in
+        onto_jsonld, shacl_jsonld, defined_in=defined_in,
+        membership_mode=membership_mode,
     )
 
     # Set up Jinja2 environment

@@ -19,6 +19,7 @@ from .okf import (
     PROPERTY_TYPE,
     ClassView,
     IndexView,
+    MembershipMode,
     PrefixEntry,
     PropertyRef,
     PropertyView,
@@ -90,7 +91,6 @@ def _query_classes(graph: Graph) -> list[dict]:
         list[dict]: One dict per class with keys ``uriref``, ``label``,
             ``comment``, ``parents``, ``equivalents``.
     """
-    class_types = {RDFS.Class, OWL.Class}
     classes: list[dict] = []
 
     for cls_uri in graph.subjects(RDF.type, RDFS.Class):
@@ -254,13 +254,17 @@ def _query_metadata(graph: Graph) -> str | None:
 def _query_shacl(graph: Graph) -> dict[str, dict]:
     """Extract SHACL node shape constraints.
 
+    For each NodeShape, collects ``sh:closed``, ``sh:ignoredProperties``,
+    and the list of PropertyShapes with their ``sh:path`` and ``sh:minCount``.
+
     Args:
         graph (Graph): The parsed graph (ontology + SHACL merged).
 
     Returns:
         dict[str, dict]: Class IRI string to a dict with keys ``closed``
-            (bool) and ``ignored`` (list[str]). Only present for classes
-            that have an associated ``sh:NodeShape``.
+            (bool), ``ignored`` (list[str]), and ``properties``
+            (list[dict] with keys ``uriref`` and ``min_count``).
+            Only present for classes that have an associated ``sh:NodeShape``.
     """
     shapes: dict[str, dict] = {}
 
@@ -278,9 +282,42 @@ def _query_shacl(graph: Graph) -> dict[str, dict]:
         if ignored_list is not None:
             ignored = _rdf_list_items(graph, ignored_list)
 
-        shapes[target_iri] = {"closed": closed, "ignored": ignored}
+        # Extract PropertyShapes: sh:property → blank node → sh:path + sh:minCount
+        prop_shapes: list[dict] = []
+        for prop_shape in graph.objects(shape, SH.property):
+            path = graph.value(prop_shape, SH.path)
+            if path is None or not isinstance(path, URIRef):
+                continue
+            min_count_val = graph.value(prop_shape, SH.minCount)
+            min_count = _int_value(min_count_val)
+            prop_shapes.append({"uriref": str(path), "min_count": min_count})
+
+        shapes[target_iri] = {
+            "closed": closed,
+            "ignored": ignored,
+            "properties": prop_shapes,
+        }
 
     return shapes
+
+
+def _int_value(value) -> int:
+    """Convert an rdflib literal to a Python int, defaulting to 0.
+
+    Args:
+        value: An rdflib Literal or int.
+
+    Returns:
+        int: The integer value, or 0 when unset.
+    """
+    if value is None:
+        return 0
+    if isinstance(value, int):
+        return value
+    try:
+        return int(str(value))
+    except (ValueError, TypeError):
+        return 0
 
 
 def _bool_value(value) -> bool:
@@ -380,45 +417,60 @@ def _build_membership(
     properties: list[dict],
     parents: dict[str, tuple[str, ...]],
     defined_in: dict[str, list[str]],
+    shacl_data: dict[str, dict],
+    membership_mode: MembershipMode,
 ) -> dict[str, list[tuple[str, str | None]]]:
     """Build the class-membership index: class IRI to applicable properties.
 
     Own-declared properties come first, then inherited ones keyed by the
-    nearest declaring ancestor. Property declaration is determined by
-    ``rdfs:domain`` triples, supplemented by ``defined_in`` for multi-class
-    properties where domain is suppressed.
+    nearest declaring ancestor. Property declaration is determined by:
+
+    * ``rdfs:domain`` triples (always).
+    * ``defined_in`` side-channel (``PYDONTOLOGY`` mode).
+    * SHACL ``sh:property`` / ``sh:path`` inside ``sh:targetClass``
+      NodeShapes (``RDF`` mode).
 
     Args:
         classes (list[dict]): Class data dicts.
         properties (list[dict]): Property data dicts.
         parents (dict[str, tuple[str, ...]]): Class IRI to parent IRIs.
-        defined_in (dict[str, list[str]]): Property IRI to list of class
-            IRIs that declare it (from ``_prop_db``).
+        defined_in (dict[str, list[str]]): Property name → declaring class
+            names (from ``_prop_db``).  Only used in ``PYDONTOLOGY`` mode.
+        shacl_data (dict[str, dict]): SHACL shape data from ``_query_shacl``.
+            Only used in ``RDF`` mode.
+        membership_mode (MembershipMode): Which membership sources to use.
 
     Returns:
         dict[str, list[tuple[str, str | None]]]: Class IRI to list of
             (property_iri, inherited_from_iri_or_None) tuples, ordered
             own-first, id-sorted within each group.
     """
-    # Which properties are declared on which classes:
-    # first from rdfs:domain, then supplement with defined_in
+    # Which properties are declared on which classes: first from rdfs:domain
     declared: dict[str, list[str]] = {}
     for prop in properties:
         for domain in prop["domains"]:
             declared.setdefault(domain, []).append(prop["uriref"])
 
-    # Supplement with defined_in (keyed by property local name → class local names).
-    # Build lookup tables from local name → IRI.
-    if defined_in:
-        prop_by_name = {_local_name(p["uriref"]): p["uriref"] for p in properties}
-        cls_by_name = {_local_name(c["uriref"]): c["uriref"] for c in classes}
-        for prop_name, class_names in defined_in.items():
-            prop_iri = prop_by_name.get(prop_name)
-            if prop_iri is None:
-                continue
-            for class_name in class_names:
-                class_iri = cls_by_name.get(class_name)
-                if class_iri is not None and prop_iri not in declared.get(class_iri, ()):
+    # Supplement based on mode
+    if membership_mode is MembershipMode.PYDONTOLOGY:
+        # Supplement with defined_in (keyed by property local name → class local names)
+        if defined_in:
+            prop_by_name = {_local_name(p["uriref"]): p["uriref"] for p in properties}
+            cls_by_name = {_local_name(c["uriref"]): c["uriref"] for c in classes}
+            for prop_name, class_names in defined_in.items():
+                prop_iri = prop_by_name.get(prop_name)
+                if prop_iri is None:
+                    continue
+                for class_name in class_names:
+                    class_iri = cls_by_name.get(class_name)
+                    if class_iri is not None and prop_iri not in declared.get(class_iri, ()):
+                        declared.setdefault(class_iri, []).append(prop_iri)
+    else:
+        # RDF mode: supplement with SHACL sh:property/sh:path
+        for class_iri, data in shacl_data.items():
+            for ps in data.get("properties", ()):
+                prop_iri = ps["uriref"]
+                if prop_iri not in declared.get(class_iri, ()):
                     declared.setdefault(class_iri, []).append(prop_iri)
 
     membership: dict[str, list[tuple[str, str | None]]] = {}
@@ -574,6 +626,7 @@ def _build_views(
     parents: dict[str, tuple[str, ...]],
     membership: dict[str, list[tuple[str, str | None]]],
     defined_in: dict[str, list[str]],
+    membership_mode: MembershipMode,
 ) -> tuple[IndexView, list[ClassView], list[PropertyView]]:
     """Assemble IndexView, ClassView, and PropertyView dataclasses.
 
@@ -586,7 +639,9 @@ def _build_views(
         membership (dict[str, list[tuple[str, str | None]]]): Class→property
             membership index.
         defined_in (dict[str, list[str]]): Property name → declaring class
-            names, for populating ``# Defined in`` on multi-class properties.
+            names. Only used in ``PYDONTOLOGY`` mode.
+        membership_mode (MembershipMode): Which sources determine the
+            ``required_by`` / ``associated_with`` sections.
 
     Returns:
         tuple[IndexView, list[ClassView], list[PropertyView]]: The assembled
@@ -715,18 +770,47 @@ def _build_views(
         if prop["inverse_of"] is not None:
             inv_ref = _build_reference(prop["inverse_of"], None, all_paths, graph)
 
-        # Defined-in references (classes that declare this property via rdfs:domain
-        # or via the defined_in side-channel for multi-class properties)
-        defined: list[Reference] = []
-        for domain_iri in prop["domains"]:
-            defined.append(_build_reference(domain_iri, None, all_paths, graph))
-        # Supplement with defined_in for multi-class properties
-        prop_name = _local_name(prop_iri)
-        cls_by_name = {_local_name(c["uriref"]): c["uriref"] for c in classes}
-        for class_name in defined_in.get(prop_name, ()):
-            class_iri = cls_by_name.get(class_name)
-            if class_iri is not None and class_iri not in {ref.uriref for ref in defined}:
-                defined.append(_build_reference(class_iri, None, all_paths, graph))
+        # Required-by / Associated-with references.
+        # Candidate classes depend on membership mode; the bucket
+        # depends on whether the class's SHACL shape requires the
+        # property (sh:minCount ≥ 1).
+        required_by: list[Reference] = []
+        associated_with: list[Reference] = []
+        seen_cls: set[str] = set()
+
+        # Build a lookup: (class_iri, prop_iri) → min_count from SHACL data
+        shacl_min: dict[tuple[str, str], int] = {}
+        for class_iri, data in shacl_data.items():
+            for ps in data.get("properties", ()):
+                shacl_min[(class_iri, ps["uriref"])] = ps["min_count"]
+
+        # Collect candidate classes
+        candidate_iris: list[str] = list(prop["domains"])
+
+        if membership_mode is MembershipMode.PYDONTOLOGY:
+            # Supplement with defined_in
+            prop_name = _local_name(prop_iri)
+            cls_by_name = {_local_name(c["uriref"]): c["uriref"] for c in classes}
+            for class_name in defined_in.get(prop_name, ()):
+                class_iri = cls_by_name.get(class_name)
+                if class_iri is not None and class_iri not in candidate_iris:
+                    candidate_iris.append(class_iri)
+        else:
+            # RDF mode: supplement with SHACL targetClass/property
+            for class_iri, data in shacl_data.items():
+                for ps in data.get("properties", ()):
+                    if ps["uriref"] == prop_iri and class_iri not in candidate_iris:
+                        candidate_iris.append(class_iri)
+
+        for class_iri in candidate_iris:
+            if class_iri in seen_cls:
+                continue
+            seen_cls.add(class_iri)
+            ref = _build_reference(class_iri, None, all_paths, graph)
+            if shacl_min.get((class_iri, prop_iri), 0) >= 1:
+                required_by.append(ref)
+            else:
+                associated_with.append(ref)
 
         property_views.append(
             PropertyView(
@@ -744,7 +828,8 @@ def _build_views(
                 sub_property_of=super_ref,
                 equivalent_property=equiv_ref,
                 inverse_of=inv_ref,
-                defined_in=defined,
+                required_by=required_by,
+                associated_with=associated_with,
             )
         )
 
@@ -761,6 +846,7 @@ def query_ontology(
     shacl_jsonld: str | None = None,
     *,
     defined_in: dict[str, list[str]] | None = None,
+    membership_mode: MembershipMode = MembershipMode.PYDONTOLOGY,
 ) -> tuple[IndexView, list[ClassView], list[PropertyView]]:
     """Query ontology and SHACL graphs and build OKF view dataclasses.
 
@@ -770,7 +856,10 @@ def query_ontology(
             or None if no SHACL data is available.
         defined_in (dict[str, list[str]] | None): Property IRI to list of
             class IRIs that declare it. Supplements ``rdfs:domain`` for
-            multi-class properties where domain is suppressed.
+            multi-class properties where domain is suppressed.  Only used
+            in ``PYDONTOLOGY`` mode.
+        membership_mode (MembershipMode): How to determine property→class
+            membership.
 
     Returns:
         tuple: ``(index_view, class_views, property_views, namespace_manager)``.
@@ -780,7 +869,9 @@ def query_ontology(
     properties = _query_properties(graph)
     shacl_data = _query_shacl(graph) if shacl_jsonld else {}
     parents = _build_class_hierarchy(classes)
-    membership = _build_membership(classes, properties, parents, defined_in or {})
+    membership = _build_membership(
+        classes, properties, parents, defined_in or {}, shacl_data, membership_mode,
+    )
 
     views = _build_views(
         graph=graph,
@@ -790,5 +881,6 @@ def query_ontology(
         parents=parents,
         membership=membership,
         defined_in=defined_in or {},
+        membership_mode=membership_mode,
     )
     return (*views, graph.namespace_manager)

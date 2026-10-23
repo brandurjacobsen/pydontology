@@ -20,7 +20,7 @@ from .models import (
     OntologyProperty,
     _PropertyShape,
 )
-from .okf import OKFBundle, build_okf_bundle_from_graphs
+from .okf import OKFBundle, MembershipMode, build_okf_bundle_from_graphs
 from .owl import OWLAnnotation
 from .rdfs import RDFSAnnotation
 from .settings import Settings
@@ -592,6 +592,7 @@ class Pydontology:
         context: BaseContext = BaseContext(),
         settings: Settings = Settings(),
         template_dir: str | PathLike | None = None,
+        membership_mode: MembershipMode = MembershipMode.PYDONTOLOGY,
     ) -> OKFBundle:
         """Generate an Open Knowledge Format (OKF) v0.2 bundle.
 
@@ -609,6 +610,9 @@ class Pydontology:
             template_dir (str | PathLike | None): Optional directory containing
                 custom Jinja2 templates (``class.md.j2``, ``property.md.j2``,
                 ``index.md.j2``). When ``None``, the package defaults are used.
+            membership_mode (MembershipMode): How to determine property→class
+                membership. ``PYDONTOLOGY`` (default) uses the internal field
+                registry; ``RDF`` infers everything from the RDF graph.
 
         Returns:
             OKFBundle: The in-memory bundle, ready to render or write.
@@ -634,6 +638,7 @@ class Pydontology:
             defined_in={
                 pid: info["defined_in"] for pid, info in self._prop_db.items()
             },
+            membership_mode=membership_mode,
             template_dir=template_dir,
         )
 

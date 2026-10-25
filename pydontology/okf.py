@@ -104,15 +104,18 @@ def _local_name(uriref_str: str) -> str:
 def _qname_pair(ns_manager, uriref_str: str) -> tuple[str | None, str | None]:
     """Return ``(prefix, localname)`` for an IRI, or ``(None, None)``.
 
-    This helper exists because rdflib's ``NamespaceManager.qname()`` returns
-    a plain ``"prefix:localname"`` **string** in modern versions (4.x+), but
-    returned a ``(prefix, namespace, localname)`` **tuple** in older versions.
-    Callers used to unpack the result as a 3-tuple; on the string form that
-    raises ``ValueError``, which a broad ``except`` swallowed — silently
-    disabling compact-IRI rendering. Normalizing both shapes here keeps the
-    filters and display-name logic working across rdflib versions.
+    This helper exists because rdflib's ``NamespaceManager.qname()`` (and
+    its underlying ``compute_qname(generate=True)``) can **auto-generate**
+    synthetic prefixes like ``ns1`` for namespaces that are not explicitly
+    bound — e.g. the ``@base`` IRI in a JSON-LD context.  Those prefixes
+    do not appear in the document's PREFIX block, so compact forms like
+    ``ns1:Person`` are unresolvable by consumers.
 
-    A bare local name (an empty prefix bound to the namespace) yields
+    Using ``compute_qname(generate=False)`` instead prevents auto-generation:
+    unknown namespaces raise ``KeyError``, and the helper returns
+    ``(None, None)`` so callers fall back to the full IRI.
+
+    A bare local name (an empty prefix bound to the namespace) also yields
     ``(None, None)`` so callers fall back to the full IRI instead of
     emitting an ambiguous unprefixed compact form.
 
@@ -127,7 +130,7 @@ def _qname_pair(ns_manager, uriref_str: str) -> tuple[str | None, str | None]:
     from rdflib.term import URIRef
 
     try:
-        result = ns_manager.qname(URIRef(uriref_str))
+        result = ns_manager.compute_qname(URIRef(uriref_str), generate=False)
     except Exception:
         return None, None
     if result is None:

@@ -61,18 +61,29 @@ def _parse_graphs(
 # ---------------------------------------------------------------------------
 
 
-def _extract_namespaces(graph: Graph) -> list[PrefixEntry]:
+def _extract_namespaces(graph: Graph, whitelist_uris: set[str]) -> list[PrefixEntry]:
     """Extract namespace prefix bindings from the graph.
+
+    Only includes namespaces whose URI appears in ``whitelist_uris``
+    (the set of URIs declared in the JSON-LD ``@context``) and skips
+    the empty prefix (``@vocab`` binding) so the PREFIX block does not
+    promise a default namespace that the concept documents never use.
 
     Args:
         graph (Graph): An rdflib graph with namespace_manager populated.
+        whitelist_uris (set[str]): Namespace URIs from the JSON-LD
+            ``@context``.
 
     Returns:
         list[PrefixEntry]: Prefix entries sorted by name.
     """
     entries: list[PrefixEntry] = []
     for prefix, namespace in graph.namespace_manager.namespaces():
-        entries.append(PrefixEntry(name=prefix, namespace=str(namespace)))
+        if prefix == "":
+            continue  # empty prefix: never shown (Option A)
+        ns_str = str(namespace)
+        if ns_str in whitelist_uris:
+            entries.append(PrefixEntry(name=prefix, namespace=ns_str))
     return sorted(entries, key=lambda e: e.name)
 
 
@@ -510,6 +521,8 @@ def _display_name(uriref_str: str, graph: Graph) -> str:
     Returns:
         str: A display name, e.g. ``"owl:Thing"`` or ``"Person"``.
     """
+    if uriref_str.startswith("file:"):
+        return _local_name(uriref_str)
     prefix, localname = _qname_pair(graph.namespace_manager, uriref_str)
     if prefix:
         return f"{prefix}:{localname}"
@@ -621,6 +634,7 @@ def _build_views(
     membership: dict[str, list[tuple[str, str | None]]],
     defined_in: dict[str, list[str]],
     membership_mode: MembershipMode,
+    whitelist_uris: set[str],
 ) -> tuple[IndexView, list[ClassView], list[PropertyView]]:
     """Assemble IndexView, ClassView, and PropertyView dataclasses.
 
@@ -636,6 +650,8 @@ def _build_views(
             names. Only used in ``PYDONTOLOGY`` mode.
         membership_mode (MembershipMode): Which sources determine the
             ``required_by`` / ``associated_with`` sections.
+        whitelist_uris (set[str]): Namespace URIs from the JSON-LD
+            ``@context``. Passed through to ``_extract_namespaces``.
 
     Returns:
         tuple[IndexView, list[ClassView], list[PropertyView]]: The assembled
@@ -667,7 +683,7 @@ def _build_views(
         path="index.md",
         frontmatter={"okf_version": "0.2"},
         comment=_one_line(ontology_comment),
-        prefixes=_extract_namespaces(graph),
+        prefixes=_extract_namespaces(graph, whitelist_uris),
         classes=index_classes,
         properties=index_properties,
     )
@@ -865,6 +881,17 @@ def query_ontology(
         tuple: ``(index_view, class_views, property_views, namespace_manager)``.
     """
     graph = _parse_graphs(onto_jsonld, shacl_jsonld)
+
+    # Whitelist namespaces declared in the JSON-LD @context so the
+    # PREFIX block only shows user-defined prefixes, not rdflib's
+    # built-in defaults (brick, dc, foaf, etc.).
+    import json
+    ctx_data = json.loads(onto_jsonld).get("@context", {})
+    whitelist_uris = {
+        v for v in ctx_data.values()
+        if isinstance(v, str) and "://" in v
+    }
+
     classes = _query_classes(graph)
     properties = _query_properties(graph)
     shacl_data = _query_shacl(graph) if shacl_jsonld else {}
@@ -882,5 +909,6 @@ def query_ontology(
         membership=membership,
         defined_in=defined_in or {},
         membership_mode=membership_mode,
+        whitelist_uris=whitelist_uris,
     )
     return (*views, graph.namespace_manager)

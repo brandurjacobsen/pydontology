@@ -95,8 +95,8 @@ def _local_name(uriref_str: str) -> str:
     for sep in ("#", "/"):
         if sep in uriref_str:
             return uriref_str.rsplit(sep, 1)[-1]
-        if ":" in uriref_str:
-            return uriref_str.rsplit(":", 1)[-1]
+    if ":" in uriref_str:
+        return uriref_str.rsplit(":", 1)[-1]
     return uriref_str
 
 

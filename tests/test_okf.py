@@ -11,7 +11,7 @@ from pydontology import (
     Pydontology,
     Relation,
 )
-from pydontology.okf import _slugify
+from pydontology.okf import _local_name, _slugify
 from pydontology.rdfs import RDFSAnnotation as RDFS
 from pydontology.shacl import SHACLAnnotation as SH
 
@@ -225,6 +225,42 @@ def test_slugify_raises_on_empty():
     """_slugify raises ValueError when the result is empty."""
     with pytest.raises(ValueError):
         _slugify("!!!")
+
+
+def test_local_name_http_path():
+    """A URL path yields the trailing segment, not the scheme prefix.
+
+    Regression test: the ``:`` fallback must only run when neither ``#``
+    nor ``/`` is present.  If it runs unconditionally first, an HTTP IRI
+    returns ``//host/vocab/Person`` instead of ``Person``.
+    """
+    assert _local_name("http://example.com/vocab/Person") == "Person"
+    assert _local_name("https://example.com/onto/classes/Employee") == "Employee"
+
+
+def test_local_name_fragment():
+    """A ``#`` fragment takes precedence over both ``/`` and ``:``."""
+    assert _local_name("http://example.com/vocab#name") == "name"
+    # Both a path and a fragment: the fragment wins
+    assert _local_name("http://example.com/vocab/onto#Person") == "Person"
+
+
+def test_local_name_urn():
+    """A URN without ``#`` or ``/`` falls back to the last ``:``."""
+    assert _local_name("urn:code:Person") == "Person"
+    assert _local_name("urn:uuid:1234") == "1234"
+
+
+def test_local_name_compact_iri():
+    """Compact IRIs like ``owl:Thing`` fall back to the last ``:``."""
+    assert _local_name("owl:Thing") == "Thing"
+    assert _local_name("rdfs:subClassOf") == "subClassOf"
+
+
+def test_local_name_bare():
+    """A bare name with no separator is returned unchanged."""
+    assert _local_name("Person") == "Person"
+    assert _local_name("") == ""
 
 
 # ---------------------------------------------------------------------------

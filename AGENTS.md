@@ -61,6 +61,8 @@
 - Run: `pytest` (ensure optional test deps installed).
 
 ## Docs and releases
-- MkDocs sources in `mkdocs/`, config in `mkdocs.yml`, output in `docs/`.
+- MkDocs sources in `mkdocs/`, config in `mkdocs.yml`, output in `_site/`.
+  Docs are built and deployed to GitHub Pages via `.github/workflows/docs.yml`
+  on push to `main`.
 - README mirrors mkdocs index content.
 - Distribution is currently via TestPyPI; version is in `pyproject.toml`.

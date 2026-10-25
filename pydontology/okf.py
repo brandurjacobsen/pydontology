@@ -135,11 +135,6 @@ def _qname_pair(ns_manager, uriref_str: str) -> tuple[str | None, str | None]:
         return None, None
     if result is None:
         return None, None
-    if isinstance(result, str):
-        prefix, sep, localname = result.partition(":")
-        if not sep or not prefix:
-            return None, None
-        return prefix, localname
     prefix, _namespace, localname = result
     return prefix or None, localname
 

@@ -781,8 +781,8 @@ IRI when a prefix matches, otherwise verbatim.
 
 A bundle contains:
 
-- `index.md` — the ontology comment, a `# Prefixes` section with a fenced
-  `sparql` block of copy-pasteable `PREFIX` lines, a short note on RDF
+- `index.md` — the ontology comment, a `# Prefixes` section with a 
+  block of copy-pasteable `PREFIX` lines, a short note on RDF
   predicate semantics, then `# Classes` and `# Properties` sections linking
   every concept.
 - `classes/<Class>.md` — the class docstring, its IRI (labelled `IRI` when it

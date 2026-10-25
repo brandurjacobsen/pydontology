@@ -101,6 +101,46 @@ def _local_name(uriref_str: str) -> str:
     return uriref_str
 
 
+def _qname_pair(ns_manager, uriref_str: str) -> tuple[str | None, str | None]:
+    """Return ``(prefix, localname)`` for an IRI, or ``(None, None)``.
+
+    This helper exists because rdflib's ``NamespaceManager.qname()`` returns
+    a plain ``"prefix:localname"`` **string** in modern versions (4.x+), but
+    returned a ``(prefix, namespace, localname)`` **tuple** in older versions.
+    Callers used to unpack the result as a 3-tuple; on the string form that
+    raises ``ValueError``, which a broad ``except`` swallowed — silently
+    disabling compact-IRI rendering. Normalizing both shapes here keeps the
+    filters and display-name logic working across rdflib versions.
+
+    A bare local name (an empty prefix bound to the namespace) yields
+    ``(None, None)`` so callers fall back to the full IRI instead of
+    emitting an ambiguous unprefixed compact form.
+
+    Args:
+        ns_manager: An rdflib ``NamespaceManager`` instance.
+        uriref_str (str): The URI string.
+
+    Returns:
+        tuple[str | None, str | None]: ``(prefix, localname)`` or
+            ``(None, None)`` when no named prefix matches.
+    """
+    from rdflib.term import URIRef
+
+    try:
+        result = ns_manager.qname(URIRef(uriref_str))
+    except Exception:
+        return None, None
+    if result is None:
+        return None, None
+    if isinstance(result, str):
+        prefix, sep, localname = result.partition(":")
+        if not sep or not prefix:
+            return None, None
+        return prefix, localname
+    prefix, _namespace, localname = result
+    return prefix or None, localname
+
+
 # ---------------------------------------------------------------------------
 # Document models
 # ---------------------------------------------------------------------------
@@ -348,21 +388,14 @@ def _make_compact_iri_filter(ns_manager):
         callable: A filter that takes a URI string and returns a compact IRI
             (``prefix:localname``) or the full IRI if no prefix matches.
     """
-    from rdflib.term import URIRef
 
     def compact_iri(uriref_str: str) -> str:
         # Resolved-against-filesystem IRIs: show the local name only
         if uriref_str.startswith("file:"):
             return _local_name(uriref_str)
-        try:
-            uri = URIRef(uriref_str)
-            result = ns_manager.qname(uri)
-            if result is not None:
-                prefix, _namespace, localname = result
-                if prefix:
-                    return f"{prefix}:{localname}"
-        except Exception:
-            pass
+        prefix, localname = _qname_pair(ns_manager, uriref_str)
+        if prefix:
+            return f"{prefix}:{localname}"
         return uriref_str
 
     return compact_iri
@@ -378,21 +411,14 @@ def _make_iri_label_filter(ns_manager):
         callable: A filter that takes a URI string and returns ``"IRI"`` when
             the URI can be compacted or is absolute, otherwise ``"Relative IRI"``.
     """
-    from rdflib.term import URIRef
 
     def iri_label(uriref_str: str) -> str:
         # Resolved-against-filesystem IRIs are not real ontology IRIs
         if uriref_str.startswith("file:"):
             return "Relative IRI"
-        try:
-            uri = URIRef(uriref_str)
-            result = ns_manager.qname(uri)
-            if result is not None:
-                prefix, _namespace, _localname = result
-                if prefix:
-                    return "IRI"
-        except Exception:
-            pass
+        prefix, _localname = _qname_pair(ns_manager, uriref_str)
+        if prefix:
+            return "IRI"
         # Check for absolute IRI (has a scheme with "//")
         if "://" in uriref_str:
             return "IRI"

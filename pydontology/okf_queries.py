@@ -25,6 +25,7 @@ from .okf import (
     Reference,
     _local_name,
     _one_line,
+    _qname_pair,
     _slugify,
 )
 
@@ -509,15 +510,9 @@ def _display_name(uriref_str: str, graph: Graph) -> str:
     Returns:
         str: A display name, e.g. ``"owl:Thing"`` or ``"Person"``.
     """
-    try:
-        uri = URIRef(uriref_str)
-        result = graph.namespace_manager.qname(uri)
-        if result is not None:
-            prefix, _namespace, localname = result
-            if prefix:
-                return f"{prefix}:{localname}"
-    except Exception:
-        pass
+    prefix, localname = _qname_pair(graph.namespace_manager, uriref_str)
+    if prefix:
+        return f"{prefix}:{localname}"
     return _local_name(uriref_str)
 
 

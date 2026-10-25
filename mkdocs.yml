@@ -26,4 +26,4 @@ markdown_extensions:
       permalink: "#"
 
 docs_dir: mkdocs
-site_dir: docs # Github pages wants '/' or '/docs' to serve content
+site_dir: _site

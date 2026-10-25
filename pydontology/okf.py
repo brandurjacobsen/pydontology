@@ -83,8 +83,8 @@ def _one_line(text: str | None) -> str | None:
 def _local_name(uriref_str: str) -> str:
     """Extract the local-name portion from a URI string.
 
-    Takes the part after the last ``#`` or ``/``. For bare names with no
-    separator, returns the string unchanged.
+    Takes the part after the last ``#`` or ``/``, otherwise part after last ``:``.
+    For bare names with no separator, returns the string unchanged.
 
     Args:
         uriref_str (str): The URI string.
@@ -95,6 +95,8 @@ def _local_name(uriref_str: str) -> str:
     for sep in ("#", "/"):
         if sep in uriref_str:
             return uriref_str.rsplit(sep, 1)[-1]
+        if ":" in uriref_str:
+            return uriref_str.rsplit(":", 1)[-1]
     return uriref_str
 
 

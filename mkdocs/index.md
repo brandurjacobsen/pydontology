@@ -774,8 +774,10 @@ supplied by the [BaseContext] `context` argument, so an agent can read the IRIs
 straight from the files. Prefixes come from the context's configured namespaces
 (``owl``, ``xsd``, ``rdfs``, ``sh``, and any extras declared in the context).
 Ids that cannot be resolved stay verbatim and are labelled ``Relative IRI``.
-Internal targets are markdown links; external targets render as a compact IRI
-when a prefix matches, otherwise verbatim.
+Internal targets are markdown links whose paths are **relative to the source
+document**, so the bundle is navigable in local markdown previewers (e.g. Zed,
+VS Code) as well as static site generators. External targets render as a compact
+IRI when a prefix matches, otherwise verbatim.
 
 A bundle contains:
 

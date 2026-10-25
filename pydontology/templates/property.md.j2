@@ -5,7 +5,7 @@
 {{ view.uriref|iri_label }}: {{ view.uriref|compact_iri }}
 
 {% if view.types -%}
-Type: {{ view.types|join(', ') }}
+Type: {{ view.types|map('compact_iri')|join(', ') }}
 
 {% endif -%}
 {% if view.domain -%}

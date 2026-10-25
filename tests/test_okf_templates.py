@@ -96,11 +96,16 @@ def _iri_label(value: str) -> str:
     return "Relative IRI"
 
 
-def _ref(value: Reference) -> str:
-    """Render a Reference as a markdown link or bare title."""
-    if value.path is not None:
-        return f"[{value.title}](/{value.path})"
-    return value.title
+def _make_ref(source_path: str):
+    """Stub ref filter: links relative to the source document's directory."""
+    from os.path import dirname, relpath
+
+    def _ref(value) -> str:
+        if value.path:
+            return f"[{value.title}]({relpath(value.path, dirname(source_path) or '.')})"
+        return value.title
+
+    return _ref
 
 
 # ---------------------------------------------------------------------------
@@ -116,7 +121,6 @@ def env():
     e = jinja2.Environment(loader=loader, autoescape=False)
     e.filters["compact_iri"] = _compact_iri
     e.filters["iri_label"] = _iri_label
-    e.filters["ref"] = _ref
     return e
 
 
@@ -126,7 +130,12 @@ def env():
 
 
 def render(env, template_name: str, view) -> str:
-    """Render a template and return the stripped body."""
+    """Render a template and return the stripped body.
+
+    Binds the ``ref`` filter per-view so links mirror the real, per-document
+    relative-path behaviour.
+    """
+    env.filters["ref"] = _make_ref(view.path)
     template = env.get_template(template_name)
     return template.render(view=view).strip()
 
@@ -177,16 +186,16 @@ class TestClassTemplate:
         assert body.startswith("An employee, a kind of person.")
         # IRI label and value
         assert "Relative IRI: Employee" in body
-        # Subclass link
-        assert "Subclass of: [Person](/classes/Person.md)" in body
+        # Subclass link (relative to classes/, so sibling = bare name)
+        assert "Subclass of: [Person](Person.md)" in body
         # Section heading
         assert "# Associated properties" in body
         # Own property (no inheritance marker)
-        assert "* [company](/properties/company.md)" in body
+        assert "* [company](../properties/company.md)" in body
         # Inherited property
         assert (
-            "* [knows](/properties/knows.md) - inherited from "
-            "[Person](/classes/Person.md)" in body
+            "* [knows](../properties/knows.md) - inherited from "
+            "[Person](Person.md)" in body
         )
         # Own before inherited
         assert body.index("company.md") < body.index("knows.md")
@@ -219,7 +228,7 @@ class TestClassTemplate:
         # owl:Thing has no path, so rendered as bare title (no link)
         assert "Subclass of: owl:Thing" in body
         assert "# Associated properties" in body
-        assert "* [name](/properties/name.md)" in body
+        assert "* [name](../properties/name.md)" in body
 
     def test_no_comment(self, env):
         """Class without a comment omits the leading paragraph."""
@@ -261,7 +270,7 @@ class TestClassTemplate:
             "Closed shape (`sh:closed`): only these properties are allowed "
             "(plus ignored: rdf:type)." in body
         )
-        assert "* [name](/properties/name.md)" in body
+        assert "* [name](../properties/name.md)" in body
 
     def test_closed_shape_no_ignored(self, env):
         """Closed shape without ignored properties."""
@@ -381,10 +390,10 @@ class TestPropertyTemplate:
         assert body.startswith("Employer")
         assert "Relative IRI: company" in body
         assert "Type: owl:ObjectProperty" in body
-        assert "RDFS domain: [Employee](/classes/Employee.md)" in body
-        assert "RDFS range: [Company](/classes/Company.md)" in body
+        assert "RDFS domain: [Employee](../classes/Employee.md)" in body
+        assert "RDFS range: [Company](../classes/Company.md)" in body
         assert "# Associated with" in body
-        assert "* [Employee](/classes/Employee.md)" in body
+        assert "* [Employee](../classes/Employee.md)" in body
 
     def test_multi_class_property_no_domain_range(self, env):
         """Property defined in multiple classes suppresses domain/range."""
@@ -411,8 +420,8 @@ class TestPropertyTemplate:
         assert "RDFS domain:" not in body
         assert "RDFS range:" not in body
         assert "# Associated with" in body
-        assert "* [Person](/classes/Person.md)" in body
-        assert "* [Company](/classes/Company.md)" in body
+        assert "* [Person](../classes/Person.md)" in body
+        assert "* [Company](../classes/Company.md)" in body
 
     def test_property_relations(self, env):
         """subPropertyOf, equivalentProperty, inverseOf all render."""
@@ -448,9 +457,9 @@ class TestPropertyTemplate:
 
         body = render(env, "property.md.j2", view)
 
-        assert "Subproperty of: [knows](/properties/knows.md)" in body
+        assert "Subproperty of: [knows](knows.md)" in body
         assert "Equivalent to: works_at" in body
-        assert "Inverse of: [head_of](/properties/head-of.md)" in body
+        assert "Inverse of: [head_of](head-of.md)" in body
 
     def test_no_comment(self, env):
         """Property without comment starts with IRI line."""
@@ -590,21 +599,21 @@ class TestIndexTemplate:
             < body.index("# Classes")
         )
 
-        # Classes section with comments
+        # Classes section with comments (relative to bundle root)
         assert "# Classes" in body
         assert (
-            "* [Company](/classes/Company.md) - A company. More detail here." in body
+            "* [Company](classes/Company.md) - A company. More detail here." in body
         )
         assert (
-            "* [Person](/classes/Person.md) - A person in the test ontology." in body
+            "* [Person](classes/Person.md) - A person in the test ontology." in body
         )
 
         # Properties section — with and without comments
         assert "# Properties" in body
-        assert "* [company](/properties/company.md) - Employer" in body
-        assert "* [knows](/properties/knows.md) - A friend" in body
+        assert "* [company](properties/company.md) - Employer" in body
+        assert "* [knows](properties/knows.md) - A friend" in body
         # No comment for multi-class property
-        assert "* [name](/properties/name.md)" in body
+        assert "* [name](properties/name.md)" in body
 
     def test_no_comment(self, env):
         """Index without ontology comment starts at # Prefixes."""

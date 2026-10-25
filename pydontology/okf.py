@@ -3,6 +3,7 @@ import re
 from dataclasses import dataclass, field
 from enum import Enum
 from os import PathLike
+from os.path import dirname, relpath
 from pathlib import Path
 
 try:
@@ -83,8 +84,8 @@ def _one_line(text: str | None) -> str | None:
 def _local_name(uriref_str: str) -> str:
     """Extract the local-name portion from a URI string.
 
-    Takes the part after the last ``#`` or ``/``. For bare names with no
-    separator, returns the string unchanged.
+    Takes the part after the last ``#`` or ``/``, otherwise part after last ``:``.
+    For bare names with no separator, returns the string unchanged.
 
     Args:
         uriref_str (str): The URI string.
@@ -95,7 +96,47 @@ def _local_name(uriref_str: str) -> str:
     for sep in ("#", "/"):
         if sep in uriref_str:
             return uriref_str.rsplit(sep, 1)[-1]
+    if ":" in uriref_str:
+        return uriref_str.rsplit(":", 1)[-1]
     return uriref_str
+
+
+def _qname_pair(ns_manager, uriref_str: str) -> tuple[str | None, str | None]:
+    """Return ``(prefix, localname)`` for an IRI, or ``(None, None)``.
+
+    This helper exists because rdflib's ``NamespaceManager.qname()`` (and
+    its underlying ``compute_qname(generate=True)``) can **auto-generate**
+    synthetic prefixes like ``ns1`` for namespaces that are not explicitly
+    bound — e.g. the ``@base`` IRI in a JSON-LD context.  Those prefixes
+    do not appear in the document's PREFIX block, so compact forms like
+    ``ns1:Person`` are unresolvable by consumers.
+
+    Using ``compute_qname(generate=False)`` instead prevents auto-generation:
+    unknown namespaces raise ``KeyError``, and the helper returns
+    ``(None, None)`` so callers fall back to the full IRI.
+
+    A bare local name (an empty prefix bound to the namespace) also yields
+    ``(None, None)`` so callers fall back to the full IRI instead of
+    emitting an ambiguous unprefixed compact form.
+
+    Args:
+        ns_manager: An rdflib ``NamespaceManager`` instance.
+        uriref_str (str): The URI string.
+
+    Returns:
+        tuple[str | None, str | None]: ``(prefix, localname)`` or
+            ``(None, None)`` when no named prefix matches.
+    """
+    from rdflib.term import URIRef
+
+    try:
+        result = ns_manager.compute_qname(URIRef(uriref_str), generate=False)
+    except Exception:
+        return None, None
+    if result is None:
+        return None, None
+    prefix, _namespace, localname = result
+    return prefix or None, localname
 
 
 # ---------------------------------------------------------------------------
@@ -310,11 +351,29 @@ class IndexView:
 # ---------------------------------------------------------------------------
 
 
-def _ref_filter(ref: Reference) -> str:
-    """Render a Reference as a Markdown link or bare title."""
-    if ref.path is not None:
-        return f"[{ref.title}](/{ref.path})"
-    return ref.title
+def _make_ref_filter(source_path: str):
+    """Build a ``|ref`` filter closed over the source document's path.
+
+    Links are rendered relative to the source document's directory so the
+    bundle is navigable in local markdown previewers (e.g. Zed, VS Code)
+    that resolve links against the filesystem rather than a web root.
+
+    Args:
+        source_path (str): Bundle-relative path of the document being
+            rendered, e.g. ``classes/Person.md``.
+
+    Returns:
+        callable: A filter that takes a Reference and returns a markdown
+            link (relative to the source document) or a bare title.
+    """
+
+    def ref_filter(ref: Reference | PropertyRef) -> str:
+        if ref.path:
+            relative = relpath(ref.path, dirname(source_path) or ".")
+            return f"[{ref.title}]({relative})"
+        return ref.title
+
+    return ref_filter
 
 
 def _make_compact_iri_filter(ns_manager):
@@ -327,21 +386,14 @@ def _make_compact_iri_filter(ns_manager):
         callable: A filter that takes a URI string and returns a compact IRI
             (``prefix:localname``) or the full IRI if no prefix matches.
     """
-    from rdflib.term import URIRef
 
     def compact_iri(uriref_str: str) -> str:
         # Resolved-against-filesystem IRIs: show the local name only
         if uriref_str.startswith("file:"):
             return _local_name(uriref_str)
-        try:
-            uri = URIRef(uriref_str)
-            result = ns_manager.qname(uri)
-            if result is not None:
-                prefix, _namespace, localname = result
-                if prefix:
-                    return f"{prefix}:{localname}"
-        except Exception:
-            pass
+        prefix, localname = _qname_pair(ns_manager, uriref_str)
+        if prefix:
+            return f"{prefix}:{localname}"
         return uriref_str
 
     return compact_iri
@@ -357,21 +409,14 @@ def _make_iri_label_filter(ns_manager):
         callable: A filter that takes a URI string and returns ``"IRI"`` when
             the URI can be compacted or is absolute, otherwise ``"Relative IRI"``.
     """
-    from rdflib.term import URIRef
 
     def iri_label(uriref_str: str) -> str:
         # Resolved-against-filesystem IRIs are not real ontology IRIs
         if uriref_str.startswith("file:"):
             return "Relative IRI"
-        try:
-            uri = URIRef(uriref_str)
-            result = ns_manager.qname(uri)
-            if result is not None:
-                prefix, _namespace, _localname = result
-                if prefix:
-                    return "IRI"
-        except Exception:
-            pass
+        prefix, _localname = _qname_pair(ns_manager, uriref_str)
+        if prefix:
+            return "IRI"
         # Check for absolute IRI (has a scheme with "//")
         if "://" in uriref_str:
             return "IRI"
@@ -395,6 +440,10 @@ def _render_document(
 ) -> OKFDocument:
     """Render a single Jinja2 template into an OKF document.
 
+    The ``ref`` filter is bound to this document's path so links resolve
+    relative to the source file, keeping the bundle navigable in local
+    markdown previewers.
+
     Args:
         env (jinja2.Environment): The Jinja2 environment.
         template_name (str): The template filename, e.g. ``class.md.j2``.
@@ -403,6 +452,7 @@ def _render_document(
     Returns:
         OKFDocument: The rendered document.
     """
+    env.filters["ref"] = _make_ref_filter(view.path)
     template = env.get_template(template_name)
     body = template.render(view=view).strip()
     return OKFDocument(path=view.path, frontmatter=view.frontmatter, body=body)
@@ -486,7 +536,8 @@ def build_okf_bundle(
     env = jinja2.Environment(loader=loader, autoescape=False)
     env.filters["compact_iri"] = _make_compact_iri_filter(ns_manager)
     env.filters["iri_label"] = _make_iri_label_filter(ns_manager)
-    env.filters["ref"] = _ref_filter
+    # ``ref`` is bound per-document in _render_document so links resolve
+    # relative to each source file.
 
     # Render all documents
     documents: list[OKFDocument] = []

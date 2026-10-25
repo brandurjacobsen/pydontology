@@ -19,13 +19,13 @@ Closed shape (`sh:closed`): only these properties are allowed{% if view.ignored_
 {% if view.required_properties -%}
 # Required properties
 {% for prop in view.required_properties -%}
-* [{{ prop.title }}](/{{ prop.path }}){% if prop.inherited_from %} - inherited from {{ prop.inherited_from|ref }}{% endif %}
+* {{ prop|ref }}{% if prop.inherited_from %} - inherited from {{ prop.inherited_from|ref }}{% endif %}
 {% endfor %}
 
 {% endif -%}
 {% if view.associated_properties -%}
 # Associated properties
 {% for prop in view.associated_properties -%}
-* [{{ prop.title }}](/{{ prop.path }}){% if prop.inherited_from %} - inherited from {{ prop.inherited_from|ref }}{% endif %}
+* {{ prop|ref }}{% if prop.inherited_from %} - inherited from {{ prop.inherited_from|ref }}{% endif %}
 {% endfor %}
 {% endif -%}

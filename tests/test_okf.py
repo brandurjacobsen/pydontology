@@ -11,7 +11,7 @@ from pydontology import (
     Pydontology,
     Relation,
 )
-from pydontology.okf import _slugify
+from pydontology.okf import _local_name, _slugify
 from pydontology.rdfs import RDFSAnnotation as RDFS
 from pydontology.shacl import SHACLAnnotation as SH
 
@@ -103,13 +103,13 @@ def test_index_document(okf_onto):
         < text.index("# Classes")
     )
 
-    # Class and property entries with links
-    assert "/classes/Person.md" in text
-    assert "/classes/Company.md" in text
-    assert "/classes/Employee.md" in text
-    assert "/properties/knows.md" in text
-    assert "/properties/name.md" in text
-    assert "/properties/company.md" in text
+    # Class and property entries with links, relative to the index (bundle root)
+    assert "[Person](classes/Person.md)" in text
+    assert "[Company](classes/Company.md)" in text
+    assert "[Employee](classes/Employee.md)" in text
+    assert "[knows](properties/knows.md)" in text
+    assert "[name](properties/name.md)" in text
+    assert "[company](properties/company.md)" in text
 
 
 # ---------------------------------------------------------------------------
@@ -128,12 +128,12 @@ def test_class_document(okf_onto):
     assert "Relative IRI" in person
     assert "Person" in person
     assert "# Associated properties" in person
-    assert "* [knows](/properties/knows.md)" in person
-    assert "* [name](/properties/name.md)" in person
+    assert "* [knows](../properties/knows.md)" in person
+    assert "* [name](../properties/name.md)" in person
 
     employee = docs["classes/Employee.md"]
     # Own-declared properties come first, then inherited ones (id-sorted).
-    assert "* [company](/properties/company.md)" in employee
+    assert "* [company](../properties/company.md)" in employee
     assert (
         employee.index("company.md")
         < employee.index("knows.md")
@@ -166,13 +166,13 @@ def test_property_document(okf_onto):
     assert "Relative IRI" in name
     assert "DatatypeProperty" in name
     assert "# Associated with" in name
-    assert "/classes/Person.md" in name
+    assert "../classes/Person.md" in name
 
     company = docs["properties/company.md"]
     assert "Employer" in company
     assert "Relative IRI" in company
     assert "ObjectProperty" in company
-    assert "/classes/Employee.md" in company
+    assert "../classes/Employee.md" in company
 
 
 # ---------------------------------------------------------------------------
@@ -225,6 +225,42 @@ def test_slugify_raises_on_empty():
     """_slugify raises ValueError when the result is empty."""
     with pytest.raises(ValueError):
         _slugify("!!!")
+
+
+def test_local_name_http_path():
+    """A URL path yields the trailing segment, not the scheme prefix.
+
+    Regression test: the ``:`` fallback must only run when neither ``#``
+    nor ``/`` is present.  If it runs unconditionally first, an HTTP IRI
+    returns ``//host/vocab/Person`` instead of ``Person``.
+    """
+    assert _local_name("http://example.com/vocab/Person") == "Person"
+    assert _local_name("https://example.com/onto/classes/Employee") == "Employee"
+
+
+def test_local_name_fragment():
+    """A ``#`` fragment takes precedence over both ``/`` and ``:``."""
+    assert _local_name("http://example.com/vocab#name") == "name"
+    # Both a path and a fragment: the fragment wins
+    assert _local_name("http://example.com/vocab/onto#Person") == "Person"
+
+
+def test_local_name_urn():
+    """A URN without ``#`` or ``/`` falls back to the last ``:``."""
+    assert _local_name("urn:code:Person") == "Person"
+    assert _local_name("urn:uuid:1234") == "1234"
+
+
+def test_local_name_compact_iri():
+    """Compact IRIs like ``owl:Thing`` fall back to the last ``:``."""
+    assert _local_name("owl:Thing") == "Thing"
+    assert _local_name("rdfs:subClassOf") == "subClassOf"
+
+
+def test_local_name_bare():
+    """A bare name with no separator is returned unchanged."""
+    assert _local_name("Person") == "Person"
+    assert _local_name("") == ""
 
 
 # ---------------------------------------------------------------------------
@@ -286,7 +322,7 @@ def test_closed_shape_note():
 
     assert "Closed shape (`sh:closed`)" in thing
     assert "only these properties are allowed" in thing
-    assert "* [name](/properties/name.md)" in thing
+    assert "* [name](../properties/name.md)" in thing
 
 
 # ---------------------------------------------------------------------------

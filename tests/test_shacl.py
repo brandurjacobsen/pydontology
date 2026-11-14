@@ -389,7 +389,7 @@ def test_pyshacl_detects_string_length_violation(shacl_graph_json):
     assert not conforms, "Validation should fail for string length violation"
 
 
-def test_node_shape_closed_and_ignored_properties():
+def test_node_shape_closed_and_ignored_properties(test_context, vocab_namespace):
     """sh:closed / sh:ignoredProperties are class-level (node shape) annotations"""
 
     class ClosedThing(Entity):
@@ -407,7 +407,7 @@ def test_node_shape_closed_and_ignored_properties():
         | Annotated[BareClosed, SHACLAnnotation.closed(True)]
     )
     onto = Pydontology(ontology)
-    doc = json.loads(onto.shacl_graph().model_dump_json(exclude_none=True))
+    doc = json.loads(onto.shacl_graph(context=test_context).model_dump_json(exclude_none=True))
     by_id = {node["@id"]: node for node in doc["@graph"]}
 
     shape = by_id["ClosedThingShape"]
@@ -419,6 +419,25 @@ def test_node_shape_closed_and_ignored_properties():
     bare = by_id["BareClosedShape"]
     assert bare["sh:closed"] is True
     assert bare["sh:property"] == []
+
+    # rdflib must parse sh:ignoredProperties as an actual RDF list
+    g = Dataset()
+    g.parse(
+        data=onto.shacl_graph(context=test_context).model_dump_json(exclude_none=True),
+        format="json-ld",
+    )
+    head = None
+    for shape_iri in g.subjects(RDF.type, SH.NodeShape):
+        candidate = g.value(shape_iri, SH.ignoredProperties)
+        if candidate is not None:
+            head = candidate
+            break
+    assert head is not None
+    items = []
+    while head != RDF.nil:
+        items.append(str(g.value(head, RDF.first)))
+        head = g.value(head, RDF.rest)
+    assert items == [str(vocab_namespace.skippable)]
 
 
 def _language_in_ontology():

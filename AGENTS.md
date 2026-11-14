@@ -31,18 +31,17 @@
 - Domain: origin class by default unless property defined in multiple classes.
 - Subclassing: parent class or `owl:Thing` default when inheriting from `Entity`.
 - Type strictness: field types must resolve to a concrete type, `Relation`, or `LangStr`.
-- LangStr fields yield `owl:DatatypeProperty` with no `xsd:*` rdf:type and no default SHACL property shape (language-tagged literals carry are implicitly xsd:string).
+- LangStr fields yield `owl:DatatypeProperty` with no `xsd:*` rdf:type and no default SHACL property shape (language-tagged literals are implicitly xsd:string).
 - Type map: Python types map to `xsd:*` (see `TYPE_MAP` in `pydontology/pydontology.py`).
 
 ## Supported constructs
 - RDFS: `subClassOf`, `subPropertyOf`, `domain`, `range`, `comment`, `label`, `seeAlso`, `isDefinedBy`.
 - OWL: `equivalentClass`, `equivalentProperty`, `inverseOf`, property characteristics (symmetric, transitive, functional, inverse functional), `intersectionOf`.
-- SHACL: datatype, nodeKind, class, cardinality, numeric ranges, string constraints, property pair constraints, severity, name/description.
-- See `mkdocs/reference.md` for the current supported list.
+- SHACL: datatype, nodeKind, class, minCount/maxCount, minInclusive/maxInclusive, minExclusive/maxExclusive, minLength/maxLength, pattern, languageIn, uniqueLang, equals, disjoint, lessThan, lessThanOrEquals, closed, ignoredProperties, hasValue, shIn, severity, name, description.
+- See `mkdocs/reference.md` for the authoritative supported list.
 
 ## Known limitations and footguns
 - Multiple inheritance on class definitions is not supported; use annotations after definition.
-- SHACL `sh:in` exists in annotation types but is not wired into graph output.
 - Properties defined in multiple classes suppress default domain/comment and emit warnings (if enabled).
 - Strict type checking can raise errors when a field type is not in the type map.
 

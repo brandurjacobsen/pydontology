@@ -33,5 +33,8 @@ tools = ["jinja2", "rdflib"]
 packages = ["pydontology"]
 py-modules = ["__init__"]
 
+[tool.setuptools.package-data]
+pydontology = ["py.typed"]
+
 [tool.pytest.ini_options]
 markers = ["settings"]

@@ -552,3 +552,88 @@ def test_pyshacl_language_in_rejects_other_tag(test_context):
     )
 
     assert not conforms, "Validation should fail for disallowed language tag"
+
+
+def _sh_in_ontology():
+    class Scored(Entity):
+        grade: Annotated[str, SHACLAnnotation.shIn(["A", "B", "C", "D", "F"])]
+
+    return Pydontology(Scored)
+
+
+def test_sh_in_serialized_as_rdf_list(test_context, vocab_namespace):
+    """sh:in must be serialized as an RDF list, not a bare JSON array"""
+    onto = _sh_in_ontology()
+    doc = json.loads(onto.shacl_graph(context=test_context).model_dump_json(exclude_none=True))
+    node_shape = next(node for node in doc["@graph"] if node["@id"] == "ScoredShape")
+    prop_shape = node_shape["sh:property"][0]
+    assert prop_shape["sh:in"] == {"@list": ["A", "B", "C", "D", "F"]}
+
+    # rdflib must parse it as an actual RDF list (rdf:first / rdf:rest chain)
+    g = Dataset()
+    g.parse(
+        data=onto.shacl_graph(context=test_context).model_dump_json(exclude_none=True),
+        format="json-ld",
+    )
+    head = g.value(vocab_namespace.ScoredShape_grade, SH["in"])
+    items = []
+    while head != RDF.nil:
+        items.append(str(g.value(head, RDF.first)))
+        head = g.value(head, RDF.rest)
+    assert items == ["A", "B", "C", "D", "F"]
+
+
+def test_pyshacl_sh_in_accepts_allowed_value(test_context):
+    """Data with a value in the sh:in list conforms"""
+    onto = _sh_in_ontology()
+    shacl_ds = Dataset()
+    shacl_ds.parse(
+        data=onto.shacl_graph(context=test_context).model_dump_json(exclude_none=True),
+        format="json-ld",
+    )
+    data_ds = Dataset()
+    data_ds.parse(
+        data="""
+        {
+            "@context": {"@vocab": "http://example.com/vocab/", "@base": "http://example.com/vocab/"},
+            "@graph": [
+                {"@id": "s1", "@type": "Scored", "grade": "B"}
+            ]
+        }
+        """,
+        format="json-ld",
+    )
+
+    conforms, results_graph, results_text = validate(
+        data_ds, shacl_graph=shacl_ds, inference="rdfs", abort_on_first=False
+    )
+
+    assert conforms, f"Validation failed: {results_text}"
+
+
+def test_pyshacl_sh_in_rejects_other_value(test_context):
+    """Data with a value outside the sh:in list is a violation"""
+    onto = _sh_in_ontology()
+    shacl_ds = Dataset()
+    shacl_ds.parse(
+        data=onto.shacl_graph(context=test_context).model_dump_json(exclude_none=True),
+        format="json-ld",
+    )
+    data_ds = Dataset()
+    data_ds.parse(
+        data="""
+        {
+            "@context": {"@vocab": "http://example.com/vocab/", "@base": "http://example.com/vocab/"},
+            "@graph": [
+                {"@id": "s1", "@type": "Scored", "grade": "Z"}
+            ]
+        }
+        """,
+        format="json-ld",
+    )
+
+    conforms, results_graph, results_text = validate(
+        data_ds, shacl_graph=shacl_ds, inference="rdfs", abort_on_first=False
+    )
+
+    assert not conforms, "Validation should fail for value outside sh:in list"

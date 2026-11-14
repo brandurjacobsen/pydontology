@@ -453,8 +453,8 @@ class Pydontology:
             # constructs handled in _add_node_shape_annotations)
             elif isinstance(meta, SHACLAnnotation.HAS_VALUE):
                 prop_shape.hasValue = meta.value
-            # elif isinstance(meta, SHACLAnnotation.IN):
-            #    prop_shape.shIn = meta.value
+            elif isinstance(meta, SHACLAnnotation.IN):
+                prop_shape.shIn = meta.value
 
             # Validation parameter constructs
             elif isinstance(meta, SHACLAnnotation.SEVERITY):
@@ -543,9 +543,7 @@ class Pydontology:
             if isinstance(meta, SHACLAnnotation.CLOSED):
                 node_shape.closed = meta.value
             elif isinstance(meta, SHACLAnnotation.IGNORED_PROPERTIES):
-                node_shape.ignoredProperties = [
-                    Relation(id=prop) for prop in meta.value
-                ]
+                node_shape.ignoredProperties = meta.value
         return node_shape
 
     def _create_node_shapes(self) -> List[_NodeShape]:

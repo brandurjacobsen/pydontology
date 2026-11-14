@@ -568,7 +568,7 @@ class SHACLAnnotation:
             value (str): IRI of severity
 
         Returns:
-            SHACLAnnotation.CLASS (dataclass)
+            SHACLAnnotation.SEVERITY (dataclass)
         """
         return SHACLAnnotation.SEVERITY(value)
 

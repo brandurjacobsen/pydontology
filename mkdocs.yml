@@ -7,13 +7,13 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          docstring_style: google
           options:
+            docstring_style: google
             show_root_heading: true
             show_root_full_path: false
             extensions:
               - griffe_pydantic:
-                schema: true
+                  schema: true
 
 nav:
   - Home: index.md

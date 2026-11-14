@@ -454,7 +454,7 @@ def test_node_shape_closed_and_ignored_properties():
 
     shape = by_id["ClosedThingShape"]
     assert shape["sh:closed"] is True
-    assert shape["sh:ignoredProperties"] == [{"@id": "skippable"}]
+    assert shape["sh:ignoredProperties"] == {"@list": [{"@id": "skippable"}]}
 
     # A node shape is created for node-shape annotations even with no
     # property shapes

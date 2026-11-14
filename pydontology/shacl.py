@@ -1,9 +1,9 @@
-from typing import Annotated, List, Tuple
+from typing import Annotated, List
 
 from pydantic.dataclasses import dataclass
 from pydantic.functional_validators import AfterValidator
 
-from .models import RDFList
+from .models import RDFList, Relation
 from .validators import (
     val_bcp47,
     val_datatype,
@@ -155,10 +155,10 @@ class SHACLAnnotation:
 
         Node-shape construct: give as a class-level annotation,
         e.g. Annotated[MyClass, SHACLAnnotation.ignoredProperties([...])].
-        value is a tuple (not list) so the frozen dataclass stays hashable.
+        value is an RDFList of property IRI Relations.
         """
 
-        value: Tuple[str, ...]
+        value: RDFList
 
     @dataclass(frozen=True)
     class HAS_VALUE:
@@ -170,10 +170,10 @@ class SHACLAnnotation:
     class IN:
         """Dataclass that holds sh:in annotation for a property.
 
-        value is a tuple (not list) so the frozen dataclass stays hashable.
+        value is an RDFList of allowed values (str, int, float, bool).
         """
 
-        value: Tuple[str | int | float | bool, ...]
+        value: RDFList
 
     # Validation parameters
     @dataclass(frozen=True)
@@ -520,7 +520,9 @@ class SHACLAnnotation:
         Returns:
             SHACLAnnotation.IGNORED_PROPERTIES (dataclass)
         """
-        return SHACLAnnotation.IGNORED_PROPERTIES(tuple(value))
+        return SHACLAnnotation.IGNORED_PROPERTIES(
+            value=RDFList(list=tuple(Relation(id=v) for v in value))
+        )
 
     @staticmethod
     def hasValue(value: str | int | float | bool) -> HAS_VALUE:
@@ -538,21 +540,21 @@ class SHACLAnnotation:
         """
         return SHACLAnnotation.HAS_VALUE(value)
 
-    # @staticmethod
-    # def shIn(value: List[str | int | float | bool]) -> IN:
-    #    """SHACL sh:in annotation.
-    #
-    #    Specifies that each value node is a member of a provided SHACL list.
-    #    The values of sh:in in a shape are SHACL lists.
-    #    A shape has at most one value for sh:in.
-    #
-    #    Args:
-    #        value (List[Relation | str | int | float | bool]): List of allowed values
-    #
-    #    Returns:
-    #        SHACLAnnotation.IN (dataclass)
-    #    """
-    #    return SHACLAnnotation.IN(value)
+    @staticmethod
+    def shIn(value: List[str | int | float | bool]) -> IN:
+        """SHACL sh:in annotation.
+
+        Specifies that each value node is a member of a provided SHACL list.
+        The values of sh:in in a shape are SHACL lists.
+        A shape has at most one value for sh:in.
+
+        Args:
+            value (List[str | int | float | bool]): List of allowed values
+
+        Returns:
+            SHACLAnnotation.IN (dataclass)
+        """
+        return SHACLAnnotation.IN(value=RDFList(list=tuple(value)))
 
     # Validation parameter components
     @staticmethod

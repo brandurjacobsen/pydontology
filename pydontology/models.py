@@ -193,7 +193,7 @@ class Restriction(BaseModel):
 class RDFList(BaseModel):
     """An ordered RDF list structure (collection)"""
 
-    list: Tuple[Relation | Restriction | str, ...] = Field(serialization_alias="@list")
+    list: Tuple[Relation | Restriction | str | int | float | bool, ...] = Field(serialization_alias="@list")
 
     model_config = ConfigDict(
         populate_by_name=True, serialize_by_alias=True, frozen=True
@@ -540,7 +540,7 @@ class _PropertyShape(BaseModel):
     hasValue: Optional[str | int | float | bool] = Field(
         default=None, serialization_alias="sh:hasValue", description="Required value"
     )
-    shIn: Optional[List[str | int | float | bool]] = Field(
+    shIn: Optional[RDFList] = Field(
         default=None, serialization_alias="sh:in", description="List of allowed values"
     )
 
@@ -574,7 +574,7 @@ class _NodeShape(BaseModel):
     closed: Optional[bool] = Field(
         default=None, serialization_alias="sh:closed", description="Whether shape is closed"
     )
-    ignoredProperties: Optional[List[Relation]] = Field(
+    ignoredProperties: Optional[RDFList] = Field(
         default=None,
         serialization_alias="sh:ignoredProperties",
         description="Properties to ignore when closed",

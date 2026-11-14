@@ -12,8 +12,10 @@ class OWLAnnotation:
     These annotations are used in the construction of the ontology graph.
     """
 
-    # We want to to use OWL restrictions as OWLAnnotation.Restriction
-    # Is this the way to do it?
+    # Re-export Restriction so it's available as OWLAnnotation.Restriction,
+    # letting callers reference it inline in annotations like:
+    #     OWL.equivalentClass(OWL.Restriction(...))
+    # without a separate import from .models.
     Restriction = Restriction
 
     @dataclass(frozen=True)

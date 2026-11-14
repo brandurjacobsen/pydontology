@@ -139,7 +139,8 @@ def val_regex_pattern(input: str):
     """Custom field validator, that checks that string is a valid SPARQL regex pattern
 
     SPARQL regex patterns follow the XQuery 1.0 and XPath 2.0 syntax.
-    This is a basic validation to check for syntax errors.
+    Currently only checks for balanced parentheses, brackets, and braces —
+    it does not compile or evaluate the actual regex.
 
     Args:
         input (str): String to validate as SPARQL regex pattern
@@ -148,7 +149,7 @@ def val_regex_pattern(input: str):
         str: Validated input
 
     Raises:
-        ValueError: If the pattern is invalid
+        ValueError: If the pattern has unbalanced delimiters
     """
     # Basic check for balanced parentheses and brackets
     open_chars = {"(": ")", "[": "]", "{": "}"}
@@ -164,9 +165,6 @@ def val_regex_pattern(input: str):
 
         if stack:
             raise ValueError(f"Unbalanced delimiters: {stack}")
-
-        # This is a simplified check - for a complete validation,
-        # consider using a regex library to actually compile the pattern
 
         return input
     except Exception as e:

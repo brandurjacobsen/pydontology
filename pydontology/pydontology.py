@@ -450,7 +450,9 @@ class Pydontology:
 
             # Other Constraint Components
             # (SHACLAnnotation.CLOSED / IGNORED_PROPERTIES are node-shape
-            # constructs handled in _add_node_shape_annotations)
+            # constructs handled elsewhere: CLOSED in _add_node_shape_annotations,
+            # IGNORED_PROPERTIES there and also in _create_property_shapes
+            # to suppress empty property shapes.)
             elif isinstance(meta, SHACLAnnotation.HAS_VALUE):
                 prop_shape.hasValue = meta.value
             elif isinstance(meta, SHACLAnnotation.IN):

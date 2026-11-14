@@ -389,48 +389,6 @@ def test_pyshacl_detects_string_length_violation(shacl_graph_json):
     assert not conforms, "Validation should fail for string length violation"
 
 
-# def test_pyshacl_validates_employee_with_manager(shacl_graph_json, default_context):
-#    """Test that pyshacl validates employee with valid manager reference"""
-#    # Create valid data graph with employee and manager
-#    data_graph_json = """
-#    {
-#        "@context": {
-#            "@vocab": "http://example.com/vocab/",
-#            "@base": "http://example.com/vocab/",
-#        },
-#        "@graph": [
-#            {
-#                "@id": "manager1",
-#                "@type": "Manager",
-#                "name": "Jane Smith",
-#                "employee_id": "E001",
-#                "department": {"@id": "Engineering"},
-#            },
-#            {
-#                "@id": "employee1",
-#                "@type": "Employee",
-#                "name": "John Doe",
-#                "employee_id": "E002",
-#                "manager": {"@id": "manager1"},
-#                "department": {"@id": "Engineering"},
-#            },
-#        ],
-#    }
-#    """
-#
-#    data_ds = Dataset()
-#    data_ds.parse(data=data_graph_json, format="json-ld")
-#    shacl_ds = Dataset()
-#    shacl_ds.parse(data=shacl_graph_json, format="json-ld")
-#
-#    # Validate
-#    conforms, results_graph, results_text = validate(
-#        data_ds, shacl_graph=shacl_ds, inference="owl", abort_on_first=False
-#    )
-#
-#    assert conforms, f"Validation failed: {results_text}"
-
-
 def test_node_shape_closed_and_ignored_properties():
     """sh:closed / sh:ignoredProperties are class-level (node shape) annotations"""
 

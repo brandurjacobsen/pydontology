@@ -28,10 +28,6 @@ from .shacl import SHACLAnnotation
 from .types import TYPE_MAP, TYPE_SET
 
 
-class DuplicatePropertyError(Exception):
-    """Raised when fields/properties are redefined erroneously"""
-
-
 def _base_types(annotation) -> set | None:
     """Reduce an annotation to the set of concrete types it may hold.
 

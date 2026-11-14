@@ -4,7 +4,7 @@ from typing import Annotated
 import pytest
 from rdflib import OWL, RDF, RDFS, Dataset
 
-from pydontology import Entity, OWLAnnotation, Pydontology, Relation, Settings
+from pydontology import Entity, OWLAnnotation, Pydontology, RDFSAnnotation, Relation, Settings
 from pydontology.models import BaseMetaData
 from pydontology.pydontology import JSONLDGraph
 
@@ -361,3 +361,46 @@ def test_explicit_property_type_annotations():
     assert by_id["literal"]["@type"] == ["owl:ObjectProperty"]
     # relation field declared datatype property
     assert by_id["iri"]["@type"] == ["owl:DatatypeProperty"]
+
+
+def test_equivalent_property():
+    """owl:equivalentProperty must appear in the ontology graph"""
+    class Thing(Entity):
+        name: str = "x"
+        alias: Annotated[str, OWLAnnotation.equivalentProperty("name")] = "y"
+
+    onto = Pydontology(Thing)
+    doc = json.loads(onto.ontology_graph().model_dump_json(exclude_none=True))
+    by_id = {node["@id"]: node for node in doc["@graph"]}
+
+    assert by_id["alias"]["owl:equivalentProperty"] == {"@id": "name"}
+
+
+def test_see_also():
+    """rdfs:seeAlso must appear in the ontology graph"""
+    class Thing(Entity):
+        see_also: Annotated[
+            str,
+            RDFSAnnotation.seeAlso("https://example.com/ref"),
+        ] = "x"
+
+    onto = Pydontology(Thing)
+    doc = json.loads(onto.ontology_graph().model_dump_json(exclude_none=True))
+    by_id = {node["@id"]: node for node in doc["@graph"]}
+
+    assert by_id["see_also"]["rdfs:seeAlso"] == "https://example.com/ref"
+
+
+def test_is_defined_by():
+    """rdfs:isDefinedBy must appear in the ontology graph"""
+    class Thing(Entity):
+        prop: Annotated[
+            str,
+            RDFSAnnotation.isDefinedBy("https://example.com/def"),
+        ] = "x"
+
+    onto = Pydontology(Thing)
+    doc = json.loads(onto.ontology_graph().model_dump_json(exclude_none=True))
+    by_id = {node["@id"]: node for node in doc["@graph"]}
+
+    assert by_id["prop"]["rdfs:isDefinedBy"] == "https://example.com/def"

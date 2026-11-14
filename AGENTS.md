@@ -58,6 +58,9 @@
 - Tests live in `tests/` and use `pytest`.
 - Graph validation uses `rdflib` and `pyshacl` (see optional deps in `pyproject.toml`).
 - Run: `pytest` (ensure optional test deps installed).
+- Every RDFS, OWL, and SHACL construct must have at least one test
+  verifying it appears in the graph output; untested constructs are
+  considered incomplete.
 
 ## Docs and releases
 - MkDocs sources in `mkdocs/`, config in `mkdocs.yml`, output in `_site/`.

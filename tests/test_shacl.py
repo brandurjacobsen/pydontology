@@ -614,3 +614,90 @@ def test_pyshacl_sh_in_rejects_other_value(test_context):
     )
 
     assert not conforms, "Validation should fail for value outside sh:in list"
+
+
+def test_unique_lang(test_context, vocab_namespace):
+    """sh:uniqueLang must be present in the SHACL graph"""
+    class Thing(Entity):
+        label: Annotated[LangStr, SHACLAnnotation.uniqueLang(True)]
+
+    onto = Pydontology(Thing)
+    doc = json.loads(onto.shacl_graph(context=test_context).model_dump_json(exclude_none=True))
+    node_shape = next(node for node in doc["@graph"] if node["@id"] == "ThingShape")
+    prop_shape = node_shape["sh:property"][0]
+    assert prop_shape["sh:uniqueLang"] is True
+
+
+def test_has_value(test_context, vocab_namespace):
+    """sh:hasValue must be present in the SHACL graph"""
+    class Thing(Entity):
+        status: Annotated[str, SHACLAnnotation.hasValue("active")]
+
+    onto = Pydontology(Thing)
+    doc = json.loads(onto.shacl_graph(context=test_context).model_dump_json(exclude_none=True))
+    node_shape = next(node for node in doc["@graph"] if node["@id"] == "ThingShape")
+    prop_shape = node_shape["sh:property"][0]
+    assert prop_shape["sh:hasValue"] == "active"
+
+
+def test_equals(test_context, vocab_namespace):
+    """sh:equals must appear in the SHACL graph as a Relation"""
+    class Thing(Entity):
+        start: Annotated[str, SHACLAnnotation.equals("finish")] = "x"
+        finish: str = "y"
+
+    onto = Pydontology(Thing)
+    doc = json.loads(onto.shacl_graph(context=test_context).model_dump_json(exclude_none=True))
+    node_shape = next(node for node in doc["@graph"] if node["@id"] == "ThingShape")
+    prop_shape = next(ps for ps in node_shape["sh:property"] if ps["sh:path"] == {"@id": "start"})
+    assert prop_shape["sh:equals"] == {"@id": "finish"}
+
+
+def test_less_than(test_context, vocab_namespace):
+    """sh:lessThan must appear in the SHACL graph as a Relation"""
+    class Thing(Entity):
+        min_val: Annotated[int, SHACLAnnotation.lessThan("max_val")] = 0
+        max_val: int = 100
+
+    onto = Pydontology(Thing)
+    doc = json.loads(onto.shacl_graph(context=test_context).model_dump_json(exclude_none=True))
+    node_shape = next(node for node in doc["@graph"] if node["@id"] == "ThingShape")
+    prop_shape = next(ps for ps in node_shape["sh:property"] if ps["sh:path"] == {"@id": "min_val"})
+    assert prop_shape["sh:lessThan"] == {"@id": "max_val"}
+
+
+def test_less_than_or_equals(test_context, vocab_namespace):
+    """sh:lessThanOrEquals must appear in the SHACL graph as a Relation"""
+    class Thing(Entity):
+        low: Annotated[int, SHACLAnnotation.lessThanOrEquals("high")] = 0
+        high: int = 100
+
+    onto = Pydontology(Thing)
+    doc = json.loads(onto.shacl_graph(context=test_context).model_dump_json(exclude_none=True))
+    node_shape = next(node for node in doc["@graph"] if node["@id"] == "ThingShape")
+    prop_shape = next(ps for ps in node_shape["sh:property"] if ps["sh:path"] == {"@id": "low"})
+    assert prop_shape["sh:lessThanOrEquals"] == {"@id": "high"}
+
+
+def test_min_exclusive(test_context, vocab_namespace):
+    """sh:minExclusive must be present in the SHACL graph"""
+    class Thing(Entity):
+        score: Annotated[float, SHACLAnnotation.minExclusive(0.0)] = 50.0
+
+    onto = Pydontology(Thing)
+    doc = json.loads(onto.shacl_graph(context=test_context).model_dump_json(exclude_none=True))
+    node_shape = next(node for node in doc["@graph"] if node["@id"] == "ThingShape")
+    prop_shape = node_shape["sh:property"][0]
+    assert prop_shape["sh:minExclusive"] == 0.0
+
+
+def test_max_exclusive(test_context, vocab_namespace):
+    """sh:maxExclusive must be present in the SHACL graph"""
+    class Thing(Entity):
+        score: Annotated[float, SHACLAnnotation.maxExclusive(100.0)] = 50.0
+
+    onto = Pydontology(Thing)
+    doc = json.loads(onto.shacl_graph(context=test_context).model_dump_json(exclude_none=True))
+    node_shape = next(node for node in doc["@graph"] if node["@id"] == "ThingShape")
+    prop_shape = node_shape["sh:property"][0]
+    assert prop_shape["sh:maxExclusive"] == 100.0

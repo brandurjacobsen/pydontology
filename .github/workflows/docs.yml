@@ -25,7 +25,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install mkdocs mkdocstrings mkdocstrings-python griffe-pydantic mkdocs-darkly
+        run: pip install mkdocs mkdocstrings mkdocstrings-python griffe-pydantic mkdocs-bootswatch
 
       - name: Build docs
         run: mkdocs build

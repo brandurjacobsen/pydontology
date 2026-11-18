@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pydontology"
-version = "1.1.0"
+version = "2026.11.18"
 dependencies = ["pydantic>=2.12"]
 requires-python = ">=3.11"
 authors = [
@@ -20,7 +20,7 @@ license = "MIT"
 
 keywords = ["Pydantic", "Ontology", "RDF", "RDFS", "OWL", "SHACL", "JSON-LD", ]
 classifiers = [
-  "Development Status :: 4 - Beta",
+  "Development Status :: 5 - Production/Stable",
   "Programming Language :: Python"
 ]
 
